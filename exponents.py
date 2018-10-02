@@ -136,7 +136,7 @@ def df_scaling(dr, n_points, nfiles=10, prefix=''):
         Each element is the upper and lower bounds for each n_point in a single file.
     """
     
-    from scipy.interpolate import interp1d
+    from scipy.interpolate import UnivariateSpline
     from scipy.optimize import minimize
 
     df=[]  # fatalities fractal dimension
@@ -154,11 +154,11 @@ def df_scaling(dr, n_points, nfiles=10, prefix=''):
         for i,n in enumerate(n_points):
             df[-1][i], grid=_fractal_dimension(diameter[-n:], fatalities[-n:], return_grid=True,
                                                rng=(.5,3))
-            # Find width of the values of x such that they coincide with 0.1
-            curve=interp1d(*grid, kind='cubic', fill_value='extrapolate')
+            # Find width of the values of x such that they coincide with the error increasing by 0.1
+            curve=UnivariateSpline(*grid, ext='const', s=1e-5)
             f=lambda x:(curve(x)-.1)**2
-            edf[-1][i,0]=minimize(f, 0.7, method='nelder-mead')['x'][0]
-            edf[-1][i,1]=minimize(f, 1.9, method='nelder-mead')['x'][0]
+            edf[-1][i,0]=minimize(f, df[-1][i]-.1, method='nelder-mead')['x'][0]
+            edf[-1][i,1]=minimize(f, df[-1][i]+.1, method='nelder-mead')['x'][0]
 
     return np.vstack(df), edf
 
