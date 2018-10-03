@@ -19,9 +19,11 @@ def scaling_nu(dr, n_points, nfiles=10, prefix=''):
     Returns
     -------
     nu : ndarray
+    errnu : ndarray
     """
 
     nu=[] 
+    errnu=[]
 
     # Diameter here is the data diameter
     for fileix in range(nfiles):
@@ -30,11 +32,14 @@ def scaling_nu(dr, n_points, nfiles=10, prefix=''):
         Dmean=[i.mean() for i in diameter]
         Dmax=[i.max() for i in diameter]
         nu.append(np.zeros(len(n_points)))
+        errnu.append(np.zeros(len(n_points)))
         
         for i,n in enumerate(n_points):
-            nu[-1][i]=2 - loglog_fit(Dmax[-n:], Dmean[-n:], p=2)[0]
+            soln=2 - loglog_fit(Dmax[-n:], Dmean[-n:], p=2)
+            nu[-1][i]=soln[0]
+            errnu[-1][i]=loglog_fit_err_bars(Dmax[-n:], Dmean[-n:], soln)[0]
 
-    return np.vstack(nu)
+    return np.vstack(nu), np.vstack(errnu)
 
 def _fractal_dimension(x, y, initial_guess=1., rng=(1,2), return_grid=False):
     """Find the fractional dimension df such that <x^df> ~ <y>.
