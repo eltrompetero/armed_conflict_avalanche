@@ -161,18 +161,22 @@ def loglog_fit_err_bars(x, y, fit_params):
     Returns
     -------
     std : ndarray
-        Standard deviation for (da,db) from y=a * log(x) + b.
+        Standard deviation for (da,db) from log(y)=a * log(x) + b.
     """
 
     import numdifftools as ndt
 
-    f=lambda args:((np.log(y) - args[0]*np.log(x)-args[1])**2 + 
-                   (np.log(y)/args[0] - np.log(x)-args[1]/args[0])**2).sum()/2
-    hess=ndt.Hessian(f)(fit_params)*2  # factor of 2 from taylor expansion
-    cov=np.linalg.inv(hess)
+    #f=lambda args:((np.log(y) - args[0]*np.log(x)-args[1])**2 + 
+    #               (np.log(y)/args[0] - np.log(x)-args[1]/args[0])**2).sum()/2
+    #hess=ndt.Hessian(f)(fit_params)*2  # factor of 2 from taylor expansion
+    #cov=np.linalg.inv(hess)
     # project max extension along parameter a axis as if variances were additive
-    eigval, eigvec=np.linalg.eig(cov)
-    return np.sqrt( eigval.dot(np.abs(eigvec.T)) )
+    #eigval, eigvec=np.linalg.eig(cov)
+    #return np.sqrt( eigval.dot(np.abs(eigvec.T)) )
+    f=lambda args:np.concatenate((np.log(y) - args[0]*np.log(x)-args[1],
+                                  np.log(y)/args[0] - np.log(x)-args[1]/args[0]))
+    # return standard error of the mean from log likelihood estimation of parameters
+    return f(fit_params).std()/np.sqrt(len(x)),0
 
 def extract_ua_from_geosplit(geoSplit):
     """Pull out sets of unique actors from each avalanche listed in geoSplit.
