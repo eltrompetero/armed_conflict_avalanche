@@ -127,9 +127,9 @@ def extract_info_voronoi(subdf, dx, dt, grid_no,
     if split_date:
         geoSplit=[]
         for g in geoSplit_:
-            g_=tpixelate(g,dt,subdf['EVENT_DATE'].min(),subdf['EVENT_DATE'].max()) 
+            g_=tpixelate(g, dt, subdf['EVENT_DATE'].min(), subdf['EVENT_DATE'].max()) 
             geoSplit+=g_
-            l1,l2=sum([sum([len(j) for j in i]) for i in g_]),len(g)
+            l1, l2=sum([sum([len(j) for j in i]) for i in g_]), len(g)
             assert l1==l2,(l1,l2)
     
     try:

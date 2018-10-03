@@ -247,12 +247,14 @@ def distributions(dr, nfiles=10, prefix=''):
             keepix=n>=(dayThreshold[i]*2)
             _,soln=dpl.max_likelihood_alpha(n[keepix],
                                             lower_bound=dayThreshold[i]*2,
-                                            upper_bound=7424,
+                                            upper_bound=np.ceil(7304/dayThreshold[i])*dayThreshold[i],
                                             full_output=True)
             if soln['success'] or 'precision' in soln['message']:
                 alpha[fileix][i]=soln['x']
+                # Error bars represent 4 std deviations assuming Gaussian distribution
                 ealpha[fileix][:,i]=dpl.alpha_range(n[keepix], alpha[fileix][i], .5*keepix.sum(),
-                                                    lower_bound=dayThreshold[i]*2)
+                                                    lower_bound=dayThreshold[i]*2, 
+                                                    upper_bound=np.ceil(7304/dayThreshold[i])*dayThreshold[i])
             else:
                 alpha[fileix][i]=nan
     
