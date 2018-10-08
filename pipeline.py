@@ -4,6 +4,17 @@ import pickle
 
 
 def _vtess_loop(args):
+    """
+    Loop through increasingly finer resolutions. 
+
+    Parameters
+    ----------
+    args : list
+        (p, fname, initial_coarse_grid)
+        p : list of denominators to divide pi by. these should be increasing (finer resolution)
+        fname : name under which to save results (folder is given by p) and excluding '.p' suffix
+        initial_coarse_grid : optional coarse grid to use for first sampling run
+    """
     from numpy import pi
     if len(args)==2:
         p, fname=args
@@ -56,7 +67,7 @@ def voronoi(piDenom, nStarts, fileno_start=0, n_jobs=None, initial_coarse_grid=N
             args.append( (piDenom, str(i+fileno_start).zfill(2), initial_coarse_grid) )
 
     pool=mp.Pool(n_jobs)
-    pool.map(_vtess_loop,args)
+    pool.map(_vtess_loop, args)
     pool.close()
 
 def extract_info_voronoi(subdf, dx, dt, grid_no,

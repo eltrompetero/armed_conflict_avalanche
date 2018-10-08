@@ -662,7 +662,7 @@ def intra_event_dx(splitdf):
     intraEventdx = np.concatenate(intraEventdx)
     return intraEventdx
 
-def extract_event_type(df,event_type):
+def extract_event_type(df, event_type):
     """
     Extract given event type from ACLED DataFrame. Some corrections to the data.
     
@@ -679,12 +679,13 @@ def extract_event_type(df,event_type):
     subdf=df.iloc[ix].copy()
 
     # Fix some typos. v5.0
-    actorHeaders = ['ACTOR1','ALLY_ACTOR_1','ACTOR2','ALLY_ACTOR_2']
+    actorHeaders = ['ACTOR1','ALLY_ACTOR_1','ACTOR2','ALLY_ACTOR_2','ASSOC_ACTOR_1','ASSOC_ACTOR_2']
     for h in actorHeaders:
-        subdf[h].fillna('',inplace=True)
-        ix = (subdf[h]=='Civililans (Liberia)').values
-        subdf.loc[ix,h] = 'Civilians (Liberia)'
-        subdf[h] = subdf[h].apply(lambda x:'' if 'Civilian' in x else x)
+        if h in subdf.columns:
+            subdf[h].fillna('',inplace=True)
+            ix = (subdf[h]=='civililans (liberia)').values
+            subdf.loc[ix,h] = 'civilians (liberia)'
+            subdf[h] = subdf[h].apply(lambda x:'' if 'civilian' in x else x)
     return subdf
 
 def digitize_actors(subdf):
@@ -702,9 +703,9 @@ def digitize_actors(subdf):
     subdf : pandas.DataFrame
         With new column 'actors' added.
     """
-    uActors,uIx = np.unique(np.concatenate(( subdf['ACTOR1'],subdf['ALLY_ACTOR_1'],
-                                             subdf['ACTOR2'],subdf['ALLY_ACTOR_2'] )),
-                            return_index=True)
+    uActors, uIx = np.unique(np.concatenate(( subdf['ACTOR1'], subdf['ALLY_ACTOR_1'],
+                                              subdf['ACTOR2'], subdf['ALLY_ACTOR_2'] )),
+                             return_index=True)
     uActors = uActors.tolist()
     print("Setting index 0 to this actors: %s"%uActors[0])
 
