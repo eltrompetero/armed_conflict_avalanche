@@ -470,12 +470,11 @@ def split_by_actor(subdf):
         if not a in uactors:
             uactors.append(a)
     
-    # Combine all sets that intersect. Repeat til there are no intersections left. This should get a
-    # connected chain of actors.
+    # Combine all sets that intersect. This should get a connected chain of actors.
     uactors = [set(a) for a in uactors]
     # if there is only one event there can only be one unique set of actors
     if len(uactors)==1:
-        return [subdf],uactors
+        return [np.arange(len(subdf),dtype=int)], uactors
     uactors=merge(uactors)
     
     # Split the DataFrame by these unique groups that were identified.
@@ -484,12 +483,12 @@ def split_by_actor(subdf):
     for ai,a in enumerate(subdf['actors']):
         for si,s in enumerate(uactors):
             if set(a)<=s:
-                split[si].append(subdf.iloc[ai])
+                split[si].append(ai)
                 break
-    split = [pd.concat(s,axis=1,ignore_index=False).transpose() for s in split]
+    #split = [pd.concat(s,axis=1,ignore_index=False).transpose() for s in split]
     #if not type(split) is list:
     #    split=[split]
-    return split,uactors
+    return split, uactors
 
 def get_latlon(df):
     return np.vstack((df['LATITUDE'],df['LONGITUDE'])).T

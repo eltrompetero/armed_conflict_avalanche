@@ -194,34 +194,34 @@ def extract_info(subdf,dx,dt,
     # Split by healpy pixels
     if split_geo:
         if dx==-1:
-            geoSplit_,pixelDiameter=[subdf],6370*np.pi
+            geoSplit_, pixelDiameter=[subdf], 6370*np.pi
         else:
-            geoSplit_,pixelDiameter=pixelate(subdf,2**dx)
+            geoSplit_, pixelDiameter=pixelate(subdf, 2**dx)
     else:
-        geoSplit_=[subdf]
+        geoSplit_=[np.arange(len(subdf), dtype=int)]
     
     # Split by actors.
     if split_actor:
-        geoSplit_=[split_by_actor(s)[0] for s in geoSplit_]
+        geoSplit_=[[s[ix] for ix in split_by_actor(subdf.iloc[s.tolist(),:])[0]] for s in geoSplit_]
         geoSplit_=list(chain.from_iterable(geoSplit_))
     elif not split_geo:
-        geoSplit_=[subdf]
+        geoSplit_=[np.arange(len(subdf), dtype=int)]
 
     # Split by date.
     if split_date:
         geoSplit=[]
         for g in geoSplit_:
-            g_=tpixelate(g,dt,subdf['EVENT_DATE'].min(),subdf['EVENT_DATE'].max()) 
-            geoSplit+=g_
-            l1,l2=sum([sum([len(j) for j in i]) for i in g_]),len(g)
-            assert l1==l2,(l1,l2)
+            g_=tpixelate(subdf.iloc[g], dt, subdf['EVENT_DATE'].min(), subdf['EVENT_DATE'].max()) 
+            geoSplit+=[g[i] for i in g_]
+            l1, l2=sum([len(i) for i in g_]), len(g)
+            assert l1==l2, (l1,l2)
     
     try:
         geoSplit;
     except NameError:
         geoSplit=geoSplit_
     
-    eventCount, duration, fatalities, diameter=duration_and_size(geoSplit)
+    eventCount, duration, fatalities, diameter=duration_and_size([subdf.iloc[ix] for ix in geoSplit])
     return geoSplit,eventCount,duration,fatalities,diameter
 
 def setup_quickload(path):
