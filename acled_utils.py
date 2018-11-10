@@ -132,12 +132,20 @@ def sample_sphere(n=1,degree=True):
     randlon=np.random.uniform(-np.pi,np.pi,size=n)
     return randlon,randlat
 
-def loglog_fit(x, y, p=2, iprint=False, full_output=False):
+def loglog_fit(x, y, p=2, iprint=False, full_output=False, symmetric=True):
     """Symmetric log-log fit."""
+
     from scipy.optimize import minimize
-    def cost(params):
-        a,b=params
-        return (np.abs(a*np.log(x)+b-np.log(y))**p).sum()+(np.abs(np.log(x)+b/a-np.log(y)/a)**p).sum()
+
+    if symmetric:
+        def cost(params):
+            a,b=params
+            return (np.abs(a*np.log(x)+b-np.log(y))**p).sum()+(np.abs(np.log(x)+b/a-np.log(y)/a)**p).sum()
+    else:
+        def cost(params):
+            a,b=params
+            return (np.abs(a*np.log(x)+b-np.log(y))**p).sum()
+
     soln=minimize(cost, [1,0])
     if iprint and not soln['success']:
         print("loglog_fit did not converge on a solution.")
@@ -176,7 +184,8 @@ def loglog_fit_err_bars(x, y, fit_params):
     f=lambda args:np.concatenate((np.log(y) - args[0]*np.log(x)-args[1],
                                   np.log(y)/args[0] - np.log(x)-args[1]/args[0]))
     # return standard error of the mean from log likelihood estimation of parameters
-    return f(fit_params).std()/np.sqrt(len(x)),0
+    return f(fit_params).std(ddof=1)
+    return f(fit_params).std(ddof=1)/np.sqrt(len(x))
 
 def extract_ua_from_geosplit(geoSplit):
     """Pull out sets of unique actors from each avalanche listed in geoSplit.
@@ -446,49 +455,6 @@ def merge(sets):
             results.append(common)
         sets = results
     return sets
-
-def split_by_actor(subdf):
-    """Split by participants.
-
-    Parameters
-    ----------
-    subdf : pandas.DataFrame
-        Should have actors column.
-
-    Returns
-    -------
-    splitByActors : list of pandas.DataFrame
-    uactors : list of sets
-        Unique actors used to split the dataframe.
-    """
-    # Remove all rows that have null values. for actors
-    subdf=subdf.iloc[ subdf['actors'].isnull().values==0 ]
-    
-    # Collect all sets of actors.
-    uactors = []
-    for a in subdf['actors']:
-        if not a in uactors:
-            uactors.append(a)
-    
-    # Combine all sets that intersect. This should get a connected chain of actors.
-    uactors = [set(a) for a in uactors]
-    # if there is only one event there can only be one unique set of actors
-    if len(uactors)==1:
-        return [np.arange(len(subdf),dtype=int)], uactors
-    uactors=merge(uactors)
-    
-    # Split the DataFrame by these unique groups that were identified.
-    split = [[] for i in range(len(uactors))]
-    #for ai,a in subdf['actors'].iteritems():
-    for ai,a in enumerate(subdf['actors']):
-        for si,s in enumerate(uactors):
-            if set(a)<=s:
-                split[si].append(ai)
-                break
-    #split = [pd.concat(s,axis=1,ignore_index=False).transpose() for s in split]
-    #if not type(split) is list:
-    #    split=[split]
-    return split, uactors
 
 def get_latlon(df):
     return np.vstack((df['LATITUDE'],df['LONGITUDE'])).T

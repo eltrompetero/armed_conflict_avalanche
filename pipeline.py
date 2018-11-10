@@ -2,6 +2,8 @@ from .acled_utils import *
 from data_sets.acled import *
 import pickle
 
+def coarse_grain():
+    return
 
 def _vtess_loop(args):
     """
