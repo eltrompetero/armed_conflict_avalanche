@@ -19,6 +19,17 @@ from numba import jit,njit
 DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
 
 
+def transform_bds_to_offset(x,bds):
+    """To make it easier to use matplotlib's errorbar plotting function, take a vector 
+    of data and error bounds and convert it to an output that can be passed directly to the yerr kwarg.
+    """
+    
+    if type(x) is float or type(x) is int:
+        assert bds.size==2
+        return np.array([[x-bds[0]],bds[1]-x])
+    
+    return np.vstack((x-bds[0],bds[1]-x))
+
 def coarse_grain_voronoi_tess(dx, fileno):
     """
     Successive coarse-graining from lowest layer to each upper layers. To keep the coarse-graining

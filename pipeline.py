@@ -1,9 +1,99 @@
 from .acled_utils import *
 from data_sets.acled import *
 import pickle
+from statsmodels.distributions import ECDF
 
-def coarse_grain():
-    return
+
+def diameter(Y):
+    """Calculate max likelihood estimates for nu."""
+    
+    from misc.stats import PowerLaw
+    diameterInfo={}
+    ecdfs=[]
+
+    for i,d in enumerate(Y):
+        if (d>0).any(): 
+            ecdfs.append( ECDF(d[d>0]) )
+    diameterInfo['ecdfs']=ecdfs
+
+    nu=np.zeros(len(Y))
+    for i,y in enumerate(Y):
+        y=y[y>0]
+        nu[i]=PowerLaw.max_likelihood(y, lower_bound=y.min())
+    diameterInfo['nu']=nu
+    diameterInfo['cdfs']=[PowerLaw.cdf(alpha=nu[0], lower_bound=Y[0][Y[0]>0].min()),
+                          PowerLaw.cdf(alpha=nu[-1], lower_bound=Y[-1][Y[-1]>0].min())]
+    return diameterInfo
+
+def size(Y):
+    """Calculate max likelihood estimates for tau."""
+
+    from misc.stats import ExpTruncDiscretePowerLaw
+    sizeInfo={}
+    ecdfs=[]
+    
+    for i,d in enumerate(Y):
+        if (d>0).any():
+            ecdfs.append( ECDF(d[d>1]) )
+    sizeInfo['ecdfs']=ecdfs
+
+    tau=np.zeros(len(Y))
+    el=np.zeros(len(Y))
+    for i,y in enumerate(Y):
+        y=y[y>1]
+        tau[i],el[i]=ExpTruncDiscretePowerLaw.max_likelihood(y, lower_bound=y.min())
+    sizeInfo['tau']=tau
+    sizeInfo['el']=el
+    sizeInfo['cdfs']=[ExpTruncDiscretePowerLaw.cdf(alpha=tau[0],
+                                                   el=el[0],
+                                                   lower_bound=y.min()),
+                      ExpTruncDiscretePowerLaw.cdf(alpha=tau[-1],
+                                                   el=el[-1],
+                                               lower_bound=y.min())]
+    return sizeInfo
+
+def fatality(Y, fmn=10):
+    """Max likelihood estimates for upsilon."""
+
+    from misc.stats import DiscretePowerLaw
+    fatalityInfo={}
+    ecdfs=[]
+    
+    for d in Y:
+        if (d>1).any():
+            ecdfs.append( ECDF(d[d>=fmn]) )
+    fatalityInfo['ecdfs']=ecdfs
+
+    ups=np.zeros(len(Y))
+    for i,y in enumerate(Y):
+        y=y[y>=fmn]
+        ups[i]=DiscretePowerLaw.max_likelihood(y, lower_bound=y.min(), initial_guess=1.2)
+    fatalityInfo['ups']=ups
+    fatalityInfo['cdfs']=[DiscretePowerLaw.cdf(alpha=ups[0], lower_bound=Y[0][Y[0]>=fmn].min()),
+                          DiscretePowerLaw.cdf(alpha=ups[-1], lower_bound=Y[-1][Y[-1]>=fmn].min())]
+    return fatalityInfo
+
+def duration(Y):
+    """Max likelihood estimate of alpha."""
+
+    from misc.stats import ExpTruncDiscretePowerLaw
+    durationInfo={}
+    ecdfs=[]
+
+    for d in Y:
+        if (d>1).any():
+            ecdfs.append( ECDF(d[d>1]) )
+    durationInfo['ecdfs']=ecdfs
+
+    alpha=np.zeros(len(Y))
+    el=np.zeros(len(Y))
+    for i,y in enumerate(Y):
+        y=y[y>1]
+        alpha[i],el[i]=ExpTruncDiscretePowerLaw.max_likelihood(y, lower_bound=y.min())
+    durationInfo['alpha']=alpha
+    durationInfo['el']=el
+    durationInfo['cdfs']=[ExpTruncDiscretePowerLaw.cdf(alpha=alpha[0], el=el[0], lower_bound=y.min())]
+    return durationInfo
 
 def _vtess_loop(args):
     """
