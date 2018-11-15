@@ -165,38 +165,70 @@ def loglog_fit(x, y, p=2, iprint=False, full_output=False, symmetric=True):
         return soln['x'], soln
     return soln['x']
 
-def loglog_fit_err_bars(x, y, fit_params):
-    """Assuming Gaussian error bars on the loglog_fit, use Laplace approximation to get error bars
-    that correspond to the distance spanned by the covariance matrix in each dimension.
-
-    The covariance matrix is calculated from the inverse Hessian.
+def loglog_fit_err_bars(x, y, fit_params, show_plot=False):
+    """Calculate posterior probability of exponent parameter.
 
     Parameters
     ----------
     x : ndarray
     y : ndarray
     fit_params : twople
+    posterior : bool,False
+    show_plot : bool,False
 
     Returns
     -------
-    std : ndarray
-        Standard deviation for (da,db) from log(y)=a * log(x) + b.
+    bds : twople
+        95% confidence intervals on exponent parameter assuming fixed offset.
     """
 
     import numdifftools as ndt
+    from numpy import log
 
-    #f=lambda args:((np.log(y) - args[0]*np.log(x)-args[1])**2 + 
-    #               (np.log(y)/args[0] - np.log(x)-args[1]/args[0])**2).sum()/2
-    #hess=ndt.Hessian(f)(fit_params)*2  # factor of 2 from taylor expansion
-    #cov=np.linalg.inv(hess)
-    # project max extension along parameter a axis as if variances were additive
-    #eigval, eigvec=np.linalg.eig(cov)
-    #return np.sqrt( eigval.dot(np.abs(eigvec.T)) )
-    f=lambda args:np.concatenate((np.log(y) - args[0]*np.log(x)-args[1],
-                                  np.log(y)/args[0] - np.log(x)-args[1]/args[0]))
-    # return standard error of the mean from log likelihood estimation of parameters
-    return f(fit_params).std(ddof=1)
-    return f(fit_params).std(ddof=1)/np.sqrt(len(x))
+    # posterior probability estimation of error bars
+    fit_params=loglog_fit(x, y)
+
+    resx=log(y) - np.polyval(fit_params, log(x))
+    resy=(log(y) - fit_params[1])/fit_params[0] - log(x)
+    varerr=np.concatenate((resx, resy)).var(ddof=1)
+
+    def f(s, t=fit_params[1], x=x, y=y):
+        """Function for calculating log likelihood."""
+        return -1/2/varerr * ( ((log(y) - s*log(x) - t)**2 + ((log(y)-t)/s - log(x))**2).mean() )
+    f=np.vectorize(f)
+
+    # find bounding interval corresponding to a drop of exp(10) in probability
+    dx=1e-2  # amount to increase bounds by per iteration
+    bds=[fit_params[0], fit_params[0]]
+    peak=f(fit_params[0])
+
+    while (peak-f(bds[0]))<10:
+        bds[0]-=dx
+        
+    while (peak-f(bds[1]))<10:
+        bds[1]+=dx
+    
+    # construct discrete approximation to probability distribution
+    x=np.linspace(*bds, 10_000)
+    y=f(x)
+    y-=y.max()
+    p=np.exp(y)
+    p/=p.sum()
+
+    if show_plot:
+        import matplotlib.pyplot as plt
+        fig,ax=plt.subplots()
+        ax.plot(x, p)
+        ax.vlines(fit_params[0], 0, p.max())
+        ax.set(xlabel=r'$x$')
+        ax.legend((r'$p(x)$', r'$s^*$'))
+
+    # sample for confidence intervals
+    r=np.random.choice(x, p=p, size=1_000_000)
+
+    if show_plot:
+        return (np.percentile(r,2.5), np.percentile(r,97.5)), (fig,ax)
+    return np.percentile(r,2.5), np.percentile(r,97.5)
 
 def extract_ua_from_geosplit(geoSplit):
     """Pull out sets of unique actors from each avalanche listed in geoSplit.

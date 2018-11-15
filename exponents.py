@@ -41,7 +41,7 @@ def scaling_nu(dr, n_points, nfiles=10, prefix=''):
 
     return np.vstack(nu), np.vstack(errnu)
 
-def _fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5), return_grid=False):
+def _fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5), return_grid=False, return_err=True):
     """Find the fractional dimension df such that <x^df> ~ <y>.
 
     These averages should be related 1:1 when df is correct.
@@ -55,18 +55,37 @@ def _fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5), return_grid=False):
     Returns
     -------
     df : float
+    errbds : twople
+        Error bars on the loglog_fit exponent parameter measured by the standard deviation of the
+        log residuals.
     """
 
     from scipy.optimize import minimize,brute
     ym=[i.mean() for i in y]
+    
+    # grid sampling is often necessary for convergence
+    soln=brute( lambda df:(loglog_fit([(i**df).mean() for i in x], ym)[0] - 1)**2, (rng,),
+                Ns=20, full_output=True)
+    
+    if return_err:
+        # error is estimated by looking at fluctuation in exponent parameter in loglog_fit and seeing
+        # how that corresponds to fluctuations in the cost function comparing the fractal dimension to
+        # 1. then that is mapped to confidence intervals in the fractal dimension
+        df=soln[0]
+        xm=[(i**df).mean() for i in x]
+        logfitParams=loglog_fit(xm, ym)
+        logfitErr=loglog_fit_err_bars(xm, ym, logfitParams)  # typically very tight bounds
 
-    soln=brute( lambda df:(loglog_fit([(i**df).mean() for i in x], ym)[0] - 1)**2,
-                (rng,), Ns=20, full_output=True)
+        # range of variation in cost function
+        maxvar=max((logfitErr[0]-1)**2, (logfitErr[1]-1)**2)
+        errbds=_fractal_dimension_error(x, ym, df, logfitParams[0],
+                                        threshold=maxvar)
+
     if return_grid:
-        return soln[0], (soln[2], soln[3])
-    return soln[0]
+        return soln[0], errbds, (soln[2], soln[3])
+    return soln[0], errbds
 
-def _fractal_dimension_error(x, y, params, threshold=.01, eps=1e-6):
+def _fractal_dimension_error(x, y, df, params, threshold=.01, eps=1e-6):
     """Find the range of fractal dimension allowed such that the squared error doesn't exceed given
     threshold.
 
@@ -76,7 +95,7 @@ def _fractal_dimension_error(x, y, params, threshold=.01, eps=1e-6):
         Each element should contain many entries that will be used to calculated the sample mean.
     y : list
     df : float
-    threshold : float,.1
+    threshold : twople,.1
 
     Returns
     -------
@@ -84,23 +103,30 @@ def _fractal_dimension_error(x, y, params, threshold=.01, eps=1e-6):
     """
     
     from scipy.optimize import minimize_scalar
+    
+    if type(threshold) is float or type(threshold) is np.float64:
+        threshold=(threshold, threshold)
     ym=[i.mean() for i in y]
     
     # no way to get positive error bounds if the estimated parameters are negative
     if params<0:
         return np.nan, np.nan
-
-    cost=np.vectorize(lambda df,x=x,ym=ym : abs((loglog_fit([(i**df).mean()
-                                                             for i in x], ym)[0] - 1)**2-threshold))
+    
+    xm=lambda df, x=x: [(i**df).mean() for i in x] 
+    lcost=np.vectorize(lambda df,x=x,ym=ym : abs(abs(loglog_fit(xm(df), ym)[0] - 1) - np.sqrt(threshold[0])) )
+    ucost=np.vectorize(lambda df,x=x,ym=ym : abs(abs(loglog_fit(xm(df), ym)[0] - 1) - np.sqrt(threshold[1])) )
 
     lb=.1
     while lb>1e-3:
         try:
-            return (minimize_scalar(cost, bounds=(max([min([lb,params-1]),0]),params-eps), method='bounded')['x'],
-                    minimize_scalar(cost, bounds=(params+eps,params+2), method='bounded')['x'])
+            bds=(minimize_scalar(lcost, bounds=(max([min([lb,df-1]),0]),df-eps), method='bounded')['x'],
+                 minimize_scalar(ucost, bounds=(df+eps,df+2), method='bounded')['x'])
+            return bds 
         except ValueError:
             lb/=2
-    raise Exception(lb)
+
+    print("Problem calculating fractal dimension error bounds.")
+    return (np.nan,np.nan)
 
 def fractal_dimension(dr, n_points, nfiles=10, prefix=''):
     """Find the fractional dimension df such that <x^df> ~ <y>. But cannot calculate temporal
