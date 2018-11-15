@@ -41,7 +41,7 @@ def scaling_nu(dr, n_points, nfiles=10, prefix=''):
 
     return np.vstack(nu), np.vstack(errnu)
 
-def _fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5), return_grid=False, return_err=True):
+def fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5), return_grid=False, return_err=True):
     """Find the fractional dimension df such that <x^df> ~ <y>.
 
     These averages should be related 1:1 when df is correct.
@@ -78,14 +78,14 @@ def _fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5), return_grid=False, 
 
         # range of variation in cost function
         maxvar=max((logfitErr[0]-1)**2, (logfitErr[1]-1)**2)
-        errbds=_fractal_dimension_error(x, ym, df, logfitParams[0],
+        errbds=fractal_dimension_error(x, ym, df, logfitParams[0],
                                         threshold=maxvar)
 
     if return_grid:
         return soln[0], errbds, (soln[2], soln[3])
     return soln[0], errbds
 
-def _fractal_dimension_error(x, y, df, params, threshold=.01, eps=1e-6):
+def fractal_dimension_error(x, y, df, params, threshold=.01, eps=1e-6):
     """Find the range of fractal dimension allowed such that the squared error doesn't exceed given
     threshold.
 
@@ -128,59 +128,24 @@ def _fractal_dimension_error(x, y, df, params, threshold=.01, eps=1e-6):
     print("Problem calculating fractal dimension error bounds.")
     return (np.nan,np.nan)
 
-def fractal_dimension(dr, n_points, nfiles=10, prefix=''):
-    """Find the fractional dimension df such that <x^df> ~ <y>. But cannot calculate temporal
-    dimension because z<1 and so mean does not scale with L.
+def check_fractal_bounds(df, dfbds, ignore_nan=True):
+    """Check that fractal dimension error bounds bound the measured values."""
+   
+    assert df.ndim==2 and dfbds.ndim==3 
 
-    Get estimates of error bars by looking at where error landscape intersects with given value.
-
-    Parameters
-    ----------
-    dr : str
-    n_points : list
-    nfiles : int,10
-    prefix : str,''
-
-    Returns
-    -------
-    ds,df : ndarrays
-    """
-    
-    from scipy.interpolate import interp1d
-    from scipy.optimize import minimize
-
-    ds=[]  # size fractal dimension
-    df=[]  # fatalities fractal dimension
-    eds, edf=[],[]
-
-    # Diameter here is the data diameter
-    for fileix in range(nfiles):
-        indata=pickle.load(open('geosplits/%s/%s%s.p.quick'%(dr, prefix, str(fileix).zfill(3)), 'rb'))
-        diameter=[d[d>0] for d in indata['diameter']]
-        eventCount=[s[s>=SMIN] for s in indata['eventCount']]
-        fatalities=[f[f>=FMIN] for f in indata['fatalities']]
-        ds.append(np.zeros(len(n_points)))
-        eds.append(np.zeros((len(n_points),2)))
-        df.append(np.zeros(len(n_points)))
-        edf.append(np.zeros((len(n_points),2)))
+    if ignore_nan:
+        df=df.copy()
+        dfbds=dfbds.copy()
         
-        for i,n in enumerate(n_points):
-            df[-1][i], grid=_fractal_dimension(diameter[-n:], fatalities[-n:], return_grid=True,
-                                               rng=(1,3))
-            # Find width of the values of x such that they coincide with 0.1
-            curve=interp1d(*grid, kind='cubic')
-            f=lambda x:(curve(x)-.1)**2
-            edf[-1][i,0]=minimize(f, 1.1)['x']
-            edf[-1][i,1]=minimize(f, 1.9)['x']
-
-            ds[-1][i], grid=_fractal_dimension(diameter[-n:], eventCount[-n:], return_grid=True,
-                                               rng=(1,3))
-            curve=interp1d(*grid, kind='cubic')
-            f=lambda x:(curve(x)-.1)**2
-            eds[-1][i,0]=minimize(f, 1.1)['x']
-            eds[-1][i,1]=minimize(f, 1.9)['x']
-
-    return np.vstack(ds), np.vstack(df), eds, edf
+        nanix=np.isnan(dfbds[:,:,0])|np.isnan(df)
+        assert ((df[nanix==0]-dfbds[:,:,0][nanix==0])>=0).all(), (df[nanix==0]-dfbds[:,:,0][nanix==0])
+        
+        nanix=np.isnan(dfbds[:,:,1])|np.isnan(df)
+        assert ((dfbds[:,:,1][nanix==0]-df[nanix==0])>=0).all(), (df[nanix==0]-dfbds[:,:,1][nanix==0])
+        
+    else:
+        assert ((dfbds[:,:,1]-df)>=0).all(), (dfbds[:,:,1]-df)
+        assert ((df-dfbds[:,:,0])>=0).all(), (df-dfbds[:,:,0])
 
 def df_scaling(dr, n_points, nfiles=10, prefix=''):
     """Find the fractional dimension df such that <x^df> ~ <y>. But cannot calculate temporal
@@ -219,7 +184,7 @@ def df_scaling(dr, n_points, nfiles=10, prefix=''):
         edf.append(np.zeros((len(n_points),2)))
         
         for i,n in enumerate(n_points):
-            df[-1][i], grid=_fractal_dimension(diameter[-n:], fatalities[-n:], return_grid=True,
+            df[-1][i], grid=fractal_dimension(diameter[-n:], fatalities[-n:], return_grid=True,
                                                rng=(.5,3))
             # Find width of the values of x such that they coincide with the error increasing by 0.1
             curve=UnivariateSpline(*grid, ext='const', s=1e-5)
