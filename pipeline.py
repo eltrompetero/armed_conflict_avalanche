@@ -9,12 +9,116 @@ from statsmodels.distributions import ECDF
 import dill
 
 
-def run_power_law_fit(Y, lower_bound_range, upper_bound,
-                       discrete=True,
-                       n_boot_samples=2500,
-                       ksval_threshold=1.,
-                       min_data_length=10,
-                       n_cpus=None):
+def power_law_fit(eventType, gridno, diameters, sizes, fatalities, durations, finiteBound, nBootSamples, nCpus,
+                  save_pickle=True):
+    """run fitting and significance testing and pickle results
+    
+    Parameters
+    ----------
+    eventType : str
+    gridno : int
+    diameters : list
+    sizes : list
+    fatalities : list
+    durations : list
+    finiteBound : bool
+    nBootSamples : int
+    nCpus : int
+    save_pickle : bool, True
+
+    Returns
+    -------
+    str
+        Filename where pickle is.
+    """
+    
+    fname=('plotting/%s_ecdfs%s.p'%(eventType,str(gridno).zfill(2)) if finiteBound else
+           'plotting/%s_ecdfs_inf_range%s.p'%(eventType,str(gridno).zfill(2)))
+    
+    diameterInfo={}
+    sizeInfo={}
+    durationInfo={}
+    fatalityInfo={}
+
+    print("Starting diameter fitting...")
+    upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
+    output = _power_law_fit(diameters,
+			    np.vstack([(d[d>1].min(),min(d.max()//10,1000)) for d in diameters]),
+			    upperBound,
+			    discrete=False,
+			    n_boot_samples=nBootSamples,
+			    n_cpus=nCpus)
+    (diameterInfo['nu'],
+     diameterInfo['nu1'],
+     diameterInfo['lb'],
+     diameterInfo['cdfs'],
+     diameterInfo['ecdfs'],
+     diameterInfo['fullecdfs'],
+     diameterInfo['ksval'],
+     diameterInfo['pval']) = output
+
+    print("Starting size fitting...")
+    upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
+    output = _power_law_fit(sizes,
+			    np.vstack([(s[s>1].min(),min(s.max()//10,1000)) for s in sizes]),
+			    upperBound,
+			    n_boot_samples=nBootSamples,
+			    n_cpus=nCpus)
+    (sizeInfo['tau'],
+     sizeInfo['tau1'],
+     sizeInfo['lb'],
+     sizeInfo['cdfs'],
+     sizeInfo['ecdfs'],
+     sizeInfo['fullecdfs'],
+     sizeInfo['ksval'],
+     sizeInfo['pval']) = output
+
+    print("Starting fatality fitting...")
+    upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
+    output = _power_law_fit(fatalities,
+                              np.vstack([(f[f>1].min(),min(f.max()//10,1000)) for f in fatalities]),
+                              upperBound,
+                              n_boot_samples=nBootSamples,
+                              n_cpus=nCpus)
+    (fatalityInfo['ups'],
+     fatalityInfo['ups1'],
+     fatalityInfo['lb'],
+     fatalityInfo['cdfs'],
+     fatalityInfo['ecdfs'],
+     fatalityInfo['fullecdfs'],
+     fatalityInfo['ksval'],
+     fatalityInfo['pval']) = output
+
+    print("Starting duration fitting...")
+    upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
+    output = _power_law_fit(durations,
+                            np.vstack([(t[t>1].min(),min(t.max()//10,1000)) for t in durations]),
+                            upperBound,
+                            n_boot_samples=nBootSamples,
+                            n_cpus=nCpus)
+    (durationInfo['alpha'],
+     durationInfo['alpha1'],
+     durationInfo['lb'],
+     durationInfo['cdfs'],
+     durationInfo['ecdfs'],
+     durationInfo['fullecdfs'],
+     durationInfo['ksval'],
+     durationInfo['pval']) = output
+    
+    if save_pickle:
+        dill.dump({'diameterInfo':diameterInfo, 'sizeInfo':sizeInfo,
+                   'durationInfo':durationInfo, 'fatalityInfo':fatalityInfo,
+                   'nBootSamples':nBootSamples},
+                    open(fname,'wb'),-1)
+    
+    return fname
+
+def _power_law_fit(Y, lower_bound_range, upper_bound,
+		   discrete=True,
+		   n_boot_samples=2500,
+		   ksval_threshold=1.,
+		   min_data_length=10,
+		   n_cpus=None):
     """Pipeline max likelihood and mean scaling power law fits to conflict statistics. These are typically
     given by a coarse graining.
 
