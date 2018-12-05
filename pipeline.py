@@ -74,10 +74,10 @@ def run_power_law_fit(Y, lower_bound_range, upper_bound,
         else:
             if discrete:
                 alpha1=DiscretePowerLaw.mean_scaling(y[y>=lb],
-                                         np.logspace(np.log10(y.min())+1.,np.log10(y.max()),5)[:-1])
+                                         np.logspace(np.log10(y.min())+1., np.log10(y.max()), 5)[1:])
             else:
                 alpha1=PowerLaw.mean_scaling(y[y>=lb],
-                                         np.logspace(np.log10(y.min())+1.,np.log10(y.max()),5)[:-1])
+                                         np.logspace(np.log10(y.min())+1., np.log10(y.max()), 5)[1:])
     
         # KS statistics
         if discrete:
@@ -109,16 +109,22 @@ def run_power_law_fit(Y, lower_bound_range, upper_bound,
     pval=np.array(pval)
     
     if discrete:
-        cdfs=[DiscretePowerLaw.cdf(alpha=alpha[i], lower_bound=lb[i]) for i in range(len(Y))]
+        cdfs=[DiscretePowerLaw.cdf(alpha=alpha[i], lower_bound=lb[i]) if not np.isnan(alpha[i]) else None
+              for i in range(len(Y))]
     else:
-        cdfs=[PowerLaw.cdf(alpha=alpha[i], lower_bound=lb[i]) for i in range(len(Y))]
+        cdfs=[PowerLaw.cdf(alpha=alpha[i], lower_bound=lb[i]) if not np.isnan(alpha[i]) else None
+              for i in range(len(Y))]
     
     fullecdfs=[]
     ecdfs=[]
     for i,d in enumerate(Y):
         fullecdfs.append( ECDF(d) )
-        if (d>=lb[i]).any():
+        if np.isnan(lb[i]):
+            ecdfs.append(None)
+        elif (d>=lb[i]).any():
             ecdfs.append( ECDF(d[d>=lb[i]]) )
+        else:
+            ecdfs.append(None)
     
     return alpha, alpha1, lb, cdfs, ecdfs, fullecdfs, ksval, pval
 
