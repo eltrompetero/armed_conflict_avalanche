@@ -155,17 +155,18 @@ def loglog_fit_err_bars(x, y, fit_params, show_plot=False):
     x : ndarray
     y : ndarray
     fit_params : twople
-    posterior : bool,False
-    show_plot : bool,False
+    posterior : bool, False
+    show_plot : bool, False
 
     Returns
     -------
-    bds : twople
+    twople
         95% confidence intervals on exponent parameter assuming fixed offset.
     """
 
     import numdifftools as ndt
     from numpy import log
+    from misc.stats import loglog_fit
 
     # posterior probability estimation of error bars
     fit_params=loglog_fit(x, y)

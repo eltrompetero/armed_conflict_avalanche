@@ -5,6 +5,7 @@
 from .acled_utils import *
 from data_sets.acled import *
 import pickle
+from misc.stats import loglog_fit
 
 TMIN=2
 FMIN=2
@@ -45,7 +46,10 @@ def scaling_nu(dr, n_points, nfiles=10, prefix=''):
 
     return np.vstack(nu), np.vstack(errnu)
 
-def fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5), return_grid=False, return_err=True):
+def fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5),
+                      return_grid=False,
+                      return_err=True,
+                      symmetric=True):
     """Find the fractional dimension df such that <x^df> ~ <y>.
 
     These averages should be related 1:1 when df is correct.
@@ -55,6 +59,13 @@ def fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5), return_grid=False, r
     x : list
         Each element should contain many entries that will be used to calculated the sample mean.
     y : list
+        Each element should contain many entries that will be used to calculated the sample mean.
+    initial_guess : float, 1.
+    rng : twople, (.2, 1.5)
+        Range for initial grid search using scipy.optimize.brute.
+    return_grid : bool, False
+    return_err : bool, True
+    symmetric : bool, True
 
     Returns
     -------
@@ -64,12 +75,14 @@ def fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5), return_grid=False, r
         log residuals.
     """
 
-    from scipy.optimize import minimize,brute
+    from scipy.optimize import minimize,brute,fmin
     ym=[i.mean() for i in y]
     
     # grid sampling is often necessary for convergence
-    soln=brute( lambda df:(loglog_fit([(i**df).mean() for i in x], ym, symmetric=False)[0] - 1)**2, (rng,),
-                Ns=20, full_output=True)
+    #finish = lambda *args,**kwargs: fmin(*args, bounds=[(0,5)], **kwargs)
+    cost = lambda df:( (loglog_fit([(i**df).mean() for i in x], ym, symmetric=symmetric)[0] - 1)**2
+                       if 0<df<5 else 1e30 )
+    soln = brute( cost, (rng,), Ns=20, full_output=True )
     
     if return_err:
         # error is estimated by looking at fluctuation in exponent parameter in loglog_fit and seeing
