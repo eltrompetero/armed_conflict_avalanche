@@ -111,7 +111,7 @@ def power_law_fit(eventType, gridno, diameters, sizes, fatalities, durations, fi
                    'nBootSamples':nBootSamples},
                     open(fname,'wb'),-1)
     
-    return fname
+        return fname
 
 def _power_law_fit(Y, lower_bound_range, upper_bound,
 		   discrete=True,
