@@ -12,41 +12,9 @@ FMIN=2
 SMIN=2
 
 
-def scaling_nu(dr, n_points, nfiles=10, prefix=''):
-    """
-    Parameters
-    ----------
-    dr : str
-    n_points : list
-    nfiles : int,10
-    prefix : str,''
-
-    Returns
-    -------
-    nu : ndarray
-    errnu : ndarray
-    """
-
-    nu=[] 
-    errnu=[]
-
-    # Diameter here is the data diameter
-    for fileix in range(nfiles):
-        indata=pickle.load(open('geosplits/%s/%s%s.p.quick'%(dr, prefix, str(fileix).zfill(3)), 'rb'))
-        diameter=[d[d>0] for d in indata['diameter']]
-        Dmean=[i.mean() for i in diameter]
-        Dmax=[i.max() for i in diameter]
-        nu.append(np.zeros(len(n_points)))
-        errnu.append(np.zeros(len(n_points)))
-        
-        for i,n in enumerate(n_points):
-            soln=2 - loglog_fit(Dmax[-n:], Dmean[-n:], p=2)
-            nu[-1][i]=soln[0]
-            errnu[-1][i]=loglog_fit_err_bars(Dmax[-n:], Dmean[-n:], soln)[0]
-
-    return np.vstack(nu), np.vstack(errnu)
-
-def fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5),
+def fractal_dimension(x, y,
+                      initial_guess=1.,
+                      rng=(.2,1.5),
                       return_grid=False,
                       return_err=True,
                       symmetric=True):
@@ -79,7 +47,6 @@ def fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5),
     ym=[i.mean() for i in y]
     
     # grid sampling is often necessary for convergence
-    #finish = lambda *args,**kwargs: fmin(*args, bounds=[(0,5)], **kwargs)
     cost = lambda df:( (loglog_fit([(i**df).mean() for i in x], ym, symmetric=symmetric)[0] - 1)**2
                        if 0<df<5 else 1e30 )
     soln = brute( cost, (rng,), Ns=20, full_output=True )
@@ -96,13 +63,14 @@ def fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5),
         # range of variation in cost function
         maxvar=max((logfitErr[0]-1)**2, (logfitErr[1]-1)**2)
         errbds=fractal_dimension_error(x, ym, df, logfitParams[0],
-                                        threshold=maxvar)
+                                       threshold=maxvar,
+                                       symmetric=symmetric)
 
     if return_grid:
         return soln[0], errbds, (soln[2], soln[3])
     return soln[0], errbds
 
-def fractal_dimension_error(x, y, df, params, threshold=.01, eps=1e-6):
+def fractal_dimension_error(x, y, df, params, threshold=.01, eps=1e-6, symmetric=True):
     """Find the range of fractal dimension allowed such that the squared error doesn't exceed given
     threshold.
 
@@ -130,8 +98,10 @@ def fractal_dimension_error(x, y, df, params, threshold=.01, eps=1e-6):
         return np.nan, np.nan
     
     xm=lambda df, x=x: [(i**df).mean() for i in x] 
-    lcost=np.vectorize(lambda df,x=x,ym=ym : abs(abs(loglog_fit(xm(df), ym)[0] - 1) - np.sqrt(threshold[0])) )
-    ucost=np.vectorize(lambda df,x=x,ym=ym : abs(abs(loglog_fit(xm(df), ym)[0] - 1) - np.sqrt(threshold[1])) )
+    lcost=np.vectorize(lambda df,x=x,ym=ym :( abs(abs(loglog_fit(xm(df), ym, symmetric=symmetric)[0] - 1)
+                                              - np.sqrt(threshold[0])) ))
+    ucost=np.vectorize(lambda df,x=x,ym=ym :( abs(abs(loglog_fit(xm(df), ym, symmetric=symmetric)[0] - 1)
+                                              - np.sqrt(threshold[1])) ))
 
     lb=.1
     while lb>1e-3:
