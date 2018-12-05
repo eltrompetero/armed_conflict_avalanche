@@ -1,3 +1,7 @@
+# =============================================================================================== #
+# Module for analyzing ACLED data.
+# Author: Eddie Lee, edlee@alumni.princeton.edu
+# =============================================================================================== #
 from .acled_utils import *
 from data_sets.acled import *
 import pickle
