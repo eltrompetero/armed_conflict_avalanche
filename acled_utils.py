@@ -1,3 +1,7 @@
+# =============================================================================================== #
+# Module for analyzing ACLED data.
+# Author: Eddie Lee, edlee@alumni.princeton.edu
+# =============================================================================================== #
 import numpy as np
 from sklearn.cluster import MeanShift
 from sklearn.neighbors import BallTree,DistanceMetric
@@ -142,28 +146,6 @@ def sample_sphere(n=1,degree=True):
     randlat=np.arccos(2*np.random.rand(n)-1)-np.pi/2
     randlon=np.random.uniform(-np.pi,np.pi,size=n)
     return randlon,randlat
-
-def loglog_fit(x, y, p=2, iprint=False, full_output=False, symmetric=True):
-    """Symmetric log-log fit."""
-
-    from scipy.optimize import minimize
-
-    if symmetric:
-        def cost(params):
-            a,b=params
-            return (np.abs(a*np.log(x)+b-np.log(y))**p).sum()+(np.abs(np.log(x)+b/a-np.log(y)/a)**p).sum()
-    else:
-        def cost(params):
-            a,b=params
-            return (np.abs(a*np.log(x)+b-np.log(y))**p).sum()
-
-    soln=minimize(cost, [1,0])
-    if iprint and not soln['success']:
-        print("loglog_fit did not converge on a solution.")
-        print(soln['message'])
-    if full_output:
-        return soln['x'], soln
-    return soln['x']
 
 def loglog_fit_err_bars(x, y, fit_params, show_plot=False):
     """Calculate posterior probability of exponent parameter.

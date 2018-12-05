@@ -1,3 +1,7 @@
+# =============================================================================================== #
+# Module for analyzing ACLED data.
+# Author: Eddie Lee, edlee@alumni.princeton.edu
+# =============================================================================================== #
 from .acled_utils import *
 from data_sets.acled import *
 import pickle
@@ -64,7 +68,7 @@ def fractal_dimension(x, y, initial_guess=1., rng=(.2,1.5), return_grid=False, r
     ym=[i.mean() for i in y]
     
     # grid sampling is often necessary for convergence
-    soln=brute( lambda df:(loglog_fit([(i**df).mean() for i in x], ym)[0] - 1)**2, (rng,),
+    soln=brute( lambda df:(loglog_fit([(i**df).mean() for i in x], ym, symmetric=False)[0] - 1)**2, (rng,),
                 Ns=20, full_output=True)
     
     if return_err:

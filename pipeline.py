@@ -2,98 +2,125 @@ from .acled_utils import *
 from data_sets.acled import *
 import pickle
 from statsmodels.distributions import ECDF
+import dill
 
 
-def diameter(Y):
-    """Calculate max likelihood estimates for nu."""
+def run_power_law_fit(Y, lower_bound_range, upper_bound,
+                       discrete=True,
+                       n_boot_samples=2500,
+                       ksval_threshold=1.,
+                       min_data_length=10,
+                       n_cpus=None):
+    """Pipeline max likelihood and mean scaling power law fits to conflict statistics. These are typically
+    given by a coarse graining.
+
+    Parameters
+    ----------
+    Y : list
+    lower_bound_range : list of duples
+    upper_bound : int
+    discrete : bool, True
+    n_boot_sample : int, 2500
+        Default value gives accuracy of about 0.01.
+    ksval_threshold : float, 1.
+    min_data_length : int, 10
+        Number of data points required before fitting process is initiated.
+    n_cpus : int, None
     
-    from misc.stats import PowerLaw
-    diameterInfo={}
-    ecdfs=[]
+    Returns
+    -------
+    ndarray
+        Max likelihood Exponent estimates.
+    ndarray
+        Lower bound estimates.
+    ndarray
+        Mean scalling exponent estimates. These are largely biased except for very heavy tailed distributions.
+    ndarray
+        KS statistic
+    ndarray
+        p-values.
+    """
 
+    from multiprocess import Pool, cpu_count
+    from misc.stats import PowerLaw, DiscretePowerLaw
+
+    assert len(lower_bound_range)==len(Y)
+    n_cpus = n_cpus or cpu_count()-1
+    
+    def f(args):
+        i,y = args
+        y=y[y>1].astype(int)
+        
+        # don't do any calculation for distributions that are too small, all one value, or don't show much 
+        # dynamic range
+        if len(y)<min_data_length or (y[0]==y).all() or lower_bound_range[i][0]>(lower_bound_range[i][1]/2):
+            return np.nan, np.nan, np.nan, np.nan, np.nan
+        
+        if discrete:
+            alpha, lb=DiscretePowerLaw.max_likelihood(y,
+                                                      lower_bound_range=lower_bound_range[i],
+                                                      initial_guess=1.2,
+                                                      upper_bound=upper_bound,
+                                                      n_cpus=1)
+        else:
+            alpha, lb=PowerLaw.max_likelihood(y,
+                                              lower_bound_range=lower_bound_range[i],
+                                              initial_guess=(1.2,y.min()),
+                                              upper_bound=upper_bound)
+        
+        # measure the scaling over at least a single order of magnitude
+        if (np.log10(y.max())-np.log10(lb))<2:
+            alpha1=np.nan
+        else:
+            if discrete:
+                alpha1=DiscretePowerLaw.mean_scaling(y[y>=lb],
+                                         np.logspace(np.log10(y.min())+1.,np.log10(y.max()),5)[:-1])
+            else:
+                alpha1=PowerLaw.mean_scaling(y[y>=lb],
+                                         np.logspace(np.log10(y.min())+1.,np.log10(y.max()),5)[:-1])
+    
+        # KS statistics
+        if discrete:
+            dpl=DiscretePowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
+        else:
+            dpl=PowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
+        ksval=dpl.ksval(y[y>=lb])
+        # only calculate p-value if the fit is rather close
+        if ksval<=ksval_threshold:
+            pval,_=dpl.clauset_test(y[y>=lb],
+                                    ksval,
+                                    lower_bound_range[i], 
+                                    n_boot_samples,
+                                    samples_below_cutoff=y[y<lb],
+                                    n_cpus=1)
+        else: pval=np.nan
+        print("Done fitting data set %d."%i)
+        return alpha, lb, alpha1, ksval, pval
+    
+#     for (i,y) in enumerate(Y):
+#         f((i,y))
+#     return
+    pool=Pool(n_cpus)
+    alpha, lb, alpha1, ksval, pval=list(zip(*pool.map(f, enumerate(Y))))
+    alpha=np.array(alpha)
+    lb=np.array(lb)
+    alpha1=np.array(alpha1)
+    ksval=np.array(ksval)
+    pval=np.array(pval)
+    
+    if discrete:
+        cdfs=[DiscretePowerLaw.cdf(alpha=alpha[i], lower_bound=lb[i]) for i in range(len(Y))]
+    else:
+        cdfs=[PowerLaw.cdf(alpha=alpha[i], lower_bound=lb[i]) for i in range(len(Y))]
+    
+    fullecdfs=[]
+    ecdfs=[]
     for i,d in enumerate(Y):
-        if (d>0).any(): 
-            ecdfs.append( ECDF(d[d>0]) )
-    diameterInfo['ecdfs']=ecdfs
-
-    nu=np.zeros(len(Y))
-    for i,y in enumerate(Y):
-        y=y[y>0]
-        nu[i]=PowerLaw.max_likelihood(y, lower_bound=y.min())
-    diameterInfo['nu']=nu
-    diameterInfo['cdfs']=[PowerLaw.cdf(alpha=nu[0], lower_bound=Y[0][Y[0]>0].min()),
-                          PowerLaw.cdf(alpha=nu[-1], lower_bound=Y[-1][Y[-1]>0].min())]
-    return diameterInfo
-
-def size(Y):
-    """Calculate max likelihood estimates for tau."""
-
-    from misc.stats import ExpTruncDiscretePowerLaw
-    sizeInfo={}
-    ecdfs=[]
+        fullecdfs.append( ECDF(d) )
+        if (d>=lb[i]).any():
+            ecdfs.append( ECDF(d[d>=lb[i]]) )
     
-    for i,d in enumerate(Y):
-        if (d>0).any():
-            ecdfs.append( ECDF(d[d>1]) )
-    sizeInfo['ecdfs']=ecdfs
-
-    tau=np.zeros(len(Y))
-    el=np.zeros(len(Y))
-    for i,y in enumerate(Y):
-        y=y[y>1]
-        tau[i],el[i]=ExpTruncDiscretePowerLaw.max_likelihood(y, lower_bound=y.min())
-    sizeInfo['tau']=tau
-    sizeInfo['el']=el
-    sizeInfo['cdfs']=[ExpTruncDiscretePowerLaw.cdf(alpha=tau[0],
-                                                   el=el[0],
-                                                   lower_bound=y.min()),
-                      ExpTruncDiscretePowerLaw.cdf(alpha=tau[-1],
-                                                   el=el[-1],
-                                               lower_bound=y.min())]
-    return sizeInfo
-
-def fatality(Y, fmn=10):
-    """Max likelihood estimates for upsilon."""
-
-    from misc.stats import DiscretePowerLaw
-    fatalityInfo={}
-    ecdfs=[]
-    
-    for d in Y:
-        if (d>1).any():
-            ecdfs.append( ECDF(d[d>=fmn]) )
-    fatalityInfo['ecdfs']=ecdfs
-
-    ups=np.zeros(len(Y))
-    for i,y in enumerate(Y):
-        y=y[y>=fmn]
-        ups[i]=DiscretePowerLaw.max_likelihood(y, lower_bound=y.min(), initial_guess=1.2)
-    fatalityInfo['ups']=ups
-    fatalityInfo['cdfs']=[DiscretePowerLaw.cdf(alpha=ups[0], lower_bound=Y[0][Y[0]>=fmn].min()),
-                          DiscretePowerLaw.cdf(alpha=ups[-1], lower_bound=Y[-1][Y[-1]>=fmn].min())]
-    return fatalityInfo
-
-def duration(Y):
-    """Max likelihood estimate of alpha."""
-
-    from misc.stats import ExpTruncDiscretePowerLaw
-    durationInfo={}
-    ecdfs=[]
-
-    for d in Y:
-        if (d>1).any():
-            ecdfs.append( ECDF(d[d>1]) )
-    durationInfo['ecdfs']=ecdfs
-
-    alpha=np.zeros(len(Y))
-    el=np.zeros(len(Y))
-    for i,y in enumerate(Y):
-        y=y[y>1]
-        alpha[i],el[i]=ExpTruncDiscretePowerLaw.max_likelihood(y, lower_bound=y.min())
-    durationInfo['alpha']=alpha
-    durationInfo['el']=el
-    durationInfo['cdfs']=[ExpTruncDiscretePowerLaw.cdf(alpha=alpha[0], el=el[0], lower_bound=y.min())]
-    return durationInfo
+    return alpha, alpha1, lb, cdfs, ecdfs, fullecdfs, ksval, pval
 
 def _vtess_loop(args):
     """
