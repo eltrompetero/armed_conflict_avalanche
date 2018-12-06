@@ -9,13 +9,21 @@ from statsmodels.distributions import ECDF
 import dill
 
 
-def power_law_fit(eventType, gridno, diameters, sizes, fatalities, durations, finiteBound, nBootSamples, nCpus,
+def power_law_fit(eventType,
+                  gridno,
+                  diameters,
+                  sizes,
+                  fatalities,
+                  durations,
+                  finiteBound,
+                  nBootSamples,
+                  nCpus,
                   save_pickle=True,
                   run_diameter=True,
                   run_size=True,
                   run_fatality=True,
                   run_duration=True):
-    """run fitting and significance testing and pickle results
+    """Run fitting and significance testing and pickle results.
     
     Parameters
     ----------
@@ -60,7 +68,7 @@ def power_law_fit(eventType, gridno, diameters, sizes, fatalities, durations, fi
         print("Starting diameter fitting...")
         upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
         output = _power_law_fit(diameters,
-                                np.vstack([(d[d>1].min(),min(d.max()//2,1000)) for d in diameters]),
+                                np.vstack([(d[d>0].min(),min(d.max()//2,1000)) for d in diameters]),
                                 upperBound,
                                 discrete=False,
                                 n_boot_samples=nBootSamples,
@@ -178,7 +186,10 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
     
     def f(args):
         i,y = args
-        y=y[y>1].astype(int)
+        if discrete:
+            y=y[y>1].astype(int)
+        else:
+            y=y[y>0]
         
         # don't do any calculation for distributions that are too small, all one value, or don't show much 
         # dynamic range
@@ -194,7 +205,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         else:
             alpha, lb=PowerLaw.max_likelihood(y,
                                               lower_bound_range=lower_bound_range[i],
-                                              initial_guess=(1.2,y.min()),
+                                              initial_guess=1.2,
                                               upper_bound=upper_bound)
         
         # measure the scaling over at least a single order of magnitude
