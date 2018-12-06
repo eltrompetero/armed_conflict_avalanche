@@ -10,7 +10,11 @@ import dill
 
 
 def power_law_fit(eventType, gridno, diameters, sizes, fatalities, durations, finiteBound, nBootSamples, nCpus,
-                  save_pickle=True):
+                  save_pickle=True,
+                  run_diameter=True,
+                  run_size=True,
+                  run_fatality=True,
+                  run_duration=True):
     """run fitting and significance testing and pickle results
     
     Parameters
@@ -25,11 +29,23 @@ def power_law_fit(eventType, gridno, diameters, sizes, fatalities, durations, fi
     nBootSamples : int
     nCpus : int
     save_pickle : bool, True
+    run_diameter : bool, True
+    run_size : bool, True
+    run_fatality : bool, True
+    run_duration : bool, True
 
     Returns
     -------
     str
         Filename where pickle is.
+    dict, optional
+        diameterInfo
+    dict, optional
+        sizeInfo
+    dict, optional
+        fatalityInfo
+    dict, optional
+        durationInfo
     """
     
     fname=('plotting/%s_ecdfs%s.p'%(eventType,str(gridno).zfill(2)) if finiteBound else
@@ -39,71 +55,75 @@ def power_law_fit(eventType, gridno, diameters, sizes, fatalities, durations, fi
     sizeInfo={}
     durationInfo={}
     fatalityInfo={}
-
-    print("Starting diameter fitting...")
-    upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
-    output = _power_law_fit(diameters,
-			    np.vstack([(d[d>1].min(),min(d.max()//10,1000)) for d in diameters]),
-			    upperBound,
-			    discrete=False,
-			    n_boot_samples=nBootSamples,
-			    n_cpus=nCpus)
-    (diameterInfo['nu'],
-     diameterInfo['nu1'],
-     diameterInfo['lb'],
-     diameterInfo['cdfs'],
-     diameterInfo['ecdfs'],
-     diameterInfo['fullecdfs'],
-     diameterInfo['ksval'],
-     diameterInfo['pval']) = output
-
-    print("Starting size fitting...")
-    upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
-    output = _power_law_fit(sizes,
-			    np.vstack([(s[s>1].min(),min(s.max()//10,1000)) for s in sizes]),
-			    upperBound,
-			    n_boot_samples=nBootSamples,
-			    n_cpus=nCpus)
-    (sizeInfo['tau'],
-     sizeInfo['tau1'],
-     sizeInfo['lb'],
-     sizeInfo['cdfs'],
-     sizeInfo['ecdfs'],
-     sizeInfo['fullecdfs'],
-     sizeInfo['ksval'],
-     sizeInfo['pval']) = output
-
-    print("Starting fatality fitting...")
-    upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
-    output = _power_law_fit(fatalities,
-                              np.vstack([(f[f>1].min(),min(f.max()//10,1000)) for f in fatalities]),
-                              upperBound,
-                              n_boot_samples=nBootSamples,
-                              n_cpus=nCpus)
-    (fatalityInfo['ups'],
-     fatalityInfo['ups1'],
-     fatalityInfo['lb'],
-     fatalityInfo['cdfs'],
-     fatalityInfo['ecdfs'],
-     fatalityInfo['fullecdfs'],
-     fatalityInfo['ksval'],
-     fatalityInfo['pval']) = output
-
-    print("Starting duration fitting...")
-    upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
-    output = _power_law_fit(durations,
-                            np.vstack([(t[t>1].min(),min(t.max()//10,1000)) for t in durations]),
-                            upperBound,
-                            n_boot_samples=nBootSamples,
-                            n_cpus=nCpus)
-    (durationInfo['alpha'],
-     durationInfo['alpha1'],
-     durationInfo['lb'],
-     durationInfo['cdfs'],
-     durationInfo['ecdfs'],
-     durationInfo['fullecdfs'],
-     durationInfo['ksval'],
-     durationInfo['pval']) = output
+    
+    if run_diameter:
+        print("Starting diameter fitting...")
+        upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
+        output = _power_law_fit(diameters,
+                                np.vstack([(d[d>1].min(),min(d.max()//2,1000)) for d in diameters]),
+                                upperBound,
+                                discrete=False,
+                                n_boot_samples=nBootSamples,
+                                n_cpus=nCpus)
+        (diameterInfo['nu'],
+         diameterInfo['nu1'],
+         diameterInfo['lb'],
+         diameterInfo['cdfs'],
+         diameterInfo['ecdfs'],
+         diameterInfo['fullecdfs'],
+         diameterInfo['ksval'],
+         diameterInfo['pval']) = output
+    
+    if run_size:
+        print("Starting size fitting...")
+        upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
+        output = _power_law_fit(sizes,
+                                np.vstack([(s[s>1].min(),min(s.max()//10,1000)) for s in sizes]),
+                                upperBound,
+                                n_boot_samples=nBootSamples,
+                                n_cpus=nCpus)
+        (sizeInfo['tau'],
+         sizeInfo['tau1'],
+         sizeInfo['lb'],
+         sizeInfo['cdfs'],
+         sizeInfo['ecdfs'],
+         sizeInfo['fullecdfs'],
+         sizeInfo['ksval'],
+         sizeInfo['pval']) = output
+    
+    if run_fatality:
+        print("Starting fatality fitting...")
+        upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
+        output = _power_law_fit(fatalities,
+                                  np.vstack([(f[f>1].min(),min(f.max()//10,1000)) for f in fatalities]),
+                                  upperBound,
+                                  n_boot_samples=nBootSamples,
+                                  n_cpus=nCpus)
+        (fatalityInfo['ups'],
+         fatalityInfo['ups1'],
+         fatalityInfo['lb'],
+         fatalityInfo['cdfs'],
+         fatalityInfo['ecdfs'],
+         fatalityInfo['fullecdfs'],
+         fatalityInfo['ksval'],
+         fatalityInfo['pval']) = output
+    
+    if run_duration:
+        print("Starting duration fitting...")
+        upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
+        output = _power_law_fit(durations,
+                                np.vstack([(t[t>1].min(),min(t.max()//10,1000)) for t in durations]),
+                                upperBound,
+                                n_boot_samples=nBootSamples,
+                                n_cpus=nCpus)
+        (durationInfo['alpha'],
+         durationInfo['alpha1'],
+         durationInfo['lb'],
+         durationInfo['cdfs'],
+         durationInfo['ecdfs'],
+         durationInfo['fullecdfs'],
+         durationInfo['ksval'],
+         durationInfo['pval']) = output
     
     if save_pickle:
         dill.dump({'diameterInfo':diameterInfo, 'sizeInfo':sizeInfo,
@@ -112,6 +132,7 @@ def power_law_fit(eventType, gridno, diameters, sizes, fatalities, durations, fi
                     open(fname,'wb'),-1)
     
         return fname
+    return fname, diameterInfo, sizeInfo, fatalityInfo, durationInfo
 
 def _power_law_fit(Y, lower_bound_range, upper_bound,
 		   discrete=True,
