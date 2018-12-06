@@ -68,7 +68,7 @@ def power_law_fit(eventType,
         print("Starting diameter fitting...")
         upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
         output = _power_law_fit(diameters,
-                                np.vstack([(d[d>0].min(),min(d.max()//2,1000)) for d in diameters]),
+                                np.vstack([(d[d>0].min(),min(d.max()/2,1000)) for d in diameters]),
                                 upperBound,
                                 discrete=False,
                                 n_boot_samples=nBootSamples,
@@ -80,7 +80,10 @@ def power_law_fit(eventType,
          diameterInfo['ecdfs'],
          diameterInfo['fullecdfs'],
          diameterInfo['ksval'],
-         diameterInfo['pval']) = output
+         diameterInfo['ksSample'],
+         diameterInfo['pval'],
+         diameterInfo['nuBds'],
+         diameterInfo['lbBds']) = output
     
     if run_size:
         print("Starting size fitting...")
@@ -97,7 +100,10 @@ def power_law_fit(eventType,
          sizeInfo['ecdfs'],
          sizeInfo['fullecdfs'],
          sizeInfo['ksval'],
-         sizeInfo['pval']) = output
+         sizeInfo['ksSample'],
+         sizeInfo['pval'],
+         sizeInfo['tauBds'],
+         sizeInfo['lbBds']) = output
     
     if run_fatality:
         print("Starting fatality fitting...")
@@ -114,7 +120,10 @@ def power_law_fit(eventType,
          fatalityInfo['ecdfs'],
          fatalityInfo['fullecdfs'],
          fatalityInfo['ksval'],
-         fatalityInfo['pval']) = output
+         fatalityInfo['ksSample'],
+         fatalityInfo['pval'],
+         fatalityInfo['upsBds'],
+         fatalityInfo['lbBds']) = output
     
     if run_duration:
         print("Starting duration fitting...")
@@ -131,7 +140,10 @@ def power_law_fit(eventType,
          durationInfo['ecdfs'],
          durationInfo['fullecdfs'],
          durationInfo['ksval'],
-         durationInfo['pval']) = output
+         durationInfo['ksSample'],
+         durationInfo['pval'],
+         durationInfo['alphaBds'],
+         durationInfo['lbBds']) = output
     
     if save_pickle:
         dill.dump({'diameterInfo':diameterInfo, 'sizeInfo':sizeInfo,
@@ -194,7 +206,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         # don't do any calculation for distributions that are too small, all one value, or don't show much 
         # dynamic range
         if len(y)<min_data_length or (y[0]==y).all() or lower_bound_range[i][0]>(lower_bound_range[i][1]/2):
-            return np.nan, np.nan, np.nan, np.nan, np.nan
+            return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
         
         if discrete:
             alpha, lb=DiscretePowerLaw.max_likelihood(y,
@@ -226,27 +238,36 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
             dpl=PowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
         ksval=dpl.ksval(y[y>=lb])
         # only calculate p-value if the fit is rather close
-        if ksval<=ksval_threshold:
-            pval,_=dpl.clauset_test(y[y>=lb],
-                                    ksval,
-                                    lower_bound_range[i], 
-                                    n_boot_samples,
-                                    samples_below_cutoff=y[y<lb],
-                                    n_cpus=1)
-        else: pval=np.nan
+        if n_boot_samples>0 and ksval<=ksval_threshold:
+            pval,ksSample,(alphaSample,lbSample)=dpl.clauset_test(y[y>=lb],
+                                                           ksval,
+                                                           lower_bound_range[i], 
+                                                           n_boot_samples,
+                                                           samples_below_cutoff=y[y<lb],
+                                                           return_all=True,
+                                                           n_cpus=1)
+            alphaBds = np.percentile(alphaSample[alphaSample<7],5), np.percentile(alphaSample[alphaSample<7],95)
+            lbBds = np.percentile(lbSample,5), np.percentile(lbSample,95)
+        else:
+            pval=np.nan
+            alphaBds=None
+            lbBds=None
         print("Done fitting data set %d."%i)
-        return alpha, lb, alpha1, ksval, pval
+        return alpha, lb, alpha1, ksval, ksSample, pval, alphaBds, lbBds
     
 #     for (i,y) in enumerate(Y):
 #         f((i,y))
 #     return
     pool=Pool(n_cpus)
-    alpha, lb, alpha1, ksval, pval=list(zip(*pool.map(f, enumerate(Y))))
+    alpha, lb, alpha1, ksval, ksSample, pval, alphaBds, lbBds=list(zip(*pool.map(f, enumerate(Y))))
     alpha=np.array(alpha)
     lb=np.array(lb)
     alpha1=np.array(alpha1)
     ksval=np.array(ksval)
+    ksSample=np.array(ksSample)
     pval=np.array(pval)
+    alphaBds=np.array(alphaBds)
+    lbBds=np.array(lbBds)
     
     if discrete:
         cdfs=[DiscretePowerLaw.cdf(alpha=alpha[i], lower_bound=lb[i]) if not np.isnan(alpha[i]) else None
@@ -266,7 +287,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         else:
             ecdfs.append(None)
     
-    return alpha, alpha1, lb, cdfs, ecdfs, fullecdfs, ksval, pval
+    return alpha, alpha1, lb, cdfs, ecdfs, fullecdfs, ksval, ksSample, pval, alphaBds, lbBds
 
 def _vtess_loop(args):
     """
