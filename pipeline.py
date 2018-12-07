@@ -82,8 +82,8 @@ def power_law_fit(eventType,
          diameterInfo['ksval'],
          diameterInfo['ksSample'],
          diameterInfo['pval'],
-         diameterInfo['nuBds'],
-         diameterInfo['lbBds']) = output
+         diameterInfo['nuSample'],
+         diameterInfo['lbSample']) = output
     
     if run_size:
         print("Starting size fitting...")
@@ -102,8 +102,8 @@ def power_law_fit(eventType,
          sizeInfo['ksval'],
          sizeInfo['ksSample'],
          sizeInfo['pval'],
-         sizeInfo['tauBds'],
-         sizeInfo['lbBds']) = output
+         sizeInfo['tauSample'],
+         sizeInfo['lbSample']) = output
     
     if run_fatality:
         print("Starting fatality fitting...")
@@ -122,8 +122,8 @@ def power_law_fit(eventType,
          fatalityInfo['ksval'],
          fatalityInfo['ksSample'],
          fatalityInfo['pval'],
-         fatalityInfo['upsBds'],
-         fatalityInfo['lbBds']) = output
+         fatalityInfo['upsSample'],
+         fatalityInfo['lbSample']) = output
     
     if run_duration:
         print("Starting duration fitting...")
@@ -142,8 +142,8 @@ def power_law_fit(eventType,
          durationInfo['ksval'],
          durationInfo['ksSample'],
          durationInfo['pval'],
-         durationInfo['alphaBds'],
-         durationInfo['lbBds']) = output
+         durationInfo['alphaSample'],
+         durationInfo['lbSample']) = output
     
     if save_pickle:
         dill.dump({'diameterInfo':diameterInfo, 'sizeInfo':sizeInfo,
@@ -240,34 +240,32 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         # only calculate p-value if the fit is rather close
         if n_boot_samples>0 and ksval<=ksval_threshold:
             pval,ksSample,(alphaSample,lbSample)=dpl.clauset_test(y[y>=lb],
-                                                           ksval,
-                                                           lower_bound_range[i], 
-                                                           n_boot_samples,
-                                                           samples_below_cutoff=y[y<lb],
-                                                           return_all=True,
-                                                           n_cpus=1)
-            alphaBds = np.percentile(alphaSample[alphaSample<7],5), np.percentile(alphaSample[alphaSample<7],95)
-            lbBds = np.percentile(lbSample,5), np.percentile(lbSample,95)
+                                                                  ksval,
+                                                                  lower_bound_range[i], 
+                                                                  n_boot_samples,
+                                                                  samples_below_cutoff=y[y<lb],
+                                                                  return_all=True,
+                                                                  n_cpus=1)
         else:
             pval=np.nan
-            alphaBds=None
-            lbBds=None
+            alphaSample=None
+            lbSample=None
         print("Done fitting data set %d."%i)
-        return alpha, lb, alpha1, ksval, ksSample, pval, alphaBds, lbBds
+        return alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample
     
 #     for (i,y) in enumerate(Y):
 #         f((i,y))
 #     return
     pool=Pool(n_cpus)
-    alpha, lb, alpha1, ksval, ksSample, pval, alphaBds, lbBds=list(zip(*pool.map(f, enumerate(Y))))
+    alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample=list(zip(*pool.map(f, enumerate(Y))))
     alpha=np.array(alpha)
     lb=np.array(lb)
     alpha1=np.array(alpha1)
     ksval=np.array(ksval)
     ksSample=np.array(ksSample)
     pval=np.array(pval)
-    alphaBds=np.array(alphaBds)
-    lbBds=np.array(lbBds)
+    alphaSample=np.array(alphaSample)
+    lbSample=np.array(lbSample)
     
     if discrete:
         cdfs=[DiscretePowerLaw.cdf(alpha=alpha[i], lower_bound=lb[i]) if not np.isnan(alpha[i]) else None
@@ -287,7 +285,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         else:
             ecdfs.append(None)
     
-    return alpha, alpha1, lb, cdfs, ecdfs, fullecdfs, ksval, ksSample, pval, alphaBds, lbBds
+    return alpha, alpha1, lb, cdfs, ecdfs, fullecdfs, ksval, ksSample, pval, alphaSample, lbSample
 
 def _vtess_loop(args):
     """
