@@ -14,7 +14,7 @@ def check_consistency(eventType, gridno):
     with the durations. These relations are consistent if they overlap within 90% confidence intervals.
     
     Also run a significance test to check which power law fits are significant at all. These are measured to
-    p values of 0.05 which is a factor of two more generous than the Clauset, Shalizi, Newman limit.
+    p values of 0.1 which is the Clauset, Shalizi, Newman limit.
 
     Parameters
     ----------
@@ -47,25 +47,39 @@ def check_consistency(eventType, gridno):
     data=pickle.load(open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)), 'rb'))
     dfGrid=data['dfGrid']
     dsGrid=data['dsGrid']
-
+    dlGrid=data['dlGrid']
+    
+    # check fatality & duration
     consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
     for ix in range(len(sizeInfo['tau'])):
         if not np.isnan(durationInfo['alpha'][ix]): 
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix], fatalityInfo['upsBds'][ix], dfGrid[0][4:])
     fatalityInfo['consistent'] = consistent
-
+    
+    # check size & duration
     consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
     for ix in range(len(sizeInfo['tau'])):
         if not np.isnan(durationInfo['alpha'][ix]):
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix], sizeInfo['tauBds'][ix], dsGrid[0][4:])
     sizeInfo['consistent'] = consistent
-    
-    # places in array where exponent relation is consistent and measured power laws are significant
-    consistentAndSig=(sizeInfo['consistent']&fatalityInfo['consistent']&(sizeInfo['pval']>.05)&(fatalityInfo['pval']>.05))
+
+    # check length & duration
+    consistent = np.zeros(len(diameterInfo['nu']), dtype=bool)==1
+    for ix in range(len(diameterInfo['nu'])):
+        if not np.isnan(durationInfo['alpha'][ix]):
+            consistent[ix] = check_relation(durationInfo['alphaBds'][ix], diameterInfo['nuBds'][ix], dlGrid[0][4:])
+    diameterInfo['consistent'] = consistent
+
     # places in array where exponent relations are consistent
-    sig=(((sizeInfo['consistent']&fatalityInfo['consistent'])==0)&(consistentAndSig==0))==0
+    consistent=sizeInfo['consistent']&fatalityInfo['consistent']
+    # places in array where exponent relation is consistent and measured power laws are significant
+    consistentAndSig=(sizeInfo['consistent']&fatalityInfo['consistent']&(sizeInfo['pval']>.1)&(fatalityInfo['pval']>.1))
+        
+    Lconsistent=consistent & diameterInfo['consistent']
+    LconsistentAndSig=diameterInfo['consistent'] & (diameterInfo['pval']>.1) & (durationInfo['pval']>.1)
+    LconsistentAndSig &= consistentAndSig
     
-    return consistent, consistentAndSig
+    return consistent, consistentAndSig, Lconsistent, LconsistentAndSig
 
 def power_law_fit(eventType,
                   gridno,
