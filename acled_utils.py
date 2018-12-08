@@ -23,6 +23,44 @@ from numba import jit,njit
 DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
 
 
+def check_relation(alphaBds, upsBds, df):
+    """
+    Checks the basic relation between the time scales exponent alpha with another scaling variable like
+    fatalities. The relation checked for this case would be
+        $\\alpha - 1 = (\\upsilon-1) d_{\\rm f}$
+
+    Parameters
+    ----------
+    alphaBds : tuple
+        Bound for alpha, exponent for P(T) ~ T^-alpha.
+    upsBds : tuple
+        Bound for variable to scale with T, like upsilon for fatalities.
+    df : ndarray
+        Scaling of second variable with T (fractal dimension).
+
+    Returns
+    -------
+    bool
+        Whether or not the scaling relation is violated.
+    """
+
+    if not (hasattr(alphaBds,'__len__') and hasattr(upsBds,'__len__')):
+        return False
+    if ( (((alphaBds[0]-1)>(df*(upsBds[0]-1))) & ((alphaBds[0]-1)<(df*(upsBds[1]-1)))).any() or
+         (((alphaBds[1]-1)>(df*(upsBds[0]-1))) & ((alphaBds[1]-1)<(df*(upsBds[1]-1)))).any() or
+         (((alphaBds[0]-1)<(df*(upsBds[0]-1))) & ((alphaBds[1]-1)>(df*(upsBds[1]-1)))).any() ):
+        return True
+    return False
+
+def percentile_bds(X, perc):
+    """Just a wrapper around np.percentile to make it easier."""
+
+    if hasattr(X,'__len__'):
+        # 7 is the max exponent value allowed by the max likelihood process and tells me the fitting didn't
+        # work well
+        return np.percentile(X[X<7], perc[0]), np.percentile(X, perc[1])
+    return None
+
 def transform_bds_to_offset(x,bds):
     """To make it easier to use matplotlib's errorbar plotting function, take a vector 
     of data and error bounds and convert it to an output that can be passed directly to the yerr kwarg.
@@ -666,6 +704,7 @@ def extract_event_type(df, event_type):
     -------
     subdf : pd.DataFrame
     """
+
     ix=df['EVENT_TYPE'].apply(lambda x: event_type in x).values
     subdf=df.iloc[ix].copy()
 

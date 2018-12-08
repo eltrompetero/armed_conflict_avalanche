@@ -80,7 +80,7 @@ def fractal_dimension_error(x, y, df, params, threshold=.01, eps=1e-6, symmetric
         Each element should contain many entries that will be used to calculated the sample mean.
     y : list
     df : float
-    threshold : twople,.1
+    threshold : twople, .1
 
     Returns
     -------

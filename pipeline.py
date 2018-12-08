@@ -9,6 +9,64 @@ from statsmodels.distributions import ECDF
 import dill
 
 
+def check_consistency(eventType, gridno):
+    """Check for which time and length scales the exponent relations between fatalities and sizes is consisten
+    with the durations. These relations are consistent if they overlap within 90% confidence intervals.
+    
+    Also run a significance test to check which power law fits are significant at all. These are measured to
+    p values of 0.05 which is a factor of two more generous than the Clauset, Shalizi, Newman limit.
+
+    Parameters
+    ----------
+    eventType : str
+    gridno : int
+
+    Returns
+    -------
+    bool ndarray
+        True values indicate for which combination of length and time scales the exponent relations are
+        consistent.
+    bool ndarray
+        True values indicate for which combination of length and time scales the exponent relations are
+        both consistent and significant.
+    """
+
+    from .acled_utils import percentile_bds
+    data = pickle.load(open('plotting/%s_ecdfs_inf_range%s.p'%(eventType,str(gridno).zfill(2)),'rb'))
+    diameterInfo=data['diameterInfo']
+    sizeInfo=data['sizeInfo']
+    fatalityInfo=data['fatalityInfo']
+    durationInfo=data['durationInfo']
+
+    perc=(5,95)
+    diameterInfo['nuBds']=np.array([percentile_bds(X, perc) for X in diameterInfo['nuSample']])
+    sizeInfo['tauBds']=np.array([percentile_bds(X, perc) for X in sizeInfo['tauSample']])
+    fatalityInfo['upsBds']=np.array([percentile_bds(X, perc) for X in fatalityInfo['upsSample']])
+    durationInfo['alphaBds']=np.array([percentile_bds(X, perc) for X in durationInfo['alphaSample']])
+
+    data=pickle.load(open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)), 'rb'))
+    dfGrid=data['dfGrid']
+    dsGrid=data['dsGrid']
+
+    consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
+    for ix in range(len(sizeInfo['tau'])):
+        if not np.isnan(durationInfo['alpha'][ix]): 
+            consistent[ix] = check_relation(durationInfo['alphaBds'][ix], fatalityInfo['upsBds'][ix], dfGrid[0][4:])
+    fatalityInfo['consistent'] = consistent
+
+    consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
+    for ix in range(len(sizeInfo['tau'])):
+        if not np.isnan(durationInfo['alpha'][ix]):
+            consistent[ix] = check_relation(durationInfo['alphaBds'][ix], sizeInfo['tauBds'][ix], dsGrid[0][4:])
+    sizeInfo['consistent'] = consistent
+    
+    # places in array where exponent relation is consistent and measured power laws are significant
+    consistentAndSig=(sizeInfo['consistent']&fatalityInfo['consistent']&(sizeInfo['pval']>.05)&(fatalityInfo['pval']>.05))
+    # places in array where exponent relations are consistent
+    sig=(((sizeInfo['consistent']&fatalityInfo['consistent'])==0)&(consistentAndSig==0))==0
+    
+    return consistent, consistentAndSig
+
 def power_law_fit(eventType,
                   gridno,
                   diameters,
