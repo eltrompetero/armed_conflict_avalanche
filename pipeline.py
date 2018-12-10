@@ -9,7 +9,7 @@ from statsmodels.distributions import ECDF
 import dill
 
 
-def check_consistency(eventType, gridno):
+def check_consistency(eventType, gridno, pval_threshold=.05):
     """Check for which time and length scales the exponent relations between fatalities and sizes is consisten
     with the durations. These relations are consistent if they overlap within 90% confidence intervals.
     
@@ -71,15 +71,17 @@ def check_consistency(eventType, gridno):
     diameterInfo['consistent'] = consistent
 
     # places in array where exponent relations are consistent
-    consistent=sizeInfo['consistent']&fatalityInfo['consistent']
+    consistent=sizeInfo['consistent'] & fatalityInfo['consistent']
     # places in array where exponent relation is consistent and measured power laws are significant
-    consistentAndSig=(sizeInfo['consistent']&fatalityInfo['consistent']&(sizeInfo['pval']>.1)&(fatalityInfo['pval']>.1))
+    sig = ( (sizeInfo['pval']>pval_threshold) &
+            (fatalityInfo['pval']>pval_threshold) &
+            (durationInfo['pval']>pval_threshold) )
         
-    Lconsistent=consistent & diameterInfo['consistent']
-    LconsistentAndSig=diameterInfo['consistent'] & (diameterInfo['pval']>.1) & (durationInfo['pval']>.1)
-    LconsistentAndSig &= consistentAndSig
+    Lconsistent = consistent & diameterInfo['consistent']
+    Lsig = (diameterInfo['pval']>pval_threshold) & (durationInfo['pval']>pval_threshold)
+    Lsig &= sig
     
-    return consistent, consistentAndSig, Lconsistent, LconsistentAndSig
+    return consistent, sig, Lconsistent, Lsig
 
 def power_law_fit(eventType,
                   gridno,
@@ -330,6 +332,8 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
 #     return
     pool=Pool(n_cpus)
     alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample=list(zip(*pool.map(f, enumerate(Y))))
+    pool.close()
+
     alpha=np.array(alpha)
     lb=np.array(lb)
     alpha1=np.array(alpha1)
