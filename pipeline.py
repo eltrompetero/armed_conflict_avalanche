@@ -83,6 +83,55 @@ def check_consistency(eventType, gridno, pval_threshold=.05):
     
     return consistent, sig, Lconsistent, Lsig
 
+def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, dayThreshold,
+                      fitn=7, offset=-1, eventType=None, gridno=None):
+    """Calculate fractal dimensions from scaling of means."""
+    from .exponents import fractal_dimension, fractal_dimension_error
+
+    T=len(dayThreshold)
+    L=len(spaceThreshold)
+
+    # Collect all (dx,dt) pairs to look at
+    dsGrid=np.zeros((2,len(spaceThreshold)))
+    dfGrid=np.zeros((2,len(spaceThreshold)))
+    dlGrid=np.zeros((2,len(spaceThreshold)))
+
+    # Collect all (dx,dt) pairs to look at
+    dsGridBds=np.zeros((2,len(spaceThreshold),2))
+    dfGridBds=np.zeros((2,len(spaceThreshold),2))
+    dlGridBds=np.zeros((2,len(spaceThreshold),2))
+
+    for i in range(len(spaceThreshold)):
+        t=[t[t>1] for t in durations[i*T:(i+1)*T]]
+        d=[d[d>0] for d in diameters[i*T:(i+1)*T]]
+        f=[f[f>1] for f in fatalities[i*T:(i+1)*T]]
+        s=[s[s>1] for s in sizes[i*T:(i+1)*T]]
+            
+        # calculate fractal dimension
+        dfGrid[0,i], dfGridBds[0,i,:]=fractal_dimension(t[:fitn], f[:fitn])
+        if offset==0:
+            dfGrid[1,i], dfGridBds[1,i,:]=fractal_dimension(t[-fitn:], f[-fitn:])
+        else:
+            dfGrid[1,i], dfGridBds[1,i,:]=fractal_dimension(t[-fitn+offset:offset], f[-fitn+offset:offset])
+        
+        dsGrid[0,i], dsGridBds[0,i,:]=fractal_dimension(t[:fitn], s[:fitn])
+        if offset==0:
+            dsGrid[1,i], dsGridBds[1,i,:]=fractal_dimension(t[-fitn:], s[-fitn:])
+        else:
+            dsGrid[1,i], dsGridBds[1,i,:]=fractal_dimension(t[-fitn+offset:offset], s[-fitn+offset:offset])
+            
+        dlGrid[0,i], dlGridBds[0,i,:]=fractal_dimension(t[:fitn], d[:fitn])
+        if offset==0:
+            dlGrid[1,i], dlGridBds[1,i,:]=fractal_dimension(t[-fitn:], d[-fitn:])
+        else:
+            dlGrid[1,i], dlGridBds[1,i,:]=fractal_dimension(t[-fitn+offset:offset], d[-fitn+offset:offset])
+    
+    if not (eventType is None and gridno is None):
+        pickle.dump({'dlGrid':dlGrid,'dfGrid':dfGrid,'dsGrid':dsGrid,
+                     'dlGridBds':dlGridBds,'dlGridBds':dlGridBds,'dsGridBds':dsGridBds},
+                    open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)),'wb'),-1)
+    return dlGrid, dlBds, dsGrid, dsBds, dfGrid, dfBds
+
 def power_law_fit(eventType,
                   gridno,
                   diameters,

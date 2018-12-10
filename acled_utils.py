@@ -202,7 +202,6 @@ def loglog_fit_err_bars(x, y, fit_params, show_plot=False):
         95% confidence intervals on exponent parameter assuming fixed offset.
     """
 
-    import numdifftools as ndt
     from numpy import log
     from misc.stats import loglog_fit
 
