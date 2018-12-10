@@ -253,7 +253,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
     Returns
     -------
     ndarray
-        Max likelihood Exponent estimates.
+        Max likelihood exponent estimates.
     ndarray
         Lower bound estimates.
     ndarray
@@ -261,7 +261,13 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
     ndarray
         KS statistic
     ndarray
+        Sample of KS statistics.
+    ndarray
         p-values.
+    ndarray
+        Samples of alpha from significance testing.
+    ndarray
+        Samples of lower bound from significance testing.
     """
 
     from multiprocess import Pool, cpu_count
@@ -280,8 +286,9 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         # don't do any calculation for distributions that are too small, all one value, or don't show much 
         # dynamic range
         if len(y)<min_data_length or (y[0]==y).all() or lower_bound_range[i][0]>(lower_bound_range[i][1]/2):
-            return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+            return (np.nan, np.nan, np.nan, np.nan, None, np.nan, None, None)
         
+        #return alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample
         if discrete:
             alpha, lb=DiscretePowerLaw.max_likelihood(y,
                                                       lower_bound_range=lower_bound_range[i],
@@ -322,6 +329,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
                                                                   n_cpus=1)
         else:
             pval=np.nan
+            ksSample=None
             alphaSample=None
             lbSample=None
         print("Done fitting data set %d."%i)
