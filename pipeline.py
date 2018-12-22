@@ -7,7 +7,7 @@ from data_sets.acled import *
 import pickle
 from statsmodels.distributions import ECDF
 import dill
-
+from misc.powerlaw import discrete_powerlaw_correction_spline, powerlaw_correction_spline
 
 def check_consistency(eventType, gridno, pval_threshold=.05):
     """Check for which time and length scales the exponent relations between fatalities and sizes is consisten
@@ -130,7 +130,7 @@ def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, d
         pickle.dump({'dlGrid':dlGrid,'dfGrid':dfGrid,'dsGrid':dsGrid,
                      'dlGridBds':dlGridBds,'dlGridBds':dlGridBds,'dsGridBds':dsGridBds},
                     open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)),'wb'),-1)
-    return dlGrid, dlBds, dsGrid, dsBds, dfGrid, dfBds
+    return dlGrid, dlGridBds, dsGrid, dsGridBds, dfGrid, dfGridBds
 
 def power_law_fit(eventType,
                   gridno,
@@ -321,7 +321,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
 
     from multiprocess import Pool, cpu_count
     from misc.stats import PowerLaw, DiscretePowerLaw
-
+    
     assert len(lower_bound_range)==len(Y)
     n_cpus = n_cpus or cpu_count()-1
     
@@ -339,20 +339,26 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         
         #return alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample
         if discrete:
-            alpha, lb=DiscretePowerLaw.max_likelihood(y,
-                                                      lower_bound_range=lower_bound_range[i],
-                                                      initial_guess=1.2,
-                                                      upper_bound=upper_bound,
-                                                      n_cpus=1)
+            alpha, lb = DiscretePowerLaw.max_likelihood(y,
+                                                        lower_bound_range=lower_bound_range[i],
+                                                        initial_guess=1.2,
+                                                        upper_bound=upper_bound,
+                                                        n_cpus=1)
+            correction = discrete_powerlaw_correction_spline()
+            alpha += correction(alpha, (y>=lb).sum(), lb)
         else:
             alpha, lb=PowerLaw.max_likelihood(y,
                                               lower_bound_range=lower_bound_range[i],
                                               initial_guess=1.2,
                                               upper_bound=upper_bound)
-        
+            # must add wrapper for correction to take in a lower bound arg (and disregard it)
+            correction_ = powerlaw_correction_spline()
+            correction = lambda alpha, K, lb=None: correction_(alpha, K)
+            alpha += correction(alpha, (y>=lb).sum())
+
         # measure the scaling over at least a single order of magnitude
         if (np.log10(y.max())-np.log10(lb))<2:
-            alpha1=np.nan
+            alpha1 = np.nan
         else:
             if discrete:
                 alpha1=DiscretePowerLaw.mean_scaling(y[y>=lb],
@@ -363,19 +369,20 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
     
         # KS statistics
         if discrete:
-            dpl=DiscretePowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
+            dpl = DiscretePowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
         else:
-            dpl=PowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
+            dpl = PowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
         ksval=dpl.ksval(y[y>=lb])
         # only calculate p-value if the fit is rather close
         if n_boot_samples>0 and ksval<=ksval_threshold:
-            pval,ksSample,(alphaSample,lbSample)=dpl.clauset_test(y[y>=lb],
-                                                                  ksval,
-                                                                  lower_bound_range[i], 
-                                                                  n_boot_samples,
-                                                                  samples_below_cutoff=y[y<lb],
-                                                                  return_all=True,
-                                                                  n_cpus=1)
+            pval, ksSample, (alphaSample,lbSample) = dpl.clauset_test(y[y>=lb], 
+                                                                      ksval,
+                                                                      lower_bound_range[i], 
+                                                                      n_boot_samples,
+                                                                      samples_below_cutoff=y[y<lb],
+                                                                      return_all=True,
+                                                                      correction=correction,
+                                                                      n_cpus=1)
         else:
             pval=np.nan
             ksSample=None
