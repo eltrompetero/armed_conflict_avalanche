@@ -277,6 +277,96 @@ def power_law_fit(eventType,
         return fname
     return fname, diameterInfo, sizeInfo, fatalityInfo, durationInfo
 
+def post_power_law_fit(eventType,
+                       gridno,
+                       diameters,
+                       sizes,
+                       fatalities,
+                       durations,
+                       finiteBound,
+                       nBootSamples,
+                       nCpus,
+                       save_pickle=True):
+    """Run fitting and significance testing and pickle results.
+    
+    Parameters
+    ----------
+    eventType : str
+    gridno : int
+    diameters : list
+    sizes : list
+    fatalities : list
+    durations : list
+    finiteBound : bool
+    nBootSamples : int
+    nCpus : int
+    save_pickle : bool, True
+
+    Returns
+    -------
+    str
+        Filename where pickle is.
+    dict, optional
+        diameterInfo
+    dict, optional
+        sizeInfo
+    dict, optional
+        fatalityInfo
+    dict, optional
+        durationInfo
+    """
+    
+    fname=('plotting/%s_ecdfs%s.p'%(eventType,str(gridno).zfill(2)) if finiteBound else
+           'plotting/%s_ecdfs_inf_range%s.p'%(eventType,str(gridno).zfill(2)))
+    
+    data = pickle.load(open(fname,'rb'))
+    diameterInfo = data['diameterInfo']
+    sizeInfo = data['sizeInfo']
+    durationInfo = data['durationInfo']
+    fatalityInfo = data['fatalityInfo']
+    
+    print("Starting diameter fitting...")
+    upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
+    diameterInfo['nuSample'], diameterInfo['lbSample'] = _bootstrap_power_law_fit(diameters,
+                                        np.vstack([(d[d>0].min(),min(d.max()/2,1000)) for d in diameters]),
+                                        upperBound,
+                                        discrete=False,
+                                        n_boot_samples=nBootSamples,
+                                        n_cpus=nCpus)
+
+    print("Starting size fitting...")
+    upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
+    sizeInfo['tauSample'], sizeInfo['lbSample'] = _bootstrap_power_law_fit(sizes,
+                            np.vstack([(s[s>1].min(),min(s.max()//10,1000)) for s in sizes]),
+                            upperBound,
+                            n_boot_samples=nBootSamples,
+                            n_cpus=nCpus)
+
+    print("Starting fatality fitting...")
+    upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
+    fatalityInfo['upsSample'], fatalityInfo['lbSample'] = _bootstrap_power_law_fit(fatalities,
+                              np.vstack([(f[f>1].min(),min(f.max()//10,1000)) for f in fatalities]),
+                              upperBound,
+                              n_boot_samples=nBootSamples,
+                              n_cpus=nCpus)
+
+    print("Starting duration fitting...")
+    upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
+    durationInfo['alphaSample'], durationInfo['lbSample'] = _bootstrap_power_law_fit(durations,
+                            np.vstack([(t[t>1].min(),min(t.max()//10,1000)) for t in durations]),
+                            upperBound,
+                            n_boot_samples=nBootSamples,
+                            n_cpus=nCpus)
+    
+    if save_pickle:
+        dill.dump({'diameterInfo':diameterInfo, 'sizeInfo':sizeInfo,
+                   'durationInfo':durationInfo, 'fatalityInfo':fatalityInfo,
+                   'nBootSamples':nBootSamples},
+                    open(fname,'wb'),-1)
+    
+        return fname
+    return fname, diameterInfo, sizeInfo, fatalityInfo, durationInfo
+
 def _power_law_fit(Y, lower_bound_range, upper_bound,
 		   discrete=True,
 		   n_boot_samples=2500,
@@ -426,6 +516,96 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
             ecdfs.append(None)
     
     return alpha, alpha1, lb, cdfs, ecdfs, fullecdfs, ksval, ksSample, pval, alphaSample, lbSample
+
+def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
+                             discrete=True,
+                             n_boot_samples=2500,
+                             min_data_length=10,
+                             n_cpus=None):
+    """Pipeline max likelihood and mean scaling power law fits to conflict statistics. These are typically
+    given by a coarse graining.
+
+    Parameters
+    ----------
+    Y : list
+    lower_bound_range : list of duples
+    upper_bound : int
+    discrete : bool, True
+    n_boot_sample : int, 2500
+        Default value gives accuracy of about 0.01.
+    min_data_length : int, 10
+        Number of data points required before fitting process is initiated.
+    
+    Returns
+    -------
+    ndarray
+        Max likelihood exponent estimates from bootstrap sampling.
+    ndarray
+        Lower bound estimates.
+    """
+
+    from multiprocess import Pool, cpu_count
+    from misc.stats import PowerLaw, DiscretePowerLaw
+    
+    assert len(lower_bound_range)==len(Y)
+    n_cpus = n_cpus or cpu_count()-1
+    
+    def f(args):
+        i,y = args
+        if discrete:
+            y=y[y>1].astype(int)
+        else:
+            y=y[y>0]
+        
+        # don't do any calculation for distributions that are too small, all one value, or don't show much 
+        # dynamic range
+        if len(y)<min_data_length or (y[0]==y).all() or lower_bound_range[i][0]>(lower_bound_range[i][1]/2):
+            return (np.nan, np.nan)
+        
+        alpha = np.zeros(n_boot_samples)
+        lb = np.zeros(n_boot_samples)
+        
+        if discrete:
+            correction = discrete_powerlaw_correction_spline()
+
+            for counter in range(n_boot_samples):
+                # generate bootstrap sample
+                y_ = y[np.random.choice(range(len(y)), size=len(y))]
+                
+                alpha[counter], lb[counter] = DiscretePowerLaw.max_likelihood(y_,
+                                                            lower_bound_range=lower_bound_range[i],
+                                                            initial_guess=1.2,
+                                                            upper_bound=upper_bound,
+                                                            n_cpus=1)
+                alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum(), int(lb[counter]))
+        else:
+            # must add wrapper for correction to take in a lower bound arg (and disregard it)
+            correction_ = powerlaw_correction_spline()
+            correction = lambda alpha, K, lb=None: correction_(alpha, K)
+
+            for counter in range(n_boot_samples):
+                # generate bootstrap sample
+                y_ = y[np.random.choice(range(len(y)), size=len(y))]
+
+                alpha[counter], lb[counter] = PowerLaw.max_likelihood(y_,
+                                                                  lower_bound_range=lower_bound_range[i],
+                                                                  initial_guess=1.2,
+                                                                  upper_bound=upper_bound)
+                
+                alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum())
+        return alpha, lb
+    
+    #for (i,y) in enumerate(Y):
+    #    f((i,y))
+    #return
+    pool = Pool(n_cpus)
+    alphaSample, lbSample = list(zip(*pool.map(f, enumerate(Y))))
+    pool.close()
+
+    alphaSample = np.array(alphaSample)
+    lbSample = np.array(lbSample)
+    
+    return alphaSample, lbSample
 
 def _vtess_loop(args):
     """
