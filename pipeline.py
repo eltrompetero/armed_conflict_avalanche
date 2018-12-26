@@ -207,6 +207,7 @@ def power_law_fit(eventType,
          diameterInfo['pval'],
          diameterInfo['nuSample'],
          diameterInfo['lbSample']) = output
+    print("Done.")
     
     if run_size:
         print("Starting size fitting...")
@@ -227,6 +228,7 @@ def power_law_fit(eventType,
          sizeInfo['pval'],
          sizeInfo['tauSample'],
          sizeInfo['lbSample']) = output
+    print("Done.")
     
     if run_fatality:
         print("Starting fatality fitting...")
@@ -247,6 +249,7 @@ def power_law_fit(eventType,
          fatalityInfo['pval'],
          fatalityInfo['upsSample'],
          fatalityInfo['lbSample']) = output
+    print("Done.")
     
     if run_duration:
         print("Starting duration fitting...")
@@ -267,6 +270,7 @@ def power_law_fit(eventType,
          durationInfo['pval'],
          durationInfo['alphaSample'],
          durationInfo['lbSample']) = output
+    print("Done.")
     
     if save_pickle:
         dill.dump({'diameterInfo':diameterInfo, 'sizeInfo':sizeInfo,
@@ -325,7 +329,7 @@ def post_power_law_fit(eventType,
     durationInfo = data['durationInfo']
     fatalityInfo = data['fatalityInfo']
     
-    print("Starting diameter fitting...")
+    print("Starting diameter post fitting...")
     upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
     diameterInfo['nuSample'], diameterInfo['lbSample'] = _bootstrap_power_law_fit(diameters,
                                         np.vstack([(d[d>0].min(),min(d.max()/2,1000)) for d in diameters]),
@@ -333,31 +337,35 @@ def post_power_law_fit(eventType,
                                         discrete=False,
                                         n_boot_samples=nBootSamples,
                                         n_cpus=nCpus)
+    print("Done.")
 
-    print("Starting size fitting...")
+    print("Starting size post fitting...")
     upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
     sizeInfo['tauSample'], sizeInfo['lbSample'] = _bootstrap_power_law_fit(sizes,
                             np.vstack([(s[s>1].min(),min(s.max()//10,1000)) for s in sizes]),
                             upperBound,
                             n_boot_samples=nBootSamples,
                             n_cpus=nCpus)
+    print("Done.")
 
-    print("Starting fatality fitting...")
+    print("Starting fatality post fitting...")
     upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
     fatalityInfo['upsSample'], fatalityInfo['lbSample'] = _bootstrap_power_law_fit(fatalities,
                               np.vstack([(f[f>1].min(),min(f.max()//10,1000)) for f in fatalities]),
                               upperBound,
                               n_boot_samples=nBootSamples,
                               n_cpus=nCpus)
+    print("Done.")
 
-    print("Starting duration fitting...")
+    print("Starting duration post fitting...")
     upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
     durationInfo['alphaSample'], durationInfo['lbSample'] = _bootstrap_power_law_fit(durations,
                             np.vstack([(t[t>1].min(),min(t.max()//10,1000)) for t in durations]),
                             upperBound,
                             n_boot_samples=nBootSamples,
                             n_cpus=nCpus)
-    
+    print("Done.")
+
     if save_pickle:
         dill.dump({'diameterInfo':diameterInfo, 'sizeInfo':sizeInfo,
                    'durationInfo':durationInfo, 'fatalityInfo':fatalityInfo,
