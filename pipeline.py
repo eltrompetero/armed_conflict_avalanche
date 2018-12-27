@@ -443,7 +443,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
                                                         upper_bound=upper_bound,
                                                         n_cpus=1)
             correction = discrete_powerlaw_correction_spline()
-            alpha += correction(alpha, (y>=lb).sum(), lb)
+            alpha += correction(alpha, (y>=lb).sum(), int(lb))
         else:
             alpha, lb=PowerLaw.max_likelihood(y,
                                               lower_bound_range=lower_bound_range[i],
