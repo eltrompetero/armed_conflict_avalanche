@@ -53,21 +53,27 @@ def check_consistency(eventType, gridno, pval_threshold=.05):
     consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
     for ix in range(len(sizeInfo['tau'])):
         if not np.isnan(durationInfo['alpha'][ix]): 
-            consistent[ix] = check_relation(durationInfo['alphaBds'][ix], fatalityInfo['upsBds'][ix], dfGrid[0][4:])
+            consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
+                                            fatalityInfo['upsBds'][ix],
+                                            dfGridBds[0][4:])
     fatalityInfo['consistent'] = consistent
     
     # check size & duration
     consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
     for ix in range(len(sizeInfo['tau'])):
         if not np.isnan(durationInfo['alpha'][ix]):
-            consistent[ix] = check_relation(durationInfo['alphaBds'][ix], sizeInfo['tauBds'][ix], dsGrid[0][4:])
+            consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
+                                            sizeInfo['tauBds'][ix],
+                                            dsGridBds[0][4:])
     sizeInfo['consistent'] = consistent
 
     # check length & duration
     consistent = np.zeros(len(diameterInfo['nu']), dtype=bool)==1
     for ix in range(len(diameterInfo['nu'])):
         if not np.isnan(durationInfo['alpha'][ix]):
-            consistent[ix] = check_relation(durationInfo['alphaBds'][ix], diameterInfo['nuBds'][ix], dlGrid[0][4:])
+            consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
+                                            diameterInfo['nuBds'][ix],
+                                            dlGridBds[0][4:])
     diameterInfo['consistent'] = consistent
 
     # places in array where exponent relations are consistent
@@ -86,7 +92,7 @@ def check_consistency(eventType, gridno, pval_threshold=.05):
 def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, dayThreshold,
                       fitn=7, offset=-1, eventType=None, gridno=None):
     """Calculate fractal dimensions from scaling of means."""
-    from .exponents import fractal_dimension, fractal_dimension_error
+    from .exponents import fractal_dimension
 
     T=len(dayThreshold)
     L=len(spaceThreshold)
@@ -128,8 +134,8 @@ def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, d
     
     if not (eventType is None and gridno is None):
         pickle.dump({'dlGrid':dlGrid,'dfGrid':dfGrid,'dsGrid':dsGrid,
-                     'dlGridBds':dlGridBds,'dlGridBds':dlGridBds,'dsGridBds':dsGridBds},
-                    open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)),'wb'),-1)
+                     'dfGridBds':dfGridBds,'dlGridBds':dlGridBds,'dsGridBds':dsGridBds},
+                    open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)),'wb'), -1)
     return dlGrid, dlGridBds, dsGrid, dsGridBds, dfGrid, dfGridBds
 
 def power_law_fit(eventType,

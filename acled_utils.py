@@ -23,7 +23,7 @@ from numba import jit,njit
 DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
 
 
-def check_relation(alphaBds, upsBds, df):
+def check_relation(alphaBds, upsBds, dfBds):
     """
     Checks the basic relation between the time scales exponent alpha with another scaling variable like
     fatalities. The relation checked for this case would be
@@ -35,8 +35,9 @@ def check_relation(alphaBds, upsBds, df):
         Bound for alpha, exponent for P(T) ~ T^-alpha.
     upsBds : tuple
         Bound for variable to scale with T, like upsilon for fatalities.
-    df : ndarray
-        Scaling of second variable with T (fractal dimension).
+    dfBds : ndarray
+        Bounds for scaling of second variable with T (fractal dimension). Each col represented lower then
+        upper bounds respectively.
 
     Returns
     -------
@@ -46,9 +47,9 @@ def check_relation(alphaBds, upsBds, df):
 
     if not (hasattr(alphaBds,'__len__') and hasattr(upsBds,'__len__')):
         return False
-    if ( (((alphaBds[0]-1)>(df*(upsBds[0]-1))) & ((alphaBds[0]-1)<(df*(upsBds[1]-1)))).any() or
-         (((alphaBds[1]-1)>(df*(upsBds[0]-1))) & ((alphaBds[1]-1)<(df*(upsBds[1]-1)))).any() or
-         (((alphaBds[0]-1)<(df*(upsBds[0]-1))) & ((alphaBds[1]-1)>(df*(upsBds[1]-1)))).any() ):
+    if ( (((alphaBds[0]-1)>(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[0]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
+         (((alphaBds[1]-1)>(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[1]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
+         (((alphaBds[0]-1)<(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[1]-1)>(dfBds[:,1]*(upsBds[1]-1)))).any() ):
         return True
     return False
 

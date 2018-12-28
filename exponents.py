@@ -14,10 +14,11 @@ SMIN=2
 
 def fractal_dimension(x, y,
                       initial_guess=1.,
-                      rng=(.2,1.5),
+                      grid_range=(.2,1.5),
                       return_grid=False,
                       return_err=True,
-                      symmetric=True):
+                      symmetric=True,
+                      n_bootstrap_iters=100):
     """Find the fractional dimension df such that <x^df> ~ <y>.
 
     These averages should be related 1:1 when df is correct.
@@ -29,11 +30,12 @@ def fractal_dimension(x, y,
     y : list
         Each element should contain many entries that will be used to calculated the sample mean.
     initial_guess : float, 1.
-    rng : twople, (.2, 1.5)
+    grid_range : twople, (.2, 1.5)
         Range for initial grid search using scipy.optimize.brute.
     return_grid : bool, False
     return_err : bool, True
     symmetric : bool, True
+    n_bootstrap_iters : int, 1000
 
     Returns
     -------
@@ -43,28 +45,46 @@ def fractal_dimension(x, y,
         log residuals.
     """
 
-    from scipy.optimize import minimize,brute,fmin
+    from scipy.optimize import minimize, brute, fmin
     ym=[i.mean() for i in y]
     
     # grid sampling is often necessary for convergence
     cost = lambda df:( (loglog_fit([(i**df).mean() for i in x], ym, symmetric=symmetric)[0] - 1)**2
                        if 0<df<5 else 1e30 )
-    soln = brute( cost, (rng,), Ns=20, full_output=True )
+    soln = brute( cost, (grid_range,), Ns=20, full_output=True )
     
     if return_err:
+        from multiprocess import Pool, cpu_count
+
+        def one_iteration(rng):
+            ym=[i[rng.choice(range(len(i)),size=len(i))].mean() for i in y]
+            x_ = [i[rng.choice(range(len(i)),size=len(i))] for i in x]
+
+            # error by bootstrap sampling
+            cost = lambda df:( (loglog_fit([(i**df).mean() for i in x_], ym, symmetric=symmetric)[0] - 1)**2
+                               if 0<df<5 else 1e30 )
+            soln = brute( cost, (grid_range,), Ns=20, full_output=True )
+            return soln[0]
+
+        pool = Pool(cpu_count()-1)
+        bootSample = np.array(pool.map(one_iteration,
+                                      [np.random.RandomState() for i in range(n_bootstrap_iters)]))
+        pool.close()
+        
+        errbds = percentile_bds(bootSample, (5,95))
         # error is estimated by looking at fluctuation in exponent parameter in loglog_fit and seeing
         # how that corresponds to fluctuations in the cost function comparing the fractal dimension to
         # 1. then that is mapped to confidence intervals in the fractal dimension
-        df=soln[0]
-        xm=[(i**df).mean() for i in x]
-        logfitParams=loglog_fit(xm, ym)
-        logfitErr=loglog_fit_err_bars(xm, ym, logfitParams)  # typically very tight bounds
+        #df=soln[0]
+        #xm=[(i**df).mean() for i in x]
+        #logfitParams=loglog_fit(xm, ym)
+        #logfitErr=loglog_fit_err_bars(xm, ym, logfitParams)  # typically very tight bounds
 
-        # range of variation in cost function
-        maxvar=max((logfitErr[0]-1)**2, (logfitErr[1]-1)**2)
-        errbds=fractal_dimension_error(x, ym, df, logfitParams[0],
-                                       threshold=maxvar,
-                                       symmetric=symmetric)
+        ## range of variation in cost function
+        #maxvar=max((logfitErr[0]-1)**2, (logfitErr[1]-1)**2)
+        #errbds=fractal_dimension_error(x, ym, df, logfitParams[0],
+        #                               threshold=maxvar,
+        #                               symmetric=symmetric)
 
     if return_grid:
         return soln[0], errbds, (soln[2], soln[3])
