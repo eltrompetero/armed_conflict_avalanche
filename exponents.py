@@ -17,6 +17,7 @@ def fractal_dimension(x, y,
                       grid_range=(.2,1.5),
                       return_grid=False,
                       return_err=True,
+                      return_sample=False,
                       symmetric=True,
                       n_bootstrap_iters=100):
     """Find the fractional dimension df such that <x^df> ~ <y>.
@@ -34,6 +35,8 @@ def fractal_dimension(x, y,
         Range for initial grid search using scipy.optimize.brute.
     return_grid : bool, False
     return_err : bool, True
+    return_sample : bool, False
+        If True, return bootstrap sample.
     symmetric : bool, True
     n_bootstrap_iters : int, 1000
 
@@ -85,10 +88,17 @@ def fractal_dimension(x, y,
         #errbds=fractal_dimension_error(x, ym, df, logfitParams[0],
         #                               threshold=maxvar,
         #                               symmetric=symmetric)
+        
+        output = [soln[0], errbds]
+        if return_grid:
+            output.append((soln[2], soln[3]))
+        if return_sample:
+            output.append(bootSample)
+        return tuple(output)
 
     if return_grid:
-        return soln[0], errbds, (soln[2], soln[3])
-    return soln[0], errbds
+        return soln[0], (soln[2], soln[3])
+    return soln[0]
 
 def fractal_dimension_error(x, y, df, params, threshold=.01, eps=1e-6, symmetric=True):
     """Find the range of fractal dimension allowed such that the squared error doesn't exceed given
