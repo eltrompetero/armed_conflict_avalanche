@@ -106,6 +106,11 @@ def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, d
     dsGridBds=np.zeros((2,len(spaceThreshold),2))
     dfGridBds=np.zeros((2,len(spaceThreshold),2))
     dlGridBds=np.zeros((2,len(spaceThreshold),2))
+    
+    # bootstrap sample for error bars
+    dsGridSample = []
+    dfGridSample = []
+    dlGridSample = []
 
     for i in range(len(spaceThreshold)):
         t=[t[t>1] for t in durations[i*T:(i+1)*T]]
@@ -114,27 +119,39 @@ def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, d
         s=[s[s>1] for s in sizes[i*T:(i+1)*T]]
             
         # calculate fractal dimension
-        dfGrid[0,i], dfGridBds[0,i,:]=fractal_dimension(t[:fitn], f[:fitn])
+        dfGrid[0,i], dfGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], f[:fitn], return_sample=True)
         if offset==0:
-            dfGrid[1,i], dfGridBds[1,i,:]=fractal_dimension(t[-fitn:], f[-fitn:])
+            dfGrid[1,i], dfGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:], f[-fitn:], return_sample=True)
         else:
-            dfGrid[1,i], dfGridBds[1,i,:]=fractal_dimension(t[-fitn+offset:offset], f[-fitn+offset:offset])
+            dfGrid[1,i], dfGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
+                                                                   f[-fitn+offset:offset],
+                                                                   return_sample=True)
+        dfGridSample.append((samp0, samp1))
         
-        dsGrid[0,i], dsGridBds[0,i,:]=fractal_dimension(t[:fitn], s[:fitn])
+        dsGrid[0,i], dsGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], s[:fitn], return_sample=True)
         if offset==0:
-            dsGrid[1,i], dsGridBds[1,i,:]=fractal_dimension(t[-fitn:], s[-fitn:])
+            dsGrid[1,i], dsGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:], s[-fitn:], return_sample=True)
         else:
-            dsGrid[1,i], dsGridBds[1,i,:]=fractal_dimension(t[-fitn+offset:offset], s[-fitn+offset:offset])
+            dsGrid[1,i], dsGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
+                                                                   s[-fitn+offset:offset],
+                                                                   return_sample=True)
+        dsGridSample.append((samp0, samp1))
             
-        dlGrid[0,i], dlGridBds[0,i,:]=fractal_dimension(t[:fitn], d[:fitn])
+        dlGrid[0,i], dlGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], d[:fitn], return_sample=True)
         if offset==0:
-            dlGrid[1,i], dlGridBds[1,i,:]=fractal_dimension(t[-fitn:], d[-fitn:])
+            dlGrid[1,i], dlGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:],
+                                                                   d[-fitn:],
+                                                                   return_sample=True)
         else:
-            dlGrid[1,i], dlGridBds[1,i,:]=fractal_dimension(t[-fitn+offset:offset], d[-fitn+offset:offset])
-    
+            dlGrid[1,i], dlGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
+                                                                   d[-fitn+offset:offset],
+                                                                   return_sample=True)
+        dlGridSample.append((samp0, samp1))
+
     if not (eventType is None and gridno is None):
         pickle.dump({'dlGrid':dlGrid,'dfGrid':dfGrid,'dsGrid':dsGrid,
-                     'dfGridBds':dfGridBds,'dlGridBds':dlGridBds,'dsGridBds':dsGridBds},
+                     'dfGridBds':dfGridBds,'dlGridBds':dlGridBds,'dsGridBds':dsGridBds,
+                     'dfGridSample':dfGridSample, 'dlGridSample':dlGridSample, 'dsGridSample':dsGridSample},
                     open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)),'wb'), -1)
     return dlGrid, dlGridBds, dsGrid, dsGridBds, dfGrid, dfGridBds
 

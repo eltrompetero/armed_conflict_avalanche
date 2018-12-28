@@ -70,8 +70,8 @@ def fractal_dimension(x, y,
             return soln[0]
 
         pool = Pool(cpu_count()-1)
-        bootSample = np.array(pool.map(one_iteration,
-                                      [np.random.RandomState() for i in range(n_bootstrap_iters)]))
+        bootSample = np.concatenate(pool.map(one_iteration,
+                                             [np.random.RandomState() for i in range(n_bootstrap_iters)]))
         pool.close()
         
         errbds = percentile_bds(bootSample, (5,95))

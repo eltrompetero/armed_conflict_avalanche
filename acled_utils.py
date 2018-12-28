@@ -62,6 +62,13 @@ def percentile_bds(X, perc):
         return np.percentile(X[X<7], perc[0]), np.percentile(X, perc[1])
     return None
 
+def sigma_bds(X, factor=1.):
+    if hasattr(X,'__len__'):
+        mu = np.mean(X)
+        sigma = np.std(X)
+        return (mu-sigma*factor, mu+sigma*factor)
+    return None
+
 def transform_bds_to_offset(x,bds):
     """To make it easier to use matplotlib's errorbar plotting function, take a vector 
     of data and error bounds and convert it to an output that can be passed directly to the yerr kwarg.
