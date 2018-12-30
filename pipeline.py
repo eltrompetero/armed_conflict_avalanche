@@ -38,16 +38,16 @@ def check_consistency(eventType, gridno, pval_threshold=.05):
     fatalityInfo=data['fatalityInfo']
     durationInfo=data['durationInfo']
 
-    perc=(5,95)
+    perc=(34,66)
     diameterInfo['nuBds']=np.array([percentile_bds(X, perc) for X in diameterInfo['nuSample']])
     sizeInfo['tauBds']=np.array([percentile_bds(X, perc) for X in sizeInfo['tauSample']])
     fatalityInfo['upsBds']=np.array([percentile_bds(X, perc) for X in fatalityInfo['upsSample']])
     durationInfo['alphaBds']=np.array([percentile_bds(X, perc) for X in durationInfo['alphaSample']])
 
     data=pickle.load(open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)), 'rb'))
-    dfGrid=data['dfGrid']
-    dsGrid=data['dsGrid']
-    dlGrid=data['dlGrid']
+    dfGridBds=data['dfGridBds']
+    dsGridBds=data['dsGridBds']
+    dlGridBds=data['dlGridBds']
     
     # check fatality & duration
     consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
@@ -119,33 +119,48 @@ def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, d
         s=[s[s>1] for s in sizes[i*T:(i+1)*T]]
             
         # calculate fractal dimension
-        dfGrid[0,i], dfGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], f[:fitn], return_sample=True)
+        perc = (34,66)
+        dfGrid[0,i], dfGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], f[:fitn],
+                                                               return_sample=True,
+                                                               return_err=perc)
         if offset==0:
-            dfGrid[1,i], dfGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:], f[-fitn:], return_sample=True)
+            dfGrid[1,i], dfGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:], f[-fitn:],
+                                                                   return_sample=True,
+                                                                   return_err=perc)
         else:
             dfGrid[1,i], dfGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
                                                                    f[-fitn+offset:offset],
-                                                                   return_sample=True)
+                                                                   return_sample=True,
+                                                                   return_err=perc)
         dfGridSample.append((samp0, samp1))
         
-        dsGrid[0,i], dsGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], s[:fitn], return_sample=True)
+        dsGrid[0,i], dsGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], s[:fitn],
+                                                               return_sample=True,
+                                                               return_err=perc)
         if offset==0:
-            dsGrid[1,i], dsGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:], s[-fitn:], return_sample=True)
+            dsGrid[1,i], dsGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:], s[-fitn:],
+                                                                   return_sample=True,
+                                                                   return_err=perc)
         else:
             dsGrid[1,i], dsGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
                                                                    s[-fitn+offset:offset],
-                                                                   return_sample=True)
+                                                                   return_sample=True,
+                                                                   return_err=perc)
         dsGridSample.append((samp0, samp1))
             
-        dlGrid[0,i], dlGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], d[:fitn], return_sample=True)
+        dlGrid[0,i], dlGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], d[:fitn],
+                                                               return_sample=True,
+                                                               return_err=perc)
         if offset==0:
             dlGrid[1,i], dlGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:],
                                                                    d[-fitn:],
-                                                                   return_sample=True)
+                                                                   return_sample=True,
+                                                                   return_err=perc)
         else:
             dlGrid[1,i], dlGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
                                                                    d[-fitn+offset:offset],
-                                                                   return_sample=True)
+                                                                   return_sample=True,
+                                                                   return_err=perc)
         dlGridSample.append((samp0, samp1))
 
     if not (eventType is None and gridno is None):
@@ -580,7 +595,13 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
     
     assert len(lower_bound_range)==len(Y)
     n_cpus = n_cpus or cpu_count()-1
-    
+    if discrete:
+        correction = discrete_powerlaw_correction_spline()
+    else:
+        # must add wrapper for correction to take in a lower bound arg (and disregard it)
+        correction_ = powerlaw_correction_spline()
+        correction = lambda alpha, K, lb=None: correction_(alpha, K)
+
     def f(args):
         i,y = args
         if discrete:
@@ -597,8 +618,6 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
         lb = np.zeros(n_boot_samples)
         
         if discrete:
-            correction = discrete_powerlaw_correction_spline()
-
             for counter in range(n_boot_samples):
                 # generate bootstrap sample
                 y_ = y[np.random.choice(range(len(y)), size=len(y))]
@@ -610,10 +629,6 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
                                                             n_cpus=1)
                 alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum(), int(lb[counter]))
         else:
-            # must add wrapper for correction to take in a lower bound arg (and disregard it)
-            correction_ = powerlaw_correction_spline()
-            correction = lambda alpha, K, lb=None: correction_(alpha, K)
-
             for counter in range(n_boot_samples):
                 # generate bootstrap sample
                 y_ = y[np.random.choice(range(len(y)), size=len(y))]
@@ -626,9 +641,9 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
                 alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum())
         return alpha, lb
     
-    #for (i,y) in enumerate(Y):
-    #    f((i,y))
-    #return
+    for (i,y) in enumerate(Y):
+        f((i,y))
+    return
     pool = Pool(n_cpus)
     alphaSample, lbSample = list(zip(*pool.map(f, enumerate(Y))))
     pool.close()

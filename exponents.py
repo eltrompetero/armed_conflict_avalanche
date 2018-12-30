@@ -19,7 +19,7 @@ def fractal_dimension(x, y,
                       return_err=True,
                       return_sample=False,
                       symmetric=True,
-                      n_bootstrap_iters=100):
+                      n_bootstrap_iters=1000):
     """Find the fractional dimension df such that <x^df> ~ <y>.
 
     These averages should be related 1:1 when df is correct.
@@ -27,16 +27,19 @@ def fractal_dimension(x, y,
     Parameters
     ----------
     x : list
-        Each element should contain many entries that will be used to calculated the sample mean.
+        Each element should contain many entries that will be used to calculated the
+        sample mean.
     y : list
-        Each element should contain many entries that will be used to calculated the sample mean.
+        Each element should contain many entries that will be used to calculated the
+        sample mean.
     initial_guess : float, 1.
     grid_range : twople, (.2, 1.5)
         Range for initial grid search using scipy.optimize.brute.
     return_grid : bool, False
     return_err : bool, True
     return_sample : bool, False
-        If True, return bootstrap sample.
+        If evaluates to True, return bootstrap sample. This can be passed in as a twople
+        which will correspond to percentile bounds (lower, upper).
     symmetric : bool, True
     n_bootstrap_iters : int, 1000
 
@@ -44,8 +47,8 @@ def fractal_dimension(x, y,
     -------
     df : float
     errbds : twople
-        Error bars on the loglog_fit exponent parameter measured by the standard deviation of the
-        log residuals.
+        Error bars on the loglog_fit exponent parameter measured by the standard deviation
+        of the log residuals.
     """
 
     from scipy.optimize import minimize, brute, fmin
@@ -74,7 +77,10 @@ def fractal_dimension(x, y,
                                              [np.random.RandomState() for i in range(n_bootstrap_iters)]))
         pool.close()
         
-        errbds = percentile_bds(bootSample, (5,95))
+        if type(return_err) is tuple:
+            errbds = percentile_bds(bootSample, return_err)
+        else:
+            errbds = percentile_bds(bootSample, (5,95))
         # error is estimated by looking at fluctuation in exponent parameter in loglog_fit and seeing
         # how that corresponds to fluctuations in the cost function comparing the fractal dimension to
         # 1. then that is mapped to confidence intervals in the fractal dimension
