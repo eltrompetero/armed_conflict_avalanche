@@ -9,17 +9,22 @@ from statsmodels.distributions import ECDF
 import dill
 from misc.powerlaw import discrete_powerlaw_correction_spline, powerlaw_correction_spline
 
-def check_consistency(eventType, gridno, pval_threshold=.05):
-    """Check for which time and length scales the exponent relations between fatalities and sizes is consisten
-    with the durations. These relations are consistent if they overlap within 90% confidence intervals.
+
+def check_consistency(eventType, gridno, pval_threshold=.05, perc=(17.5,83.5)):
+    """Check for which time and length scales the exponent relations between fatalities
+    and sizes is consisten with the durations. These relations are consistent if they
+    overlap within some bootstrapped confidence intervals.
     
-    Also run a significance test to check which power law fits are significant at all. These are measured to
-    p values of 0.1 which is the Clauset, Shalizi, Newman limit.
+    Also run a significance test to check which power law fits are significant at all.
+    These are measured to p values of 0.1 which is the Clauset, Shalizi, Newman limit.
 
     Parameters
     ----------
     eventType : str
     gridno : int
+    pval_threshold : float, .05
+    perc : tuple, (17.5,83.5)
+        Default corresponds to 67% error bars analogous to a single standard deviation.
 
     Returns
     -------
@@ -38,16 +43,15 @@ def check_consistency(eventType, gridno, pval_threshold=.05):
     fatalityInfo=data['fatalityInfo']
     durationInfo=data['durationInfo']
 
-    perc=(34,66)
     diameterInfo['nuBds']=np.array([percentile_bds(X, perc) for X in diameterInfo['nuSample']])
     sizeInfo['tauBds']=np.array([percentile_bds(X, perc) for X in sizeInfo['tauSample']])
     fatalityInfo['upsBds']=np.array([percentile_bds(X, perc) for X in fatalityInfo['upsSample']])
     durationInfo['alphaBds']=np.array([percentile_bds(X, perc) for X in durationInfo['alphaSample']])
 
-    data=pickle.load(open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)), 'rb'))
-    dfGridBds=data['dfGridBds']
-    dsGridBds=data['dsGridBds']
-    dlGridBds=data['dlGridBds']
+    data = pickle.load(open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)), 'rb'))
+    dfGridBds = data['dfGridBds']
+    dsGridBds = data['dsGridBds']
+    dlGridBds = data['dlGridBds']
     
     # check fatality & duration
     consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
@@ -603,7 +607,7 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
         correction = lambda alpha, K, lb=None: correction_(alpha, K)
 
     def f(args):
-        i,y = args
+        i,y,rng = args
         if discrete:
             y=y[y>1].astype(int)
         else:
@@ -612,7 +616,7 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
         # don't do any calculation for distributions that are too small, all one value, or don't show much 
         # dynamic range
         if len(y)<min_data_length or (y[0]==y).all() or lower_bound_range[i][0]>(lower_bound_range[i][1]/2):
-            return (np.nan, np.nan)
+            return (np.zeros(n_boot_samples)+np.nan, np.zeros(n_boot_samples)+np.nan)
         
         alpha = np.zeros(n_boot_samples)
         lb = np.zeros(n_boot_samples)
@@ -620,7 +624,7 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
         if discrete:
             for counter in range(n_boot_samples):
                 # generate bootstrap sample
-                y_ = y[np.random.choice(range(len(y)), size=len(y))]
+                y_ = y[rng.choice(range(len(y)), size=len(y))]
                 
                 alpha[counter], lb[counter] = DiscretePowerLaw.max_likelihood(y_,
                                                             lower_bound_range=lower_bound_range[i],
@@ -631,7 +635,7 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
         else:
             for counter in range(n_boot_samples):
                 # generate bootstrap sample
-                y_ = y[np.random.choice(range(len(y)), size=len(y))]
+                y_ = y[rng.choice(range(len(y)), size=len(y))]
 
                 alpha[counter], lb[counter] = PowerLaw.max_likelihood(y_,
                                                                   lower_bound_range=lower_bound_range[i],
@@ -641,11 +645,13 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
                 alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum())
         return alpha, lb
     
-    for (i,y) in enumerate(Y):
-        f((i,y))
-    return
+    #for (i,y) in enumerate(Y):
+    #    f((i,y))
+    #return
     pool = Pool(n_cpus)
-    alphaSample, lbSample = list(zip(*pool.map(f, enumerate(Y))))
+    alphaSample, lbSample = list(zip(*pool.map( f, zip(range(len(Y)),
+                                                       Y,
+                                                       [np.random.RandomState() for i in range(len(Y))]) )))
     pool.close()
 
     alphaSample = np.array(alphaSample)
