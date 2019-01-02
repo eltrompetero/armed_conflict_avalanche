@@ -10,7 +10,7 @@ import dill
 from misc.powerlaw import discrete_powerlaw_correction_spline, powerlaw_correction_spline
 
 
-def check_consistency(eventType, gridno, pval_threshold=.05, perc=(17.5,83.5)):
+def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16.5,83.5)):
     """Check for which time and length scales the exponent relations between fatalities
     and sizes is consisten with the durations. These relations are consistent if they
     overlap within some bootstrapped confidence intervals.
@@ -23,7 +23,7 @@ def check_consistency(eventType, gridno, pval_threshold=.05, perc=(17.5,83.5)):
     eventType : str
     gridno : int
     pval_threshold : float, .05
-    perc : tuple, (17.5,83.5)
+    perc : tuple, (16.5,83.5)
         Default corresponds to 67% error bars analogous to a single standard deviation.
 
     Returns
