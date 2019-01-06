@@ -81,7 +81,8 @@ def avalanche_trajectory_ua(g, x, min_len=5):
     return avgTrajectory, dateFat
 
 def interp_avalanche_trajectory(dateFat, x):
-    """Average avalanche trajectory over many different avalanches using linear interpolation.
+    """Average avalanche trajectory over many different avalanches using linear
+    interpolation. Inserts 0 at the beginning.
     
     Returns
     -------
@@ -95,9 +96,9 @@ def interp_avalanche_trajectory(dateFat, x):
     avgTrajectory = np.zeros((len(dateFat),len(x)))
     for i,df in enumerate(dateFat):
         # rescaled time (0,1)
-        x_=df[:,0]/df[-1,0]
+        x_ = np.insert((df[:,0]+1)/(df[-1,0]+1), 0, 0)
         # cumulative profile
-        y_=np.cumsum(df[:,1]/df[:,1].sum())
+        y_ = np.insert(np.cumsum(df[:,1]/df[:,1].sum()), 0, 0)
         # assert not np.isnan(x_).any() and not np.isnan(y_).any()
         avgTrajectory[i] = interp1d(x_,y_)(x)
 
@@ -143,7 +144,7 @@ def _trajectories(dx, dt, i, dr, prefix, x=np.linspace(0,1,1000)):
     # interpolate
     interpTrajectories = []
     for i,c in enumerate(clustersix):
-        clusters=[subdf.loc[ix] for ix in c]
+        clusters = [subdf.loc[ix] for ix in c]
         # Get all avalanche trajectories in these events that are above some min length
         sizeTraj, fatTraj = avalanche_trajectory(clusters)
         

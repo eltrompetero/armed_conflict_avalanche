@@ -233,7 +233,7 @@ def power_law_fit(eventType,
         print("Starting diameter fitting...")
         upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
         output = _power_law_fit(diameters,
-                                np.vstack([(d[d>0].min(),min(d.max()/2,1000)) for d in diameters]),
+                                np.vstack([(d[d>0].min(),min(d.max(),1000)) for d in diameters]),
                                 upperBound,
                                 discrete=False,
                                 n_boot_samples=nBootSamples,
@@ -255,7 +255,7 @@ def power_law_fit(eventType,
         print("Starting size fitting...")
         upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
         output = _power_law_fit(sizes,
-                                np.vstack([(s[s>1].min(),min(s.max()//10,1000)) for s in sizes]),
+                                np.vstack([(s[s>1].min(),min(s.max()-1,1000)) for s in sizes]),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
                                 n_cpus=nCpus)
@@ -276,7 +276,7 @@ def power_law_fit(eventType,
         print("Starting fatality fitting...")
         upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
         output = _power_law_fit(fatalities,
-                                  np.vstack([(f[f>1].min(),min(f.max()//10,1000)) for f in fatalities]),
+                                  np.vstack([(f[f>1].min(),min(f.max()-1,1000)) for f in fatalities]),
                                   upperBound,
                                   n_boot_samples=nBootSamples,
                                   n_cpus=nCpus)
@@ -297,7 +297,7 @@ def power_law_fit(eventType,
         print("Starting duration fitting...")
         upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
         output = _power_law_fit(durations,
-                                np.vstack([(t[t>1].min(),min(t.max()//10,1000)) for t in durations]),
+                                np.vstack([(t[t>1].min(),min(t.max()-1,1000)) for t in durations]),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
                                 n_cpus=nCpus)
@@ -374,7 +374,6 @@ def post_power_law_fit(eventType,
     print("Starting diameter post fitting...")
     upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
     diameterInfo['nuSample'], diameterInfo['lbSample'] = _bootstrap_power_law_fit(diameters,
-                                        np.vstack([(d[d>0].min(),min(d.max()/2,1000)) for d in diameters]),
                                         upperBound,
                                         discrete=False,
                                         n_boot_samples=nBootSamples,
@@ -384,7 +383,6 @@ def post_power_law_fit(eventType,
     print("Starting size post fitting...")
     upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
     sizeInfo['tauSample'], sizeInfo['lbSample'] = _bootstrap_power_law_fit(sizes,
-                            np.vstack([(s[s>1].min(),min(s.max()//10,1000)) for s in sizes]),
                             upperBound,
                             n_boot_samples=nBootSamples,
                             n_cpus=nCpus)
@@ -393,7 +391,6 @@ def post_power_law_fit(eventType,
     print("Starting fatality post fitting...")
     upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
     fatalityInfo['upsSample'], fatalityInfo['lbSample'] = _bootstrap_power_law_fit(fatalities,
-                              np.vstack([(f[f>1].min(),min(f.max()//10,1000)) for f in fatalities]),
                               upperBound,
                               n_boot_samples=nBootSamples,
                               n_cpus=nCpus)
@@ -402,7 +399,6 @@ def post_power_law_fit(eventType,
     print("Starting duration post fitting...")
     upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
     durationInfo['alphaSample'], durationInfo['lbSample'] = _bootstrap_power_law_fit(durations,
-                            np.vstack([(t[t>1].min(),min(t.max()//10,1000)) for t in durations]),
                             upperBound,
                             n_boot_samples=nBootSamples,
                             n_cpus=nCpus)
@@ -474,7 +470,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         
         # don't do any calculation for distributions that are too small, all one value, or don't show much 
         # dynamic range
-        if len(y)<min_data_length or (y[0]==y).all() or lower_bound_range[i][0]>(lower_bound_range[i][1]/2):
+        if len(y)<min_data_length or (y[0]==y).all():
             return (np.nan, np.nan, np.nan, np.nan, None, np.nan, None, None)
         
         #return alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample
@@ -483,14 +479,16 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
                                                         lower_bound_range=lower_bound_range[i],
                                                         initial_guess=1.2,
                                                         upper_bound=upper_bound,
+                                                        decimal_resolution=0,
                                                         n_cpus=1)
             correction = discrete_powerlaw_correction_spline()
             alpha += correction(alpha, (y>=lb).sum(), int(lb))
         else:
-            alpha, lb=PowerLaw.max_likelihood(y,
-                                              lower_bound_range=lower_bound_range[i],
-                                              initial_guess=1.2,
-                                              upper_bound=upper_bound)
+            alpha, lb = PowerLaw.max_likelihood(y,
+                                                lower_bound_range=lower_bound_range[i],
+                                                initial_guess=1.2,
+                                                upper_bound=upper_bound,
+                                                n_cpus=1)
             # must add wrapper for correction to take in a lower bound arg (and disregard it)
             correction_ = powerlaw_correction_spline()
             correction = lambda alpha, K, lb=None: correction_(alpha, K)
@@ -514,7 +512,11 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
             dpl = PowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
         ksval=dpl.ksval(y[y>=lb])
         # only calculate p-value if the fit is rather close
-        if n_boot_samples>0 and ksval<=ksval_threshold:
+        if n_boot_samples>0 and ksval<=ksval_threshold and (y>=lb).sum()>=30:
+            if discrete:
+                decimal_resolution = 0
+            else:
+                decimal_resolution = None
             pval, ksSample, (alphaSample,lbSample) = dpl.clauset_test(y[y>=lb], 
                                                                       ksval,
                                                                       lower_bound_range[i], 
@@ -522,6 +524,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
                                                                       samples_below_cutoff=y[y<lb],
                                                                       return_all=True,
                                                                       correction=correction,
+                                                                      decimal_resolution=decimal_resolution,
                                                                       n_cpus=1)
         else:
             pval=np.nan
@@ -534,6 +537,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
 #     for (i,y) in enumerate(Y):
 #         f((i,y))
 #     return
+    #f((0,Y[0]))
     pool=Pool(n_cpus)
     alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample=list(zip(*pool.map(f, enumerate(Y))))
     pool.close()
@@ -567,7 +571,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
     
     return alpha, alpha1, lb, cdfs, ecdfs, fullecdfs, ksval, ksSample, pval, alphaSample, lbSample
 
-def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
+def _bootstrap_power_law_fit(Y, upper_bound,
                              discrete=True,
                              n_boot_samples=2500,
                              min_data_length=10,
@@ -578,7 +582,6 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
     Parameters
     ----------
     Y : list
-    lower_bound_range : list of duples
     upper_bound : int
     discrete : bool, True
     n_boot_sample : int, 2500
@@ -597,7 +600,6 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
     from multiprocess import Pool, cpu_count
     from misc.stats import PowerLaw, DiscretePowerLaw
     
-    assert len(lower_bound_range)==len(Y)
     n_cpus = n_cpus or cpu_count()-1
     if discrete:
         correction = discrete_powerlaw_correction_spline()
@@ -615,7 +617,7 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
         
         # don't do any calculation for distributions that are too small, all one value, or don't show much 
         # dynamic range
-        if len(y)<min_data_length or (y[0]==y).all() or lower_bound_range[i][0]>(lower_bound_range[i][1]/2):
+        if len(y)<min_data_length or (y[0]==y).all():
             return (np.zeros(n_boot_samples)+np.nan, np.zeros(n_boot_samples)+np.nan)
         
         alpha = np.zeros(n_boot_samples)
@@ -625,24 +627,30 @@ def _bootstrap_power_law_fit(Y, lower_bound_range, upper_bound,
             for counter in range(n_boot_samples):
                 # generate bootstrap sample
                 y_ = y[rng.choice(range(len(y)), size=len(y))]
-                
-                alpha[counter], lb[counter] = DiscretePowerLaw.max_likelihood(y_,
-                                                            lower_bound_range=lower_bound_range[i],
-                                                            initial_guess=1.2,
-                                                            upper_bound=upper_bound,
-                                                            n_cpus=1)
-                alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum(), int(lb[counter]))
+                if np.unique(y_).size<2:
+                    alpha[counter] = np.nan
+                else:
+                    lower_bound_range = y_.min(), y_.max()
+                    alpha[counter], lb[counter] = DiscretePowerLaw.max_likelihood(y_,
+                                                                lower_bound_range=lower_bound_range,
+                                                                initial_guess=1.2,
+                                                                upper_bound=upper_bound,
+                                                                n_cpus=1)
+                    alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum(), int(lb[counter]))
         else:
             for counter in range(n_boot_samples):
                 # generate bootstrap sample
                 y_ = y[rng.choice(range(len(y)), size=len(y))]
-
-                alpha[counter], lb[counter] = PowerLaw.max_likelihood(y_,
-                                                                  lower_bound_range=lower_bound_range[i],
-                                                                  initial_guess=1.2,
-                                                                  upper_bound=upper_bound)
-                
-                alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum())
+                if np.unique(y_).size<2:
+                    alpha[counter] = np.nan
+                else:
+                    lower_bound_range = y_.min(), y_.max()
+                    alpha[counter], lb[counter] = PowerLaw.max_likelihood(y_,
+                                                                      initial_guess=1.2,
+                                                                      lower_bound_range=lower_bound_range,
+                                                                      upper_bound=upper_bound,
+                                                                      n_cpus=1)
+                    alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum())
         return alpha, lb
     
     #for (i,y) in enumerate(Y):
