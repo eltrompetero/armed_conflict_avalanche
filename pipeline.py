@@ -332,7 +332,8 @@ def post_power_law_fit(eventType,
                        finiteBound,
                        nBootSamples,
                        nCpus,
-                       save_pickle=True):
+                       save_pickle=True,
+                       run_diameter=True):
     """Run fitting and significance testing and pickle results.
     
     Parameters
@@ -371,14 +372,15 @@ def post_power_law_fit(eventType,
     durationInfo = data['durationInfo']
     fatalityInfo = data['fatalityInfo']
     
-    print("Starting diameter post fitting...")
-    upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
-    diameterInfo['nuSample'], diameterInfo['lbSample'] = _bootstrap_power_law_fit(diameters,
-                                        upperBound,
-                                        discrete=False,
-                                        n_boot_samples=nBootSamples,
-                                        n_cpus=nCpus)
-    print("Done.")
+    if run_diameter:
+        print("Starting diameter post fitting...")
+        upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
+        diameterInfo['nuSample'], diameterInfo['lbSample'] = _bootstrap_power_law_fit(diameters,
+                                            upperBound,
+                                            discrete=False,
+                                            n_boot_samples=nBootSamples,
+                                            n_cpus=nCpus)
+        print("Done.")
 
     print("Starting size post fitting...")
     upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
@@ -470,7 +472,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         
         # don't do any calculation for distributions that are too small, all one value, or don't show much 
         # dynamic range
-        if len(y)<min_data_length or (y[0]==y).all():
+        if len(y)<min_data_length or (y[0]==y).all() or np.unique(y).size<2:
             return (np.nan, np.nan, np.nan, np.nan, None, np.nan, None, None)
         
         #return alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample
@@ -534,9 +536,9 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         print("Done fitting data set %d."%i)
         return alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample
     
-#     for (i,y) in enumerate(Y):
-#         f((i,y))
-#     return
+    for (i,y) in enumerate(Y):
+        f((i,y))
+    return
     #f((0,Y[0]))
     pool=Pool(n_cpus)
     alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample=list(zip(*pool.map(f, enumerate(Y))))
@@ -627,8 +629,9 @@ def _bootstrap_power_law_fit(Y, upper_bound,
             for counter in range(n_boot_samples):
                 # generate bootstrap sample
                 y_ = y[rng.choice(range(len(y)), size=len(y))]
-                if np.unique(y_).size<2:
+                if np.unique(y_).size<3:
                     alpha[counter] = np.nan
+                    lb[counter] = np.nan
                 else:
                     lower_bound_range = y_.min(), y_.max()
                     alpha[counter], lb[counter] = DiscretePowerLaw.max_likelihood(y_,
@@ -643,6 +646,7 @@ def _bootstrap_power_law_fit(Y, upper_bound,
                 y_ = y[rng.choice(range(len(y)), size=len(y))]
                 if np.unique(y_).size<2:
                     alpha[counter] = np.nan
+                    lb[counter] = np.nan
                 else:
                     lower_bound_range = y_.min(), y_.max()
                     alpha[counter], lb[counter] = PowerLaw.max_likelihood(y_,
