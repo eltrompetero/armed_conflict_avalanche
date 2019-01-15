@@ -232,7 +232,7 @@ def average_trajectories_by_coarseness(trajectories):
     avgTrajAndError = []
     
     for y in trajByCoarseness:
-        y = np.vstack(y)
+        y = np.vstack([i.mean(0) for i in y])
         # average taken over random grids
         avgTrajAndError.append( (y.mean(0), y.std(axis=0,ddof=1)) )
     return avgTrajAndError
