@@ -248,7 +248,7 @@ def power_law_fit(eventType,
          diameterInfo['pval'],
          diameterInfo['nuSample'],
          diameterInfo['lbSample']) = output
-    print("Done.")
+        print("Done.")
     
     if run_size:
         print("Starting size fitting...")
@@ -268,7 +268,7 @@ def power_law_fit(eventType,
          sizeInfo['pval'],
          sizeInfo['tauSample'],
          sizeInfo['lbSample']) = output
-    print("Done.")
+        print("Done.")
     
     if run_fatality:
         print("Starting fatality fitting...")
@@ -308,7 +308,7 @@ def power_law_fit(eventType,
          durationInfo['pval'],
          durationInfo['alphaSample'],
          durationInfo['lbSample']) = output
-    print("Done.")
+        print("Done.")
     
     if save_pickle:
         dill.dump({'diameterInfo':diameterInfo, 'sizeInfo':sizeInfo,
@@ -381,10 +381,10 @@ def post_power_law_fit(eventType,
     print("Starting size post fitting...")
     upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
     sizeInfo['tauSample'], sizeInfo['lbSample'] = _bootstrap_power_law_fit(sizes,
-                            upperBound,
-                            lower_bound=np.tile(2**np.arange(1,12),(9,1)).ravel(),
-                            n_boot_samples=nBootSamples,
-                            n_cpus=nCpus)
+                                            upperBound,
+                                            lower_bound=np.tile(2**np.arange(1,12),(9,1)).ravel(),
+                                            n_boot_samples=nBootSamples,
+                                            n_cpus=nCpus)
     print("Done.")
 
     print("Starting fatality post fitting...")
@@ -468,9 +468,13 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         # don't do any calculation for distributions that are too small, all one value, or don't show much 
         # dynamic range
         if len(y)<min_data_length or (y[0]==y).all() or np.unique(y).size<2:
-            return (np.nan, np.nan, np.nan, np.nan, None, np.nan, None, None)
+            return (np.nan, np.nan, np.nan, None, np.nan, None, None)
         
-        #return alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample
+        # make sure a sensical lower bound range is covered
+        if hasattr(lower_bound_range[i],'__len__') and np.diff(lower_bound_range[i])<=0:
+            return (np.nan, np.nan, np.nan, None, np.nan, None, None)
+        
+        #return alpha, lb, ksval, ksSample, pval, alphaSample, lbSample
         if discrete:
             if hasattr(lower_bound_range[i],'__len__'):
                 alpha, lb = DiscretePowerLaw.max_likelihood(y,
@@ -505,6 +509,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
             correction_ = powerlaw_correction_spline()
             correction = lambda alpha, K, lb=None: correction_(alpha, K)
             alpha += correction(alpha, (y>=lb).sum())
+            alpha = float(alpha)
 
         # KS statistics
         if np.isnan(alpha)==0 and n_boot_samples>0 and (y>=lb).sum()>=30:
@@ -537,8 +542,8 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
                                                                   correction=correction,
                                                                   n_cpus=1)
         else:
-            pval=np.nan
-            ksSample=None
+            pval = np.nan
+            ksSample = None
             ksval = np.nan
             alphaSample=None
             lbSample=None
