@@ -23,7 +23,7 @@ def add_same_date_events(t, x):
         xagg[i] = x[t==t_].sum()
     return uniqt, xagg
 
-def avalanche_trajectory(g, min_len=5):
+def avalanche_trajectory(g, min_len=5, min_size=5):
     """Extract from data the discrete sequence of events and their sizes.
     
     Parameters
@@ -31,6 +31,8 @@ def avalanche_trajectory(g, min_len=5):
     g : pd.DataFrame
     min_len : int, 5
         Shortest duration of avalanche permitted for inclusion.
+    min_size : int, 5
+        Least number of unique events for inclusion.
         
     Returns
     -------
@@ -48,16 +50,16 @@ def avalanche_trajectory(g, min_len=5):
         if dur_>=min_len:
             t = (df['EVENT_DATE']-df.iloc[0]['EVENT_DATE']).apply(lambda x:x.days).values
             
-            s = np.ones(len(t))
-            t_, s = add_same_date_events(t, s)
-            dateSize.append( np.vstack((t_, s)).T.astype(float) )
-            durSize.append(dur_)
-            
-            if df['FATALITIES'].any():
-                f = df['FATALITIES'].values
-                t, f = add_same_date_events(t, f)
-                dateFat.append( np.vstack((t, f)).T.astype(float) )
-                durFat.append(dur_)
+            t_, s = np.unique(t, return_counts=True)
+            if s.sum()>=min_size:
+                dateSize.append( np.vstack((t_, s)).T.astype(float) )
+                durSize.append(dur_)
+                
+                if df['FATALITIES'].any():
+                    f = df['FATALITIES'].values
+                    t, f = add_same_date_events(t, f)
+                    dateFat.append( np.vstack((t, f)).T.astype(float) )
+                    durFat.append(dur_)
 
     return dateSize, dateFat, durSize, durFat
 
@@ -167,7 +169,7 @@ def load_trajectories(event_type, dx, dt, gridno,
         fatTrajByCluster.append( traj )
         totalFatByCluster.append( totalFat )
     return ((sizeTrajByCluster, durSizeByCluster, totalSizeByCluster), 
-            (fatTrajByCluster, durSizeByCluster, totalSizeByCluster)) 
+            (fatTrajByCluster, durFatByCluster, totalFatByCluster)) 
 
 def parallel_load_trajectories(event_type, gridno, dx, dt, **kwargs):
     """
