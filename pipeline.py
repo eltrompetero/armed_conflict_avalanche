@@ -568,6 +568,13 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
                                                                   correction=correction,
                                                                   decimal_resolution=decimal_resolution,
                                                                   n_cpus=1)
+                # Must check that the return lower bound has not hit the max possible value.  If it has, the
+                # true variance that should be measured by the KS test cannot be probed. Of course, one cannot
+                # be totally sure by just checking for a large lower bound because the entire range of the
+                # sample should be checked.
+                nBadSamples = (lbSample==lower_bound_range[i][1]).sum()
+                if nBadSamples:
+                    print("CSM test may not have measured full variance of MLE. %d"%nBadSamples)
             else:
                 pval, ksSample, (alphaSample,lbSample) = dpl.clauset_test(y[y>=lb], 
                                                                   ksval,
