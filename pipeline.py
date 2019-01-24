@@ -24,7 +24,8 @@ def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16,84)):
     gridno : int
     pval_threshold : float, .05
     perc : tuple, (16,84)
-        Default corresponds to 68% error bars analogous to a single standard deviation.
+        For distribution exponents tau, ups, and alpha. Default corresponds to 68% error
+        bars analogous to a single standard deviation.
 
     Returns
     -------
@@ -125,7 +126,7 @@ def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, d
         s=[s[s>1] for s in sizes[i*T:(i+1)*T]]
             
         # calculate fractal dimension
-        perc = (34,66)
+        perc = (16,84)
         dfGrid[0,i], dfGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], f[:fitn],
                                                                return_sample=True,
                                                                return_err=perc)
@@ -172,7 +173,8 @@ def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, d
     if not (eventType is None and gridno is None):
         pickle.dump({'dlGrid':dlGrid,'dfGrid':dfGrid,'dsGrid':dsGrid,
                      'dfGridBds':dfGridBds,'dlGridBds':dlGridBds,'dsGridBds':dsGridBds,
-                     'dfGridSample':dfGridSample, 'dlGridSample':dlGridSample, 'dsGridSample':dsGridSample},
+                     'dfGridSample':dfGridSample, 'dlGridSample':dlGridSample, 'dsGridSample':dsGridSample,
+                     'perc':perc},
                     open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)),'wb'), -1)
     return dlGrid, dlGridBds, dsGrid, dsGridBds, dfGrid, dfGridBds
 
