@@ -254,7 +254,8 @@ def power_law_fit(eventType,
         print("Starting size fitting...")
         upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
         output = _power_law_fit(sizes,
-                                np.tile(2**np.arange(1,12),(9,1)).ravel(),
+                                [(2,max(2,s.max()/10)) for s in sizes],
+                                #np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
                                 n_cpus=nCpus)
@@ -274,7 +275,8 @@ def power_law_fit(eventType,
         print("Starting fatality fitting...")
         upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
         output = _power_law_fit(fatalities,
-                                np.tile(2**np.arange(1,12),(9,1)).ravel(),
+                                [(2,max(2,f.max()/10)) for f in fatalities],
+                                #np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
                                 n_cpus=nCpus)
@@ -294,7 +296,8 @@ def power_law_fit(eventType,
         print("Starting duration fitting...")
         upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
         output = _power_law_fit(durations,
-                                np.tile(2**np.arange(1,12),(9,1)).ravel(),
+                                [(2,max(2,t.max()/10)) for t in durations],
+                                #np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
                                 n_cpus=nCpus)
@@ -419,8 +422,8 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
 		   n_boot_samples=2500,
 		   min_data_length=50,
 		   n_cpus=None):
-    """Pipeline max likelihood and mean scaling power law fits to conflict statistics. These are typically
-    given by a coarse graining.
+    """Pipeline max likelihood and mean scaling power law fits to conflict statistics.
+    These are typically given by a coarse graining.
 
     Parameters
     ----------
