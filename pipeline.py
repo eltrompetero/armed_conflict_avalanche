@@ -10,6 +10,37 @@ import dill
 from misc.powerlaw import discrete_powerlaw_correction_spline, powerlaw_correction_spline
 
 
+# ================= #
+# Helper functions. #
+# ================= #
+def diameter_lower_bound_range(d):
+    """Return lower_bound_range to be used for fitting procedure.
+    
+    Fitting procedure ignores data sets without sufficient dynamic range. These are
+    excluded from the realm of possibilities. This sets a bound on the variance of the
+    estimated exponent."""
+
+    d = d[d>0]
+    if (d.max()/d.min())<5:
+        return None
+    return d.min(), d.max()
+
+def discrete_lower_bound_range(d):
+    """Return lower_bound_range to be used for fitting procedure.
+    
+    Fitting procedure ignores data sets without sufficient dynamic range. These are
+    excluded from the realm of possibilities. This sets a bound on the variance of the
+    estimated exponent."""
+
+    d = d[d>1]
+    if (d.max()/d.min())<5:
+        return None
+    return d.min(), d.max()
+
+
+# =================== # 
+# Pipeline functions. #
+# =================== # 
 def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16,84)):
     """Check for which time and length scales the exponent relations between fatalities
     and sizes is consisten with the durations. These relations are consistent if they
@@ -237,7 +268,7 @@ def power_law_fit(eventType,
         print("Starting diameter fitting...")
         upperBound = max([d.max() for d in diameters]) if finiteBound else np.inf
         output = _power_law_fit(diameters,
-                                np.vstack([(d[d>0].min(),min(d.max(),1000)) for d in diameters]),
+                                [diameter_lower_bound_range(d) for d in diameters],
                                 upperBound,
                                 discrete=False,
                                 n_boot_samples=nBootSamples,
@@ -258,7 +289,7 @@ def power_law_fit(eventType,
         print("Starting size fitting...")
         upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
         output = _power_law_fit(sizes,
-                                [(2,max(2,s.max()/5)) for s in sizes],
+                                [discrete_lower_bound_range(s) for s in sizes],
                                 #np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
@@ -279,7 +310,7 @@ def power_law_fit(eventType,
         print("Starting fatality fitting...")
         upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
         output = _power_law_fit(fatalities,
-                                [(2,max(2,f.max()/5)) for f in fatalities],
+                                [discrete_lower_bound_range(f) for f in fatalities],
                                 #np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
@@ -300,7 +331,7 @@ def power_law_fit(eventType,
         print("Starting duration fitting...")
         upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
         output = _power_law_fit(durations,
-                                [(2,max(2,t.max()/5)) for t in durations],
+                                [discrete_lower_bound_range(t) for t in durations],
                                 #np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
@@ -388,9 +419,9 @@ def post_power_law_fit(eventType,
     print("Starting size post fitting...")
     upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
     sizeInfo['tauSample'], sizeInfo['lbSample'] = _bootstrap_power_law_fit(sizes,
-                                            upperBound,
-                                            n_boot_samples=nBootSamples,
-                                            n_cpus=nCpus)
+                                                                        upperBound,
+                                                                        n_boot_samples=nBootSamples,
+                                                                        n_cpus=nCpus)
     print("Done.")
 
     print("Starting fatality post fitting...")
@@ -471,14 +502,13 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         
         # don't do any calculation for distributions that are too small, all one value, or don't show much 
         # dynamic range
-        if len(y)<min_data_length or (y[0]==y).all() or np.unique(y).size<2:
+        if len(y)<min_data_length or np.unique(y).size<2:
             return (np.nan, np.nan, np.nan, None, np.nan, None, None)
         
         # make sure a sensical lower bound range is covered
-        if hasattr(lower_bound_range[i],'__len__') and np.diff(lower_bound_range[i])<=0:
+        if lower_bound_range[i] is None:
             return (np.nan, np.nan, np.nan, None, np.nan, None, None)
         
-        #return alpha, lb, ksval, ksSample, pval, alphaSample, lbSample
         if discrete:
             if hasattr(lower_bound_range[i],'__len__'):
                 alpha, lb = DiscretePowerLaw.max_likelihood(y,
@@ -637,7 +667,7 @@ def _bootstrap_power_law_fit(Y, upper_bound,
         
         # don't do any calculation for distributions that are too small, all one value, or don't show much 
         # dynamic range
-        if len(y)<min_data_length or (y[0]==y).all():
+        if len(y)<min_data_length or np.unique(y).size<2:
             return (np.zeros(n_boot_samples)+np.nan, np.zeros(n_boot_samples)+np.nan)
         
         alpha = np.zeros(n_boot_samples)
@@ -645,19 +675,25 @@ def _bootstrap_power_law_fit(Y, upper_bound,
         
         if discrete:
             for counter in range(n_boot_samples):
-                # generate bootstrap sample
-                y_ = y[rng.choice(range(len(y)), size=len(y))]
-                while np.unique(y_).size<2:
-                    y_ = y[rng.choice(range(len(y)), size=len(y))]
-
                 if lower_bound is None:
-                    lower_bound_range = y_.min(), max(y_.min(),y_.max()/5)
+                    # generate bootstrap sample
+                    y_ = y[rng.choice(range(len(y)), size=len(y))]
+                    lower_bound_range = None
+                    while np.unique(y_).size<2 or lower_bound_range is None:
+                        y_ = y[rng.choice(range(len(y)), size=len(y))]
+                        lower_bound_range = discrete_lower_bound_range(y_)
+
                     alpha[counter], lb[counter] = DiscretePowerLaw.max_likelihood(y_,
                                                                 lower_bound_range=lower_bound_range,
                                                                 initial_guess=1.2,
                                                                 upper_bound=upper_bound,
                                                                 n_cpus=1)
                 else:
+                    # generate bootstrap sample
+                    y_ = y[rng.choice(range(len(y)), size=len(y))]
+                    while np.unique(y_).size<2 or lower_bound_range is None:
+                        y_ = y[rng.choice(range(len(y)), size=len(y))]
+                     
                     alpha[counter] = DiscretePowerLaw.max_likelihood(y_[y_>=lower_bound[i]],
                                                                 initial_guess=1.2,
                                                                 upper_bound=upper_bound,
@@ -667,11 +703,13 @@ def _bootstrap_power_law_fit(Y, upper_bound,
         else:
             for counter in range(n_boot_samples):
                 # generate bootstrap sample
+                # this is for diameters--use same lower bound rule as when fitting data
                 y_ = y[rng.choice(range(len(y)), size=len(y))]
-                while np.unique(y_).size<2:
+                lower_bound_range = None
+                while np.unique(y_).size<2 or lower_bound_range is None:
                     y_ = y[rng.choice(range(len(y)), size=len(y))]
-
-                lower_bound_range = y_.min(), max(y_.min(),y_.max()/5)
+                    lower_bound_range = diameter_lower_bound_range(y_)
+ 
                 alpha[counter], lb[counter] = PowerLaw.max_likelihood(y_,
                                                                   initial_guess=1.2,
                                                                   lower_bound_range=lower_bound_range,
