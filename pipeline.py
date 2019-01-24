@@ -10,7 +10,7 @@ import dill
 from misc.powerlaw import discrete_powerlaw_correction_spline, powerlaw_correction_spline
 
 
-def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16.5,83.5)):
+def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16,84)):
     """Check for which time and length scales the exponent relations between fatalities
     and sizes is consisten with the durations. These relations are consistent if they
     overlap within some bootstrapped confidence intervals.
@@ -23,17 +23,17 @@ def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16.5,83.5)):
     eventType : str
     gridno : int
     pval_threshold : float, .05
-    perc : tuple, (16.5,83.5)
-        Default corresponds to 67% error bars analogous to a single standard deviation.
+    perc : tuple, (16,84)
+        Default corresponds to 68% error bars analogous to a single standard deviation.
 
     Returns
     -------
     bool ndarray
-        True values indicate for which combination of length and time scales the exponent relations are
-        consistent.
+        True values indicate for which combination of length and time scales the exponent
+        relations are consistent.
     bool ndarray
-        True values indicate for which combination of length and time scales the exponent relations are
-        both consistent and significant.
+        True values indicate for which combination of length and time scales the exponent
+        relations are both consistent and significant.
     """
 
     from .acled_utils import percentile_bds
@@ -417,7 +417,7 @@ def post_power_law_fit(eventType,
 def _power_law_fit(Y, lower_bound_range, upper_bound,
 		   discrete=True,
 		   n_boot_samples=2500,
-		   min_data_length=10,
+		   min_data_length=50,
 		   n_cpus=None):
     """Pipeline max likelihood and mean scaling power law fits to conflict statistics. These are typically
     given by a coarse graining.
@@ -430,7 +430,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
     discrete : bool, True
     n_boot_sample : int, 2500
         Default value gives accuracy of about 0.01.
-    min_data_length : int, 10
+    min_data_length : int, 50
         Number of data points required before fitting process is initiated.
     n_cpus : int, None
     

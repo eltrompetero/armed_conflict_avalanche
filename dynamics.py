@@ -23,7 +23,7 @@ def add_same_date_events(t, x):
         xagg[i] = x[t==t_].sum()
     return uniqt, xagg
 
-def avalanche_trajectory(g, min_len=5, min_size=5):
+def avalanche_trajectory(g, min_len=5, min_size=2):
     """Extract from data the discrete sequence of events and their sizes.
     
     Parameters
@@ -63,18 +63,22 @@ def avalanche_trajectory(g, min_len=5, min_size=5):
 
     return dateSize, dateFat, durSize, durFat
 
-def interp_avalanche_trajectory(dateFat, x, insert_zero=True):
+def interp_avalanche_trajectory(dateFat, x, insert_zero=True, append_one=False):
     """Average avalanche trajectory over many different avalanches using linear
-    interpolation. Inserts 0 at the beginning and repeats max value at end. Since
+    interpolation. Can insert 0 at the beginning and repeat max value at end. Since
     trajectories are normalized to 1, return the total size.
+
+    Since by defn, CDFs must end at 1, it make sense to likewise fix the beginning to
+    start at 0 to see how the curves behave in the limit of larger conflicts.
 
     Parameters
     ----------
     dateFat : pd.DataFrame
     x : ndarray
     insert_zero : bool, True
-        If True, insert zero at beginning of time series to ensure that CDF starts at 0
-        and add 1 at end.
+        If True, insert zero at beginning of time series to ensure that CDF starts at 0.
+    append_one : bool, False
+        Add 1 at end.
     
     Returns
     -------
@@ -88,11 +92,21 @@ def interp_avalanche_trajectory(dateFat, x, insert_zero=True):
 
     for i,df in enumerate(dateFat):
         totalSize[i] = df[:,1].sum()
-        if insert_zero:
+        if insert_zero and append_one:
             # rescaled time
             x_ = np.append(np.insert((df[:,0]+1)/(df[-1,0]+2), 0, 0), 1)
             # cumulative profile
             y_ = np.append(np.insert(np.cumsum(df[:,1])/totalSize[i], 0, 0), 1)
+        elif insert_zero:
+            # rescaled time
+            x_ = np.insert((df[:,0]+1)/(df[-1,0]+1), 0, 0)
+            # cumulative profile
+            y_ = np.insert(np.cumsum(df[:,1])/totalSize[i], 0, 0)
+        elif append_one:
+            # rescaled time
+            x_ = np.append(df[:,0]/(df[-1,0]+1), 1)
+            # cumulative profile
+            y_ = np.append(np.cumsum(df[:,1])/totalSize[i], 1)
         else:
             # rescaled time
             x_ = df[:,0]/df[-1,0]
