@@ -56,10 +56,10 @@ def check_relation(alphaBds, upsBds, dfBds):
 def percentile_bds(X, perc):
     """Just a wrapper around np.percentile to make it easier."""
 
-    if hasattr(X,'__len__') and not np.isnan(X[0]):
+    if hasattr(X,'__len__') and (not np.isnan(X).any()):
         # 7 is the max exponent value allowed by the max likelihood process and tells me the fitting didn't
         # work well
-        return np.percentile(X[X<7], perc[0]), np.percentile(X, perc[1])
+        return np.percentile(X, perc[0]), np.percentile(X, perc[1])
     return None
 
 def sigma_bds(X, factor=1.):
