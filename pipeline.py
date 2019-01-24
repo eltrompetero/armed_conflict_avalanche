@@ -98,18 +98,18 @@ def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, d
     """Calculate fractal dimensions from scaling of means."""
     from .exponents import fractal_dimension
 
-    T=len(dayThreshold)
-    L=len(spaceThreshold)
+    T = len(dayThreshold)
+    L = len(spaceThreshold)
 
     # Collect all (dx,dt) pairs to look at
-    dsGrid=np.zeros((2,len(spaceThreshold)))
-    dfGrid=np.zeros((2,len(spaceThreshold)))
-    dlGrid=np.zeros((2,len(spaceThreshold)))
+    dsGrid = np.zeros((2,len(spaceThreshold)))
+    dfGrid = np.zeros((2,len(spaceThreshold)))
+    dlGrid = np.zeros((2,len(spaceThreshold)))
 
     # Collect all (dx,dt) pairs to look at
-    dsGridBds=np.zeros((2,len(spaceThreshold),2))
-    dfGridBds=np.zeros((2,len(spaceThreshold),2))
-    dlGridBds=np.zeros((2,len(spaceThreshold),2))
+    dsGridBds = np.zeros((2,len(spaceThreshold),2))
+    dfGridBds = np.zeros((2,len(spaceThreshold),2))
+    dlGridBds = np.zeros((2,len(spaceThreshold),2))
     
     # bootstrap sample for error bars
     dsGridSample = []
@@ -117,6 +117,8 @@ def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, d
     dlGridSample = []
 
     for i in range(len(spaceThreshold)):
+        # simplest, most data-driven approach of considering everything but obvious
+        # outliers at 1
         t=[t[t>1] for t in durations[i*T:(i+1)*T]]
         d=[d[d>0] for d in diameters[i*T:(i+1)*T]]
         f=[f[f>1] for f in fatalities[i*T:(i+1)*T]]
@@ -254,7 +256,7 @@ def power_law_fit(eventType,
         print("Starting size fitting...")
         upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
         output = _power_law_fit(sizes,
-                                [(2,max(2,s.max()/10)) for s in sizes],
+                                [(2,max(2,s.max()/5)) for s in sizes],
                                 #np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
@@ -275,7 +277,7 @@ def power_law_fit(eventType,
         print("Starting fatality fitting...")
         upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
         output = _power_law_fit(fatalities,
-                                [(2,max(2,f.max()/10)) for f in fatalities],
+                                [(2,max(2,f.max()/5)) for f in fatalities],
                                 #np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
@@ -296,7 +298,7 @@ def power_law_fit(eventType,
         print("Starting duration fitting...")
         upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
         output = _power_law_fit(durations,
-                                [(2,max(2,t.max()/10)) for t in durations],
+                                [(2,max(2,t.max()/5)) for t in durations],
                                 #np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
@@ -385,7 +387,6 @@ def post_power_law_fit(eventType,
     upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
     sizeInfo['tauSample'], sizeInfo['lbSample'] = _bootstrap_power_law_fit(sizes,
                                             upperBound,
-                                            lower_bound=np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                             n_boot_samples=nBootSamples,
                                             n_cpus=nCpus)
     print("Done.")
@@ -394,7 +395,6 @@ def post_power_law_fit(eventType,
     upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
     fatalityInfo['upsSample'], fatalityInfo['lbSample'] = _bootstrap_power_law_fit(fatalities,
                               upperBound,
-                              lower_bound=np.tile(2**np.arange(1,12),(9,1)).ravel(),
                               n_boot_samples=nBootSamples,
                               n_cpus=nCpus)
     print("Done.")
@@ -403,7 +403,6 @@ def post_power_law_fit(eventType,
     upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
     durationInfo['alphaSample'], durationInfo['lbSample'] = _bootstrap_power_law_fit(durations,
                             upperBound,
-                            lower_bound=np.tile(2**np.arange(1,12),(9,1)).ravel(),
                             n_boot_samples=nBootSamples,
                             n_cpus=nCpus)
     print("Done.")
@@ -593,7 +592,7 @@ def _bootstrap_power_law_fit(Y, upper_bound,
                              lower_bound=None,
                              discrete=True,
                              n_boot_samples=2500,
-                             min_data_length=10,
+                             min_data_length=50,
                              n_cpus=None):
     """Pipeline max likelihood and mean scaling power law fits to conflict statistics. These are typically
     given by a coarse graining.
@@ -605,7 +604,7 @@ def _bootstrap_power_law_fit(Y, upper_bound,
     discrete : bool, True
     n_boot_sample : int, 2500
         Default value gives accuracy of about 0.01.
-    min_data_length : int, 10
+    min_data_length : int, 50
         Number of data points required before fitting process is initiated.
     
     Returns
@@ -646,39 +645,37 @@ def _bootstrap_power_law_fit(Y, upper_bound,
             for counter in range(n_boot_samples):
                 # generate bootstrap sample
                 y_ = y[rng.choice(range(len(y)), size=len(y))]
-                if np.unique(y_).size<3:
-                    alpha[counter] = np.nan
-                    lb[counter] = np.nan
+                while np.unique(y_).size<2:
+                    y_ = y[rng.choice(range(len(y)), size=len(y))]
+
+                if lower_bound is None:
+                    lower_bound_range = y_.min(), max(y_.min(),y_.max()/5)
+                    alpha[counter], lb[counter] = DiscretePowerLaw.max_likelihood(y_,
+                                                                lower_bound_range=lower_bound_range,
+                                                                initial_guess=1.2,
+                                                                upper_bound=upper_bound,
+                                                                n_cpus=1)
                 else:
-                    if lower_bound is None:
-                        lower_bound_range = y_.min(), y_.max()
-                        alpha[counter], lb[counter] = DiscretePowerLaw.max_likelihood(y_,
-                                                                    lower_bound_range=lower_bound_range,
-                                                                    initial_guess=1.2,
-                                                                    upper_bound=upper_bound,
-                                                                    n_cpus=1)
-                    else:
-                        alpha[counter] = DiscretePowerLaw.max_likelihood(y_[y_>=lower_bound[i]],
-                                                                    initial_guess=1.2,
-                                                                    upper_bound=upper_bound,
-                                                                    n_cpus=1)
-                        lb[counter] = lower_bound[i]
-                    alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum(), int(lb[counter]))
+                    alpha[counter] = DiscretePowerLaw.max_likelihood(y_[y_>=lower_bound[i]],
+                                                                initial_guess=1.2,
+                                                                upper_bound=upper_bound,
+                                                                n_cpus=1)
+                    lb[counter] = lower_bound[i]
+                alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum(), int(lb[counter]))
         else:
             for counter in range(n_boot_samples):
                 # generate bootstrap sample
                 y_ = y[rng.choice(range(len(y)), size=len(y))]
-                if np.unique(y_).size<2:
-                    alpha[counter] = np.nan
-                    lb[counter] = np.nan
-                else:
-                    lower_bound_range = y_.min(), y_.max()
-                    alpha[counter], lb[counter] = PowerLaw.max_likelihood(y_,
-                                                                      initial_guess=1.2,
-                                                                      lower_bound_range=lower_bound_range,
-                                                                      upper_bound=upper_bound,
-                                                                      n_cpus=1)
-                    alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum())
+                while np.unique(y_).size<2:
+                    y_ = y[rng.choice(range(len(y)), size=len(y))]
+
+                lower_bound_range = y_.min(), max(y_.min(),y_.max()/5)
+                alpha[counter], lb[counter] = PowerLaw.max_likelihood(y_,
+                                                                  initial_guess=1.2,
+                                                                  lower_bound_range=lower_bound_range,
+                                                                  upper_bound=upper_bound,
+                                                                  n_cpus=1)
+                alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum())
         return alpha, lb
     
     #for (i,y) in enumerate(Y):
