@@ -98,6 +98,7 @@ def coarse_grain_voronoi_tess(dx, fileno):
     nextLayerPixel : list
         Each list maps lowest (finest) layer to each of the upper layers.
     """
+
     import pickle
     assert (np.diff(dx)<0).all(), "Grid must get coarser."
     

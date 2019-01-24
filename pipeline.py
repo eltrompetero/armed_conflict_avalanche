@@ -10,7 +10,7 @@ import dill
 from misc.powerlaw import discrete_powerlaw_correction_spline, powerlaw_correction_spline
 
 
-def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16.5,83.5)):
+def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16,84)):
     """Check for which time and length scales the exponent relations between fatalities
     and sizes is consisten with the durations. These relations are consistent if they
     overlap within some bootstrapped confidence intervals.
@@ -23,17 +23,17 @@ def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16.5,83.5)):
     eventType : str
     gridno : int
     pval_threshold : float, .05
-    perc : tuple, (16.5,83.5)
-        Default corresponds to 67% error bars analogous to a single standard deviation.
+    perc : tuple, (16,84)
+        Default corresponds to 68% error bars analogous to a single standard deviation.
 
     Returns
     -------
     bool ndarray
-        True values indicate for which combination of length and time scales the exponent relations are
-        consistent.
+        True values indicate for which combination of length and time scales the exponent
+        relations are consistent.
     bool ndarray
-        True values indicate for which combination of length and time scales the exponent relations are
-        both consistent and significant.
+        True values indicate for which combination of length and time scales the exponent
+        relations are both consistent and significant.
     """
 
     from .acled_utils import percentile_bds
@@ -239,7 +239,6 @@ def power_law_fit(eventType,
                                 n_boot_samples=nBootSamples,
                                 n_cpus=nCpus)
         (diameterInfo['nu'],
-         diameterInfo['nu1'],
          diameterInfo['lb'],
          diameterInfo['cdfs'],
          diameterInfo['ecdfs'],
@@ -249,18 +248,18 @@ def power_law_fit(eventType,
          diameterInfo['pval'],
          diameterInfo['nuSample'],
          diameterInfo['lbSample']) = output
-    print("Done.")
+        print("Done.")
     
     if run_size:
         print("Starting size fitting...")
         upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
         output = _power_law_fit(sizes,
-                                np.vstack([(s[s>1].min(),min(s.max()-1,1000)) for s in sizes]),
+                                [(2,max(2,s.max()/10)) for s in sizes],
+                                #np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
                                 n_cpus=nCpus)
         (sizeInfo['tau'],
-         sizeInfo['tau1'],
          sizeInfo['lb'],
          sizeInfo['cdfs'],
          sizeInfo['ecdfs'],
@@ -270,18 +269,18 @@ def power_law_fit(eventType,
          sizeInfo['pval'],
          sizeInfo['tauSample'],
          sizeInfo['lbSample']) = output
-    print("Done.")
+        print("Done.")
     
     if run_fatality:
         print("Starting fatality fitting...")
         upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
         output = _power_law_fit(fatalities,
-                                  np.vstack([(f[f>1].min(),min(f.max()-1,1000)) for f in fatalities]),
-                                  upperBound,
-                                  n_boot_samples=nBootSamples,
-                                  n_cpus=nCpus)
+                                [(2,max(2,f.max()/10)) for f in fatalities],
+                                #np.tile(2**np.arange(1,12),(9,1)).ravel(),
+                                upperBound,
+                                n_boot_samples=nBootSamples,
+                                n_cpus=nCpus)
         (fatalityInfo['ups'],
-         fatalityInfo['ups1'],
          fatalityInfo['lb'],
          fatalityInfo['cdfs'],
          fatalityInfo['ecdfs'],
@@ -297,12 +296,12 @@ def power_law_fit(eventType,
         print("Starting duration fitting...")
         upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
         output = _power_law_fit(durations,
-                                np.vstack([(t[t>1].min(),min(t.max()-1,1000)) for t in durations]),
+                                [(2,max(2,t.max()/10)) for t in durations],
+                                #np.tile(2**np.arange(1,12),(9,1)).ravel(),
                                 upperBound,
                                 n_boot_samples=nBootSamples,
                                 n_cpus=nCpus)
         (durationInfo['alpha'],
-         durationInfo['alpha1'],
          durationInfo['lb'],
          durationInfo['cdfs'],
          durationInfo['ecdfs'],
@@ -312,7 +311,7 @@ def power_law_fit(eventType,
          durationInfo['pval'],
          durationInfo['alphaSample'],
          durationInfo['lbSample']) = output
-    print("Done.")
+        print("Done.")
     
     if save_pickle:
         dill.dump({'diameterInfo':diameterInfo, 'sizeInfo':sizeInfo,
@@ -385,15 +384,17 @@ def post_power_law_fit(eventType,
     print("Starting size post fitting...")
     upperBound = max([s.max() for s in sizes]) if finiteBound else np.inf
     sizeInfo['tauSample'], sizeInfo['lbSample'] = _bootstrap_power_law_fit(sizes,
-                            upperBound,
-                            n_boot_samples=nBootSamples,
-                            n_cpus=nCpus)
+                                            upperBound,
+                                            lower_bound=np.tile(2**np.arange(1,12),(9,1)).ravel(),
+                                            n_boot_samples=nBootSamples,
+                                            n_cpus=nCpus)
     print("Done.")
 
     print("Starting fatality post fitting...")
     upperBound = max([f.max() for f in fatalities]) if finiteBound else np.inf
     fatalityInfo['upsSample'], fatalityInfo['lbSample'] = _bootstrap_power_law_fit(fatalities,
                               upperBound,
+                              lower_bound=np.tile(2**np.arange(1,12),(9,1)).ravel(),
                               n_boot_samples=nBootSamples,
                               n_cpus=nCpus)
     print("Done.")
@@ -402,6 +403,7 @@ def post_power_law_fit(eventType,
     upperBound = max([t.max() for t in durations]) if finiteBound else np.inf
     durationInfo['alphaSample'], durationInfo['lbSample'] = _bootstrap_power_law_fit(durations,
                             upperBound,
+                            lower_bound=np.tile(2**np.arange(1,12),(9,1)).ravel(),
                             n_boot_samples=nBootSamples,
                             n_cpus=nCpus)
     print("Done.")
@@ -418,11 +420,10 @@ def post_power_law_fit(eventType,
 def _power_law_fit(Y, lower_bound_range, upper_bound,
 		   discrete=True,
 		   n_boot_samples=2500,
-		   ksval_threshold=1.,
-		   min_data_length=10,
+		   min_data_length=50,
 		   n_cpus=None):
-    """Pipeline max likelihood and mean scaling power law fits to conflict statistics. These are typically
-    given by a coarse graining.
+    """Pipeline max likelihood and mean scaling power law fits to conflict statistics.
+    These are typically given by a coarse graining.
 
     Parameters
     ----------
@@ -432,8 +433,7 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
     discrete : bool, True
     n_boot_sample : int, 2500
         Default value gives accuracy of about 0.01.
-    ksval_threshold : float, 1.
-    min_data_length : int, 10
+    min_data_length : int, 50
         Number of data points required before fitting process is initiated.
     n_cpus : int, None
     
@@ -443,8 +443,6 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         Max likelihood exponent estimates.
     ndarray
         Lower bound estimates.
-    ndarray
-        Mean scalling exponent estimates. These are largely biased except for very heavy tailed distributions.
     ndarray
         KS statistic
     ndarray
@@ -473,80 +471,98 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         # don't do any calculation for distributions that are too small, all one value, or don't show much 
         # dynamic range
         if len(y)<min_data_length or (y[0]==y).all() or np.unique(y).size<2:
-            return (np.nan, np.nan, np.nan, np.nan, None, np.nan, None, None)
+            return (np.nan, np.nan, np.nan, None, np.nan, None, None)
         
-        #return alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample
+        # make sure a sensical lower bound range is covered
+        if hasattr(lower_bound_range[i],'__len__') and np.diff(lower_bound_range[i])<=0:
+            return (np.nan, np.nan, np.nan, None, np.nan, None, None)
+        
+        #return alpha, lb, ksval, ksSample, pval, alphaSample, lbSample
         if discrete:
-            alpha, lb = DiscretePowerLaw.max_likelihood(y,
-                                                        lower_bound_range=lower_bound_range[i],
+            if hasattr(lower_bound_range[i],'__len__'):
+                alpha, lb = DiscretePowerLaw.max_likelihood(y,
+                                                            lower_bound_range=lower_bound_range[i],
+                                                            initial_guess=1.2,
+                                                            upper_bound=upper_bound,
+                                                            decimal_resolution=0,
+                                                            n_cpus=1)
+            else:
+                alpha = DiscretePowerLaw.max_likelihood(y[y>=lower_bound_range[i]],
+                                                        lower_bound=lower_bound_range[i],
                                                         initial_guess=1.2,
-                                                        upper_bound=upper_bound,
-                                                        decimal_resolution=0,
-                                                        n_cpus=1)
+                                                        upper_bound=upper_bound)
+                lb = lower_bound_range[i]
             correction = discrete_powerlaw_correction_spline()
             alpha += correction(alpha, (y>=lb).sum(), int(lb))
         else:
-            alpha, lb = PowerLaw.max_likelihood(y,
-                                                lower_bound_range=lower_bound_range[i],
+            if hasattr(lower_bound_range[i],'__len__'):
+                alpha, lb = PowerLaw.max_likelihood(y,
+                                                    lower_bound_range=lower_bound_range[i],
+                                                    initial_guess=1.2,
+                                                    upper_bound=upper_bound,
+                                                    n_cpus=1)
+            else:
+                alpha = PowerLaw.max_likelihood(y[y>=lower_bound_range[i]],
+                                                lower_bound=lower_bound_range[i],
                                                 initial_guess=1.2,
-                                                upper_bound=upper_bound,
-                                                n_cpus=1)
+                                                upper_bound=upper_bound)
+                lb = lower_bound_range[i]
+
             # must add wrapper for correction to take in a lower bound arg (and disregard it)
             correction_ = powerlaw_correction_spline()
             correction = lambda alpha, K, lb=None: correction_(alpha, K)
             alpha += correction(alpha, (y>=lb).sum())
+            alpha = float(alpha)
 
-        # measure the scaling over at least a single order of magnitude
-        if (np.log10(y.max())-np.log10(lb))<2:
-            alpha1 = np.nan
-        else:
-            if discrete:
-                alpha1=DiscretePowerLaw.mean_scaling(y[y>=lb],
-                                         np.logspace(np.log10(y.min())+1., np.log10(y.max()), 5)[1:])
-            else:
-                alpha1=PowerLaw.mean_scaling(y[y>=lb],
-                                         np.logspace(np.log10(y.min())+1., np.log10(y.max()), 5)[1:])
-    
         # KS statistics
-        if discrete:
-            dpl = DiscretePowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
-        else:
-            dpl = PowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
-        ksval=dpl.ksval(y[y>=lb])
-        # only calculate p-value if the fit is rather close
-        if n_boot_samples>0 and ksval<=ksval_threshold and (y>=lb).sum()>=30:
+        if np.isnan(alpha)==0 and n_boot_samples>0 and (y>=lb).sum()>=30:
+            if discrete:
+                dpl = DiscretePowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
+            else:
+                dpl = PowerLaw(alpha=alpha, lower_bound=lb, upper_bound=upper_bound)
+            ksval = dpl.ksval(y[y>=lb])
+
+            # only calculate p-value if the fit is rather close
             if discrete:
                 decimal_resolution = 0
             else:
                 decimal_resolution = None
-            pval, ksSample, (alphaSample,lbSample) = dpl.clauset_test(y[y>=lb], 
-                                                                      ksval,
-                                                                      lower_bound_range[i], 
-                                                                      n_boot_samples,
-                                                                      samples_below_cutoff=y[y<lb],
-                                                                      return_all=True,
-                                                                      correction=correction,
-                                                                      decimal_resolution=decimal_resolution,
-                                                                      n_cpus=1)
+            if hasattr(lower_bound_range[i],'__len__'):
+                pval, ksSample, (alphaSample,lbSample) = dpl.clauset_test(y[y>=lb], 
+                                                                  ksval,
+                                                                  lower_bound_range[i], 
+                                                                  n_boot_samples,
+                                                                  samples_below_cutoff=y[y<lb],
+                                                                  return_all=True,
+                                                                  correction=correction,
+                                                                  decimal_resolution=decimal_resolution,
+                                                                  n_cpus=1)
+            else:
+                pval, ksSample, (alphaSample,lbSample) = dpl.clauset_test(y[y>=lb], 
+                                                                  ksval,
+                                                                  bootstrap_samples=n_boot_samples,
+                                                                  return_all=True,
+                                                                  correction=correction,
+                                                                  n_cpus=1)
         else:
-            pval=np.nan
-            ksSample=None
+            pval = np.nan
+            ksSample = None
+            ksval = np.nan
             alphaSample=None
             lbSample=None
         print("Done fitting data set %d."%i)
-        return alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample
+        return alpha, lb, ksval, ksSample, pval, alphaSample, lbSample
     
-    for (i,y) in enumerate(Y):
-        f((i,y))
-    return
+    #for (i,y) in enumerate(Y):
+    #    f((i,y))
+    #return
     #f((0,Y[0]))
     pool=Pool(n_cpus)
-    alpha, lb, alpha1, ksval, ksSample, pval, alphaSample, lbSample=list(zip(*pool.map(f, enumerate(Y))))
+    alpha, lb, ksval, ksSample, pval, alphaSample, lbSample=list(zip(*pool.map(f, enumerate(Y))))
     pool.close()
 
     alpha=np.array(alpha)
     lb=np.array(lb)
-    alpha1=np.array(alpha1)
     ksval=np.array(ksval)
     ksSample=np.array(ksSample)
     pval=np.array(pval)
@@ -571,9 +587,10 @@ def _power_law_fit(Y, lower_bound_range, upper_bound,
         else:
             ecdfs.append(None)
     
-    return alpha, alpha1, lb, cdfs, ecdfs, fullecdfs, ksval, ksSample, pval, alphaSample, lbSample
+    return alpha, lb, cdfs, ecdfs, fullecdfs, ksval, ksSample, pval, alphaSample, lbSample
 
 def _bootstrap_power_law_fit(Y, upper_bound,
+                             lower_bound=None,
                              discrete=True,
                              n_boot_samples=2500,
                              min_data_length=10,
@@ -633,12 +650,19 @@ def _bootstrap_power_law_fit(Y, upper_bound,
                     alpha[counter] = np.nan
                     lb[counter] = np.nan
                 else:
-                    lower_bound_range = y_.min(), y_.max()
-                    alpha[counter], lb[counter] = DiscretePowerLaw.max_likelihood(y_,
-                                                                lower_bound_range=lower_bound_range,
-                                                                initial_guess=1.2,
-                                                                upper_bound=upper_bound,
-                                                                n_cpus=1)
+                    if lower_bound is None:
+                        lower_bound_range = y_.min(), y_.max()
+                        alpha[counter], lb[counter] = DiscretePowerLaw.max_likelihood(y_,
+                                                                    lower_bound_range=lower_bound_range,
+                                                                    initial_guess=1.2,
+                                                                    upper_bound=upper_bound,
+                                                                    n_cpus=1)
+                    else:
+                        alpha[counter] = DiscretePowerLaw.max_likelihood(y_[y_>=lower_bound[i]],
+                                                                    initial_guess=1.2,
+                                                                    upper_bound=upper_bound,
+                                                                    n_cpus=1)
+                        lb[counter] = lower_bound[i]
                     alpha[counter] += correction(alpha[counter], (y_>=lb[counter]).sum(), int(lb[counter]))
         else:
             for counter in range(n_boot_samples):
