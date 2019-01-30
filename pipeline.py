@@ -41,7 +41,11 @@ def discrete_lower_bound_range(d):
 # =================== # 
 # Pipeline functions. #
 # =================== # 
-def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16,84)):
+def check_consistency(eventType, gridno,
+                      pval_threshold=.05,
+                      perc=(16,84),
+                      fitn=5,
+                      fractal_bds_ix=range(3,9)):
     """Check for which time and length scales the exponent relations between fatalities
     and sizes is consisten with the durations. These relations are consistent if they
     overlap within some bootstrapped confidence intervals.
@@ -57,6 +61,9 @@ def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16,84)):
     perc : tuple, (16,84)
         For distribution exponents tau, ups, and alpha. Default corresponds to 68% error
         bars analogous to a single standard deviation.
+    fitn : int, 5
+        No. of points used to fit fractal dimensions.
+    fractal_bds_ix : list-like, range(3,9)
 
     Returns
     -------
@@ -79,8 +86,13 @@ def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16,84)):
     sizeInfo['tauBds']=np.array([percentile_bds(X, perc) for X in sizeInfo['tauSample']])
     fatalityInfo['upsBds']=np.array([percentile_bds(X, perc) for X in fatalityInfo['upsSample']])
     durationInfo['alphaBds']=np.array([percentile_bds(X, perc) for X in durationInfo['alphaSample']])
-
-    data = pickle.load(open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)), 'rb'))
+    #diameterInfo['nuBds'] = np.array([sigma_bds(X, 1) for X in diameterInfo['nuSample']])
+    #sizeInfo['tauBds'] = np.array([sigma_bds(X, 1) for X in sizeInfo['tauSample']])
+    #fatalityInfo['upsBds'] = np.array([sigma_bds(X, 1) for X in fatalityInfo['upsSample']])
+    #durationInfo['alphaBds'] = np.array([sigma_bds(X, 1) for X in durationInfo['alphaSample']])
+    
+    fname = 'cache/%s_fractal_dimension_fitn%d_%s.p'%(eventType,fitn,str(gridno).zfill(2))
+    data = pickle.load(open(fname, 'rb'))
     dfGridBds = data['dfGridBds']
     dsGridBds = data['dsGridBds']
     dlGridBds = data['dlGridBds']
@@ -91,7 +103,7 @@ def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16,84)):
         if not np.isnan(durationInfo['alpha'][ix]): 
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
                                             fatalityInfo['upsBds'][ix],
-                                            dfGridBds[0][4:])
+                                            dfGridBds[0][fractal_bds_ix])
     fatalityInfo['consistent'] = consistent
     
     # check size & duration
@@ -100,7 +112,7 @@ def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16,84)):
         if not np.isnan(durationInfo['alpha'][ix]):
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
                                             sizeInfo['tauBds'][ix],
-                                            dsGridBds[0][4:])
+                                            dsGridBds[0][fractal_bds_ix])
     sizeInfo['consistent'] = consistent
 
     # check length & duration
@@ -109,16 +121,19 @@ def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16,84)):
         if not np.isnan(durationInfo['alpha'][ix]):
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
                                             diameterInfo['nuBds'][ix],
-                                            dlGridBds[0][4:])
+                                            dlGridBds[0][fractal_bds_ix])
     diameterInfo['consistent'] = consistent
 
     # places in array where exponent relations are consistent
-    consistent=sizeInfo['consistent'] & fatalityInfo['consistent']
+    consistent = sizeInfo['consistent'] & fatalityInfo['consistent']
+    #consistent = fatalityInfo['consistent']
     # places in array where exponent relation is consistent and measured power laws are significant
+    #sig = ( (fatalityInfo['pval']>pval_threshold) &
+    #        (durationInfo['pval']>pval_threshold) )
     sig = ( (sizeInfo['pval']>pval_threshold) &
             (fatalityInfo['pval']>pval_threshold) &
             (durationInfo['pval']>pval_threshold) )
-        
+   
     Lconsistent = consistent & diameterInfo['consistent']
     Lsig = (diameterInfo['pval']>pval_threshold) & (durationInfo['pval']>pval_threshold)
     Lsig &= sig
@@ -202,11 +217,12 @@ def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, d
         dlGridSample.append((samp0, samp1))
 
     if not (eventType is None and gridno is None):
+        fname = 'cache/%s_fractal_dimension_fitn%d_%s.p'%(eventType,fitn,str(gridno).zfill(2))
         pickle.dump({'dlGrid':dlGrid,'dfGrid':dfGrid,'dsGrid':dsGrid,
                      'dfGridBds':dfGridBds,'dlGridBds':dlGridBds,'dsGridBds':dsGridBds,
                      'dfGridSample':dfGridSample, 'dlGridSample':dlGridSample, 'dsGridSample':dsGridSample,
                      'perc':perc},
-                    open('cache/%s_fractal_dimension%s.p'%(eventType,str(gridno).zfill(2)),'wb'), -1)
+                    open(fname,'wb'), -1)
     return dlGrid, dlGridBds, dsGrid, dsGridBds, dfGrid, dfGridBds
 
 def power_law_fit(eventType,

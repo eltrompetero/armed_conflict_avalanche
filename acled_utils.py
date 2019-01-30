@@ -53,10 +53,13 @@ def check_relation(alphaBds, upsBds, dfBds):
         return True
     return False
 
-def percentile_bds(X, perc):
+def percentile_bds(X, perc, as_delta=False):
     """Just a wrapper around np.percentile to make it easier."""
 
     if hasattr(X,'__len__') and (not np.isnan(X).any()):
+        if as_delta:
+            return (np.percentile(X,50)-np.percentile(X, perc[0]),
+                    np.percentile(X,perc[1])-np.percentile(X,50))
         return np.percentile(X, perc[0]), np.percentile(X, perc[1])
     return None
 
