@@ -42,9 +42,8 @@ def discrete_lower_bound_range(d):
 # Pipeline functions. #
 # =================== # 
 def check_consistency(eventType, gridno,
-                      pval_threshold=.05,
-                      perc=(16,84),
-                      fractal_bds_ix=range(3,9)):
+                      pval_threshold=.1,
+                      perc=(16,84)):
     """Check for which time and length scales the exponent relations between fatalities
     and sizes is consisten with the durations. These relations are consistent if they
     overlap within some bootstrapped confidence intervals.
@@ -56,11 +55,10 @@ def check_consistency(eventType, gridno,
     ----------
     eventType : str
     gridno : int
-    pval_threshold : float, .05
+    pval_threshold : float, .1
     perc : tuple, (16,84)
         For distribution exponents tau, ups, and alpha. Default corresponds to 68% error
         bars analogous to a single standard deviation.
-    fractal_bds_ix : list-like, range(3,9)
 
     Returns
     -------
@@ -101,7 +99,7 @@ def check_consistency(eventType, gridno,
                            for x in data['dlGridSample']])
 
     # check fatality & duration
-    consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
+    consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)
     for ix in range(len(sizeInfo['tau'])):
         if not np.isnan(durationInfo['alpha'][ix]): 
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
@@ -110,7 +108,7 @@ def check_consistency(eventType, gridno,
     fatalityInfo['consistent'] = consistent
     
     # check size & duration
-    consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
+    consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)
     for ix in range(len(sizeInfo['tau'])):
         if not np.isnan(durationInfo['alpha'][ix]):
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
@@ -119,7 +117,7 @@ def check_consistency(eventType, gridno,
     sizeInfo['consistent'] = consistent
 
     # check length & duration
-    consistent = np.zeros(len(diameterInfo['nu']), dtype=bool)==1
+    consistent = np.zeros(len(diameterInfo['nu']), dtype=bool)
     for ix in range(len(diameterInfo['nu'])):
         if not np.isnan(durationInfo['alpha'][ix]):
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],

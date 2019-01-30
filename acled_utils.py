@@ -49,7 +49,8 @@ def check_relation(alphaBds, upsBds, dfBds):
         return False
     if ( (((alphaBds[0]-1)>(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[0]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
          (((alphaBds[1]-1)>(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[1]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
-         (((alphaBds[0]-1)<(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[1]-1)>(dfBds[:,1]*(upsBds[1]-1)))).any() ):
+         (((alphaBds[0]-1)<(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[1]-1)>(dfBds[:,0]*(upsBds[0]-1)))).any() or
+         (((alphaBds[0]-1)<(dfBds[:,1]*(upsBds[1]-1))) & ((alphaBds[1]-1)>(dfBds[:,1]*(upsBds[1]-1)))).any() ):
         return True
     return False
 
