@@ -44,7 +44,6 @@ def discrete_lower_bound_range(d):
 def check_consistency(eventType, gridno,
                       pval_threshold=.05,
                       perc=(16,84),
-                      fitn=5,
                       fractal_bds_ix=range(3,9)):
     """Check for which time and length scales the exponent relations between fatalities
     and sizes is consisten with the durations. These relations are consistent if they
@@ -61,8 +60,6 @@ def check_consistency(eventType, gridno,
     perc : tuple, (16,84)
         For distribution exponents tau, ups, and alpha. Default corresponds to 68% error
         bars analogous to a single standard deviation.
-    fitn : int, 5
-        No. of points used to fit fractal dimensions.
     fractal_bds_ix : list-like, range(3,9)
 
     Returns
@@ -91,19 +88,25 @@ def check_consistency(eventType, gridno,
     #fatalityInfo['upsBds'] = np.array([sigma_bds(X, 1) for X in fatalityInfo['upsSample']])
     #durationInfo['alphaBds'] = np.array([sigma_bds(X, 1) for X in durationInfo['alphaSample']])
     
-    fname = 'cache/%s_fractal_dimension_fitn%d_%s.p'%(eventType,fitn,str(gridno).zfill(2))
+    fname = 'cache/%s_fractal_dimension_%s.p'%(eventType,str(gridno).zfill(2))
     data = pickle.load(open(fname, 'rb'))
-    dfGridBds = data['dfGridBds']
-    dsGridBds = data['dsGridBds']
-    dlGridBds = data['dlGridBds']
-    
+    #dfGridBds = data['dfGridBds']
+    #dsGridBds = data['dsGridBds']
+    #dlGridBds = data['dlGridBds']
+    dfGridBds = np.vstack([percentile_bds(x,perc) if not x is None else (np.nan,np.nan)
+                           for x in data['dfGridSample']])
+    dsGridBds = np.vstack([percentile_bds(x,perc) if not x is None else (np.nan,np.nan)
+                           for x in data['dsGridSample']])
+    dlGridBds = np.vstack([percentile_bds(x,perc) if not x is None else (np.nan,np.nan)
+                           for x in data['dlGridSample']])
+
     # check fatality & duration
     consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
     for ix in range(len(sizeInfo['tau'])):
         if not np.isnan(durationInfo['alpha'][ix]): 
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
                                             fatalityInfo['upsBds'][ix],
-                                            dfGridBds[0][fractal_bds_ix])
+                                            dfGridBds[ix][None,:])
     fatalityInfo['consistent'] = consistent
     
     # check size & duration
@@ -112,7 +115,7 @@ def check_consistency(eventType, gridno,
         if not np.isnan(durationInfo['alpha'][ix]):
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
                                             sizeInfo['tauBds'][ix],
-                                            dsGridBds[0][fractal_bds_ix])
+                                            dsGridBds[ix][None,:])
     sizeInfo['consistent'] = consistent
 
     # check length & duration
@@ -121,7 +124,7 @@ def check_consistency(eventType, gridno,
         if not np.isnan(durationInfo['alpha'][ix]):
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
                                             diameterInfo['nuBds'][ix],
-                                            dlGridBds[0][fractal_bds_ix])
+                                            dlGridBds[ix][None,:])
     diameterInfo['consistent'] = consistent
 
     # places in array where exponent relations are consistent

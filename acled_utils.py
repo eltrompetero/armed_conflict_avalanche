@@ -25,8 +25,8 @@ DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
 
 def check_relation(alphaBds, upsBds, dfBds):
     """
-    Checks the basic relation between the time scales exponent alpha with another scaling variable like
-    fatalities. The relation checked for this case would be
+    Checks the basic relation between the time scales exponent alpha with another scaling
+    variable like fatalities. The relation checked for this case would be
         $\\alpha - 1 = (\\upsilon-1) d_{\\rm f}$
 
     Parameters
@@ -36,8 +36,8 @@ def check_relation(alphaBds, upsBds, dfBds):
     upsBds : tuple
         Bound for variable to scale with T, like upsilon for fatalities.
     dfBds : ndarray
-        Bounds for scaling of second variable with T (fractal dimension). Each col represented lower then
-        upper bounds respectively.
+        Bounds for scaling of second variable with T (fractal dimension). Each sequential col
+        represents lower then upper bounds respectively.
 
     Returns
     -------
