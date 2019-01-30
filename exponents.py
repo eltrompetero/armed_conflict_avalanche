@@ -13,6 +13,60 @@ SMIN=2
 
 
 def fractal_dimension(x, y,
+                      return_err=True,
+                      return_sample=False,
+                      n_bootstrap_iters=1000):
+    """Find the fractional dimension by fitting exponents on scaling.
+
+    Parameters
+    ----------
+    x : ndarray
+    y : ndarray
+    return_err : bool, True
+    return_sample : bool, False
+        If evaluates to True, return bootstrap sample. This can be passed in as a twople
+        which will correspond to percentile bounds (lower, upper).
+    n_bootstrap_iters : int, 1000
+
+    Returns
+    -------
+    float
+        Estimated fractal dimension.
+    twople
+        Error bars on the loglog_fit exponent parameter measured by the standard deviation
+        of the log residuals.
+    ndarray
+        Exponent sample from bootstrap.
+    """
+
+    from misc.stats import bivariate_reg
+    from multiprocess import Pool, cpu_count
+    
+    (df, _), soln = bivariate_reg(np.log(x), np.log(y), full_output=True)
+    if not return_err:
+        return df
+
+    def one_iteration(rng):
+        x_ = x[rng.randint(0, x.size, size=x.size)]
+        y_ = y[rng.randint(0, y.size, size=y.size)]
+        return bivariate_reg(np.log(x_), np.log(y_))[0]
+
+    pool = Pool(cpu_count()-1)
+    bootSample = np.array(pool.map(one_iteration,
+                                   [np.random.RandomState() for i in range(n_bootstrap_iters)]))
+    pool.close()
+    
+    if type(return_err) is tuple:
+        errbds = percentile_bds(bootSample, return_err)
+    else:
+        errbds = percentile_bds(bootSample, (16,84))
+    
+    output = [df, errbds]
+    if return_sample:
+        output.append(bootSample)
+    return tuple(output)
+
+def _fractal_dimension(x, y,
                       initial_guess=1.,
                       grid_range=(.2,1.5),
                       return_grid=False,
