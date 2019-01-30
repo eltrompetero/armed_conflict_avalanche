@@ -140,84 +140,74 @@ def check_consistency(eventType, gridno,
     
     return consistent, sig, Lconsistent, Lsig
 
-def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, dayThreshold,
-                      fitn=7, offset=-1, eventType=None, gridno=None):
-    """Calculate fractal dimensions from scaling of means."""
+def fractal_dimension(diameters, sizes, fatalities, durations,
+                      diameterInfo, sizeInfo, fatalityInfo, durationInfo,
+                      eventType=None, gridno=None, perc=(16,84), n_boot_samples=250):
+    """Calculate fractal dimensions."""
+
     from .exponents import fractal_dimension
-
-    T = len(dayThreshold)
-    L = len(spaceThreshold)
-
-    # Collect all (dx,dt) pairs to look at
-    dsGrid = np.zeros((2,len(spaceThreshold)))
-    dfGrid = np.zeros((2,len(spaceThreshold)))
-    dlGrid = np.zeros((2,len(spaceThreshold)))
+    
+    K = len(diameters)
 
     # Collect all (dx,dt) pairs to look at
-    dsGridBds = np.zeros((2,len(spaceThreshold),2))
-    dfGridBds = np.zeros((2,len(spaceThreshold),2))
-    dlGridBds = np.zeros((2,len(spaceThreshold),2))
+    dsGrid = np.zeros(K)
+    dfGrid = np.zeros(K)
+    dlGrid = np.zeros(K)
+
+    # Collect all (dx,dt) pairs to look at
+    dsGridBds = np.zeros((K,2))
+    dfGridBds = np.zeros((K,2))
+    dlGridBds = np.zeros((K,2))
     
     # bootstrap sample for error bars
     dsGridSample = []
     dfGridSample = []
     dlGridSample = []
 
-    for i in range(len(spaceThreshold)):
-        # simplest, most data-driven approach of considering everything but obvious
-        # outliers at 1
-        t=[t[t>1] for t in durations[i*T:(i+1)*T]]
-        d=[d[d>0] for d in diameters[i*T:(i+1)*T]]
-        f=[f[f>1] for f in fatalities[i*T:(i+1)*T]]
-        s=[s[s>1] for s in sizes[i*T:(i+1)*T]]
-            
+    for i in range(K):
         # calculate fractal dimension
-        perc = (16,84)
-        dfGrid[0,i], dfGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], f[:fitn],
-                                                               return_sample=True,
-                                                               return_err=perc)
-        if offset==0:
-            dfGrid[1,i], dfGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:], f[-fitn:],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
+        x, y = durations[i], fatalities[i]
+        keepix = (x>=durationInfo['lb'][i]) & (y>=fatalityInfo['lb'][i])
+        x, y = x[keepix], y[keepix]
+        if keepix.sum()>=10 and np.unique(x).size>=2 and np.unique(y).size>=2:
+            dfGrid[i], dfGridBds[i,:], samp = fractal_dimension(x, y,
+                                                                return_sample=True,
+                                                                return_err=perc,
+                                                                n_bootstrap_iters=n_boot_samples)
         else:
-            dfGrid[1,i], dfGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
-                                                                   f[-fitn+offset:offset],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
-        dfGridSample.append((samp0, samp1))
+            dfGrid[i] = np.nan
+            dfGridBds[i,:] = np.nan
+            samp = None
+        dfGridSample.append(samp)
         
-        dsGrid[0,i], dsGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], s[:fitn],
-                                                               return_sample=True,
-                                                               return_err=perc)
-        if offset==0:
-            dsGrid[1,i], dsGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:], s[-fitn:],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
+        x, y = durations[i], sizes[i]
+        keepix = (x>=durationInfo['lb'][i]) & (y>=sizeInfo['lb'][i])
+        x, y = x[keepix], y[keepix]
+        if keepix.sum()>=10 and np.unique(x).size>=2 and np.unique(y).size>=2:
+            dsGrid[i], dsGridBds[i,:], samp = fractal_dimension(x, y,
+                                                                return_sample=True,
+                                                                n_bootstrap_iters=n_boot_samples)
         else:
-            dsGrid[1,i], dsGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
-                                                                   s[-fitn+offset:offset],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
-        dsGridSample.append((samp0, samp1))
-            
-        dlGrid[0,i], dlGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], d[:fitn],
-                                                               return_sample=True,
-                                                               return_err=perc)
-        if offset==0:
-            dlGrid[1,i], dlGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:],
-                                                                   d[-fitn:],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
-        else:
-            dlGrid[1,i], dlGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
-                                                                   d[-fitn+offset:offset],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
-        dlGridSample.append((samp0, samp1))
+            dsGrid[i] = np.nan
+            dsGridBds[i,:] = np.nan
+            samp = None
+        dsGridSample.append(samp)
 
+        x, y = durations[i], diameters[i]
+        keepix = (x>=durationInfo['lb'][i]) & (y>=diameterInfo['lb'][i])
+        x, y = x[keepix], y[keepix]
+        if keepix.sum()>=10 and np.unique(x).size>=2 and np.unique(y).size>=2:
+            dlGrid[i], dlGridBds[i,:], samp = fractal_dimension(x, y,
+                                                                return_sample=True,
+                                                                n_bootstrap_iters=n_boot_samples)
+        else:
+            dlGrid[i] = np.nan
+            dlGridBds[i,:] = np.nan
+            samp = None
+        dlGridSample.append(samp)
+ 
     if not (eventType is None and gridno is None):
-        fname = 'cache/%s_fractal_dimension_fitn%d_%s.p'%(eventType,fitn,str(gridno).zfill(2))
+        fname = 'cache/%s_fractal_dimension_%s.p'%(eventType, str(gridno).zfill(2))
         pickle.dump({'dlGrid':dlGrid,'dfGrid':dfGrid,'dsGrid':dsGrid,
                      'dfGridBds':dfGridBds,'dlGridBds':dlGridBds,'dsGridBds':dsGridBds,
                      'dfGridSample':dfGridSample, 'dlGridSample':dlGridSample, 'dsGridSample':dsGridSample,
