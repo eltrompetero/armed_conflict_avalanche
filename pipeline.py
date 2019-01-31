@@ -169,6 +169,7 @@ def fractal_dimension(diameters, sizes, fatalities, durations,
         # calculate fractal dimension
         x, y = durations[i], fatalities[i]
         keepix = (x>=durationInfo['lb'][i]) & (y>=fatalityInfo['lb'][i])
+        #keepix = (x>=2) & (y>=2)
         x, y = x[keepix], y[keepix]
         if keepix.sum()>=10 and np.unique(x).size>=2 and np.unique(y).size>=2:
             dfGrid[i], dfGridBds[i,:], samp = fractal_dimension(x, y,
@@ -183,6 +184,7 @@ def fractal_dimension(diameters, sizes, fatalities, durations,
         
         x, y = durations[i], sizes[i]
         keepix = (x>=durationInfo['lb'][i]) & (y>=sizeInfo['lb'][i])
+        #keepix = (x>=2) & (y>=2)
         x, y = x[keepix], y[keepix]
         if keepix.sum()>=10 and np.unique(x).size>=2 and np.unique(y).size>=2:
             dsGrid[i], dsGridBds[i,:], samp = fractal_dimension(x, y,
@@ -196,6 +198,7 @@ def fractal_dimension(diameters, sizes, fatalities, durations,
 
         x, y = durations[i], diameters[i]
         keepix = (x>=durationInfo['lb'][i]) & (y>=diameterInfo['lb'][i])
+        #keepix = (x>=2) & (y>=2)
         x, y = x[keepix], y[keepix]
         if keepix.sum()>=10 and np.unique(x).size>=2 and np.unique(y).size>=2:
             dlGrid[i], dlGridBds[i,:], samp = fractal_dimension(x, y,

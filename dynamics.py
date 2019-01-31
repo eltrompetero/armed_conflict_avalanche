@@ -63,7 +63,7 @@ def avalanche_trajectory(g, min_len=5, min_size=2):
 
     return dateSize, dateFat, durSize, durFat
 
-def interp_avalanche_trajectory(dateFat, x, insert_zero=True, append_one=False):
+def interp_avalanche_trajectory(dateFat, x, insert_zero=False, append_one=False):
     """Average avalanche trajectory over many different avalanches using linear
     interpolation. Can insert 0 at the beginning and repeat max value at end. Since
     trajectories are normalized to 1, return the total size.
@@ -75,7 +75,7 @@ def interp_avalanche_trajectory(dateFat, x, insert_zero=True, append_one=False):
     ----------
     dateFat : pd.DataFrame
     x : ndarray
-    insert_zero : bool, True
+    insert_zero : bool, False
         If True, insert zero at beginning of time series to ensure that CDF starts at 0.
     append_one : bool, False
         Add 1 at end.

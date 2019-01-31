@@ -54,6 +54,31 @@ def check_relation(alphaBds, upsBds, dfBds):
         return True
     return False
 
+def exponent_bounds(alphaBds, upsBds, dfBds):
+    """Checks the basic relation between the time scales exponent alpha with another scaling
+    variable like fatalities. The relation checked for this case would be
+        $\\alpha - 1 = (\\upsilon-1) d_{\\rm f}$
+
+    Show max range possible for third exponent given other two.
+
+    Parameters
+    ----------
+    alphaBds : tuple
+        Bound for alpha, exponent for P(T) ~ T^-alpha.
+    upsBds : tuple
+        Bound for variable to scale with T, like upsilon for fatalities.
+    dfBds : tuple
+
+    Returns
+    -------
+    tuples
+    """
+
+    dfRange = (alphaBds[0]-1)/(upsBds[1]-1), (alphaBds[1]-1)/(upsBds[0]-1)
+    alphaRange = dfBds[0]*(upsBds[0]-1)+1, dfBds[1]*(upsBds[1]-1)+1
+    upsRange = (alphaBds[0]-1)/dfBds[1]+1, (alphaBds[1]-1)/dfBds[0]+1
+    return alphaRange, upsRange, dfRange
+
 def percentile_bds(X, perc, as_delta=False):
     """Just a wrapper around np.percentile to make it easier."""
 
