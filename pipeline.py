@@ -127,7 +127,8 @@ def check_consistency(eventType, gridno,
 
     # places in array where exponent relations are consistent
     consistent = sizeInfo['consistent'] & fatalityInfo['consistent']
-    #consistent = fatalityInfo['consistent']
+    Fconsistent = fatalityInfo['consistent']
+    Sconsistent = sizeInfo['consistent']
     # places in array where exponent relation is consistent and measured power laws are significant
     #sig = ( (fatalityInfo['pval']>pval_threshold) &
     #        (durationInfo['pval']>pval_threshold) )
@@ -139,7 +140,7 @@ def check_consistency(eventType, gridno,
     Lsig = (diameterInfo['pval']>pval_threshold) & (durationInfo['pval']>pval_threshold)
     Lsig &= sig
     
-    return consistent, sig, Lconsistent, Lsig
+    return consistent, sig, Lconsistent, Lsig, Sconsistent, Fconsistent
 
 def fractal_dimension(diameters, sizes, fatalities, durations,
                       diameterInfo, sizeInfo, fatalityInfo, durationInfo,
