@@ -23,7 +23,7 @@ def add_same_date_events(t, x):
         xagg[i] = x[t==t_].sum()
     return uniqt, xagg
 
-def avalanche_trajectory(g, min_len=5, min_size=2):
+def avalanche_trajectory(g, min_len=5, min_size=2, min_fat=2):
     """Extract from data the discrete sequence of events and their sizes.
     
     Parameters
@@ -55,7 +55,7 @@ def avalanche_trajectory(g, min_len=5, min_size=2):
                 dateSize.append( np.vstack((t_, s)).T.astype(float) )
                 durSize.append(dur_)
                 
-                if df['FATALITIES'].any():
+                if df['FATALITIES'].sum()>=min_fat:
                     f = df['FATALITIES'].values
                     t, f = add_same_date_events(t, f)
                     dateFat.append( np.vstack((t, f)).T.astype(float) )
