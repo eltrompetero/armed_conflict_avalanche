@@ -84,8 +84,11 @@ def percentile_bds(X, perc, as_delta=False):
 
     if hasattr(X,'__len__') and (not np.isnan(X).any()):
         if as_delta:
-            return (np.percentile(X,50)-np.percentile(X, perc[0]),
-                    np.percentile(X,perc[1])-np.percentile(X,50))
+            if type(as_delta) is bool:
+                return (np.percentile(X,50)-np.percentile(X, perc[0]),
+                        np.percentile(X,perc[1])-np.percentile(X,50))
+            return (as_delta-np.percentile(X, perc[0]),
+                    np.percentile(X,perc[1])-as_delta)
         return np.percentile(X, perc[0]), np.percentile(X, perc[1])
     return None
 
