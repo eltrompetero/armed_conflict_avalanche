@@ -76,6 +76,18 @@ def check_consistency(eventType, gridno,
     sizeInfo=data['sizeInfo']
     fatalityInfo=data['fatalityInfo']
     durationInfo=data['durationInfo']
+    
+    folder = 'geosplits/africa/%s/full_data_set/bin_agg'%eventType
+    fname = '%s/%s%s'%(folder,'voronoi_noactor_','grid_stats%s.p'%str(gridno).zfill(2))
+    data = pickle.load(open(fname,'rb'))
+    diameters = data['diameters']
+    sizes = data['sizes']
+    fatalities = data['fatalities']
+    durations = data['durations']
+    nDiameter = np.array([(s>=lb).sum() for s,lb in zip(diameters,diameterInfo['lb'])])
+    nSize = np.array([(s>=lb).sum() for s,lb in zip(sizes,sizeInfo['lb'])])
+    nFatality = np.array([(f>=lb).sum() for f,lb in zip(fatalities,fatalityInfo['lb'])])
+    nDuration = np.array([(t>=lb).sum() for t,lb in zip(durations,durationInfo['lb'])])
 
     diameterInfo['nuBds']=np.array([percentile_bds(X, perc) for X in diameterInfo['nuSample']])
     sizeInfo['tauBds']=np.array([percentile_bds(X, perc) for X in sizeInfo['tauSample']])
@@ -130,14 +142,13 @@ def check_consistency(eventType, gridno,
     Fconsistent = fatalityInfo['consistent']
     Sconsistent = sizeInfo['consistent']
     # places in array where exponent relation is consistent and measured power laws are significant
-    #sig = ( (fatalityInfo['pval']>pval_threshold) &
-    #        (durationInfo['pval']>pval_threshold) )
-    sig = ( (sizeInfo['pval']>pval_threshold) &
-            (fatalityInfo['pval']>pval_threshold) &
-            (durationInfo['pval']>pval_threshold) )
+    sig = ( (sizeInfo['pval']>pval_threshold) & (nSize>=50) &
+            (fatalityInfo['pval']>pval_threshold) & (nFatality>=50) &
+            (durationInfo['pval']>pval_threshold) & (nDuration>=50) )
    
     Lconsistent = consistent & diameterInfo['consistent']
-    Lsig = (diameterInfo['pval']>pval_threshold) & (durationInfo['pval']>pval_threshold)
+    Lsig = ((diameterInfo['pval']>pval_threshold) & (nDiameter>=50) &
+            (durationInfo['pval']>pval_threshold) & (nDuration>=50))
     Lsig &= sig
     
     return consistent, sig, Lconsistent, Lsig, Sconsistent, Fconsistent
