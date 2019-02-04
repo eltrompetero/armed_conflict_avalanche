@@ -84,7 +84,7 @@ def check_consistency(eventType, gridno,
     sizes = data['sizes']
     fatalities = data['fatalities']
     durations = data['durations']
-    nDiameter = np.array([(s>=lb).sum() for s,lb in zip(diameters,diameterInfo['lb'])])
+    nDiameter = np.array([(d>=lb).sum() for d,lb in zip(diameters,diameterInfo['lb'])])
     nSize = np.array([(s>=lb).sum() for s,lb in zip(sizes,sizeInfo['lb'])])
     nFatality = np.array([(f>=lb).sum() for f,lb in zip(fatalities,fatalityInfo['lb'])])
     nDuration = np.array([(t>=lb).sum() for t,lb in zip(durations,durationInfo['lb'])])
@@ -145,7 +145,7 @@ def check_consistency(eventType, gridno,
     sig = ( (sizeInfo['pval']>pval_threshold) & (nSize>=50) &
             (fatalityInfo['pval']>pval_threshold) & (nFatality>=50) &
             (durationInfo['pval']>pval_threshold) & (nDuration>=50) )
-   
+    
     Lconsistent = consistent & diameterInfo['consistent']
     Lsig = ((diameterInfo['pval']>pval_threshold) & (nDiameter>=50) &
             (durationInfo['pval']>pval_threshold) & (nDuration>=50))

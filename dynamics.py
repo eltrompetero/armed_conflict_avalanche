@@ -23,15 +23,15 @@ def add_same_date_events(t, x):
         xagg[i] = x[t==t_].sum()
     return uniqt, xagg
 
-def avalanche_trajectory(g, min_len=5, min_size=2, min_fat=2):
+def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
     """Extract from data the discrete sequence of events and their sizes.
     
     Parameters
     ----------
     g : pd.DataFrame
-    min_len : int, 5
+    min_len : int, 4
         Shortest duration of avalanche permitted for inclusion.
-    min_size : int, 5
+    min_size : int, 4
         Least number of unique events for inclusion.
         
     Returns

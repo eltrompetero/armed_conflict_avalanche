@@ -182,10 +182,10 @@ def _coarse_grain_voronoi_tess(dx, fileno):
             
     return nextLayerPixel
 
-def voronoi_pix_diameter(spaceThreshold):
+def voronoi_pix_diameter(spaceThreshold, n_samp=10):
     pixDiameter=np.zeros(len(spaceThreshold))
     for i,dx in enumerate(spaceThreshold):
-        pixDiameter[i]=_sample_lattice_spacing(dx, 10)
+        pixDiameter[i]=_sample_lattice_spacing(dx, n_samp)
     return pixDiameter
 
 def _sample_lattice_spacing(dx, sample_size):
@@ -201,17 +201,18 @@ def _sample_lattice_spacing(dx, sample_size):
     dist : float
         In units of km on Earth.
     """
+
     import pickle
     poissd=pickle.load(open('voronoi_grids/%d/00.p'%dx,'rb'))['poissd']
     
     if sample_size>len(poissd.samples):
         sample_size=len(poissd.samples)
         
-    randix=np.random.choice(np.arange(len(poissd.samples)), size=sample_size, replace=False)
+    randix=np.random.choice(np.arange(len(poissd.samples)), size=sample_size, replace=True)
 
-    d=np.zeros(sample_size)
-    for ix in randix:
-        d=poissd.get_closest_neighbor_dist(poissd.samples[ix])
+    d = np.zeros(sample_size)
+    for i,ix in enumerate(randix):
+        d[i] = poissd.get_closest_neighbor_dist(poissd.samples[ix])
 
     return d.mean()*6370
 
