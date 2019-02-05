@@ -31,8 +31,9 @@ def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
     g : pd.DataFrame
     min_len : int, 4
         Shortest duration of avalanche permitted for inclusion.
-    min_size : int, 4
+    min_size : int, 2
         Least number of unique events for inclusion.
+    min_fat : int, 2
         
     Returns
     -------
@@ -42,9 +43,7 @@ def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
         List of (day, fatalities) tuples.
     """
     
-    dateFat, dateSize = [],[]
-    durSize = []
-    durFat = []
+    dateFat, dateSize, durSize, durFat = [],[],[],[]
     for df in g:
         dur_ = (df.iloc[-1]['EVENT_DATE']-df.iloc[0]['EVENT_DATE']).days
         if dur_>=min_len:
@@ -61,7 +60,7 @@ def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
                     dateFat.append( np.vstack((t, f)).T.astype(float) )
                     durFat.append(dur_)
 
-    return dateSize, dateFat, durSize, durFat
+    return dateSize, dateFat, np.array(durSize), np.array(durFat)
 
 def interp_avalanche_trajectory(dateFat, x, insert_zero=False, append_one=False):
     """Average avalanche trajectory over many different avalanches using linear
@@ -121,7 +120,8 @@ def interp_avalanche_trajectory(dateFat, x, insert_zero=False, append_one=False)
 def load_trajectories(event_type, dx, dt, gridno,
                       prefix='voronoi_noactor_',
                       region='africa',
-                      n_interpolate=250):
+                      n_interpolate=250,
+                      shuffle=False):
     """Wrapper for interpolate size and fatalities trajectories from given file for given
     spatiotemporal scales.
 
@@ -137,6 +137,9 @@ def load_trajectories(event_type, dx, dt, gridno,
     prefix : str, 'voronoi_noactor_'
     region : str, 'africa'
     n_interpolate : int, 250
+    shuffle : bool, False
+        If True, shuffle the sizes and fatalities to get a "time shuffled" version of the
+        trajectories.
 
     Returns
     -------
@@ -155,6 +158,12 @@ def load_trajectories(event_type, dx, dt, gridno,
     gridOfSplits = pickle.load(open(fname, 'rb'))['gridOfSplits']
     clustersix = [gridOfSplits[(dx_,dt_)] for dx_,dt_ in zip(dx, dt)]
     x = np.linspace(0,1,n_interpolate)
+
+    if shuffle:
+        print("Shuffling order of fatalities.")
+        #print("Prev",subdf['FATALITIES'].iloc[:10])
+        subdf['FATALITIES'] = subdf['FATALITIES'].iloc[np.random.permutation(len(subdf))].values
+        #print("After",subdf['FATALITIES'].iloc[:10])
     
     sizeTrajByCluster = []
     fatTrajByCluster = []
@@ -169,6 +178,7 @@ def load_trajectories(event_type, dx, dt, gridno,
 
         # Get all raw sequences that are above some min length
         sizeTraj, fatTraj, durSize, durFat = avalanche_trajectory(clusters)
+
         durSizeByCluster.append(durSize)
         durFatByCluster.append(durFat)
 
