@@ -151,12 +151,6 @@ def load_trajectories(event_type, dx, dt, gridno,
     clustersix = [gridOfSplits[(dx_,dt_)] for dx_,dt_ in zip(dx, dt)]
     x = np.linspace(0,1,n_interpolate)
 
-    #if shuffle:
-    #    print("Shuffling order of fatalities.")
-    #    #print("Prev",subdf['FATALITIES'].iloc[:10])
-    #    subdf['FATALITIES'] = subdf['FATALITIES'].iloc[np.random.permutation(len(subdf))].values
-    #    #print("After",subdf['FATALITIES'].iloc[:10])
-    
     sizeTrajByCluster = []
     fatTrajByCluster = []
     durSizeByCluster = []
