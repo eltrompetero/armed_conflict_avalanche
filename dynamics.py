@@ -16,13 +16,6 @@ def count_up_unique_actors(x):
         n[i] = len(ua)
     return n
 
-def add_same_date_events(t, x):
-    uniqt = np.unique(t)
-    xagg = np.zeros(len(uniqt))
-    for i,t_ in enumerate(uniqt):
-        xagg[i] = x[t==t_].sum()
-    return uniqt, xagg
-
 def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
     """Extract from data the discrete sequence of events and their sizes.
     
@@ -45,18 +38,16 @@ def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
     
     dateFat, dateSize, durSize, durFat = [],[],[],[]
     for df in g:
-        dur_ = (df.iloc[-1]['EVENT_DATE']-df.iloc[0]['EVENT_DATE']).days
+        dur_ = (df.index[-1] - df.index[0]).days
         if dur_>=min_len:
-            t = (df['EVENT_DATE']-df.iloc[0]['EVENT_DATE']).apply(lambda x:x.days).values
-            
-            t_, s = np.unique(t, return_counts=True)
+            t = np.array((df.index-df.index[0]).days.tolist())
+            s = df['SIZES'] 
             if s.sum()>=min_size:
-                dateSize.append( np.vstack((t_, s)).T.astype(float) )
+                dateSize.append( np.vstack((t, s)).T.astype(float) )
                 durSize.append(dur_)
                 
                 if df['FATALITIES'].sum()>=min_fat:
                     f = df['FATALITIES'].values
-                    t, f = add_same_date_events(t, f)
                     dateFat.append( np.vstack((t, f)).T.astype(float) )
                     durFat.append(dur_)
 
@@ -154,16 +145,17 @@ def load_trajectories(event_type, dx, dt, gridno,
     dr = 'geosplits/%s/%s/full_data_set/bin_agg'%(region, event_type)
     fname = '%s/%sgrid%s.p'%(dr, prefix, str(gridno).zfill(2))
     subdf = pickle.load(open('%s/%sdf.p'%(dr, prefix), 'rb'))['subdf']
+    subdf['SIZES'] = np.ones(len(subdf))
     print("Loading %s"%fname)
     gridOfSplits = pickle.load(open(fname, 'rb'))['gridOfSplits']
     clustersix = [gridOfSplits[(dx_,dt_)] for dx_,dt_ in zip(dx, dt)]
     x = np.linspace(0,1,n_interpolate)
 
-    if shuffle:
-        print("Shuffling order of fatalities.")
-        #print("Prev",subdf['FATALITIES'].iloc[:10])
-        subdf['FATALITIES'] = subdf['FATALITIES'].iloc[np.random.permutation(len(subdf))].values
-        #print("After",subdf['FATALITIES'].iloc[:10])
+    #if shuffle:
+    #    print("Shuffling order of fatalities.")
+    #    #print("Prev",subdf['FATALITIES'].iloc[:10])
+    #    subdf['FATALITIES'] = subdf['FATALITIES'].iloc[np.random.permutation(len(subdf))].values
+    #    #print("After",subdf['FATALITIES'].iloc[:10])
     
     sizeTrajByCluster = []
     fatTrajByCluster = []
@@ -174,7 +166,15 @@ def load_trajectories(event_type, dx, dt, gridno,
 
     for i,c in enumerate(clustersix):
         # all subsets of subdf corresponding to clusters at this scale
-        clusters = [subdf.loc[ix] for ix in c]
+        clusters = [subdf.loc[ix,('EVENT_DATE','FATALITIES','SIZES')] for ix in c]
+        
+        # reorganize by unique event per day
+        for i,c in enumerate(clusters):
+            clusters[i] = c.groupby('EVENT_DATE').sum() 
+            if shuffle:
+                randix = np.random.permutation(len(clusters[i]))
+                clusters[i]['FATALITIES'] = clusters[i]['FATALITIES'].values[randix]
+                clusters[i]['SIZES'] = clusters[i]['SIZES'].values[randix]
 
         # Get all raw sequences that are above some min length
         sizeTraj, fatTraj, durSize, durFat = avalanche_trajectory(clusters)
