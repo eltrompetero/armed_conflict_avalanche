@@ -1,5 +1,24 @@
 import numpy as np
+from statsmodels.stats.proportion import proportion_confint
 
+
+def get_slopes(percent, traj):
+    """Slope of temporal profile measured at beginning and end.
+
+    Parameters
+    ----------
+    percent : float
+    traj : ndarray
+    """
+
+    assert 1<percent<50
+    t = np.linspace(0,1,250)
+    ix = np.argmin(np.abs(t-percent/100))
+    startSlope = (traj[:,ix]-traj[:,0])/t[ix]
+    
+    ix = np.argmin(np.abs(t-(1-percent/100)))
+    endSlope = (1-traj[:,ix])/(1-t[ix])
+    return startSlope, endSlope
 
 def plot_pix_boundaries(m,Nside,n_phi=1000,plot_kw={'c':'k'}):
     """

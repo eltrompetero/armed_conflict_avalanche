@@ -41,12 +41,12 @@ def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
         dur_ = (df.index[-1] - df.index[0]).days
         if dur_>=min_len:
             t = np.array((df.index-df.index[0]).days.tolist())
-            s = df['SIZES'] 
+            s = df['SIZES'].values 
             if s.sum()>=min_size:
                 dateSize.append( np.vstack((t, s)).T.astype(float) )
                 durSize.append(dur_)
                 
-                if df['FATALITIES'].sum()>=min_fat:
+                if df['FATALITIES'].sum()>=min_fat & (df['FATALITIES'].values>0).sum()>1:
                     f = df['FATALITIES'].values
                     dateFat.append( np.vstack((t, f)).T.astype(float) )
                     durFat.append(dur_)
@@ -112,7 +112,8 @@ def load_trajectories(event_type, dx, dt, gridno,
                       prefix='voronoi_noactor_',
                       region='africa',
                       n_interpolate=250,
-                      shuffle=False):
+                      shuffle=False,
+                      only_rate=False):
     """Wrapper for interpolate size and fatalities trajectories from given file for given
     spatiotemporal scales.
 
@@ -131,6 +132,8 @@ def load_trajectories(event_type, dx, dt, gridno,
     shuffle : bool, False
         If True, shuffle the sizes and fatalities to get a "time shuffled" version of the
         trajectories.
+    only_rate : bool, False
+        If True, return cum profile of avalanches rate.
 
     Returns
     -------
@@ -169,6 +172,9 @@ def load_trajectories(event_type, dx, dt, gridno,
                 randix = np.random.permutation(len(clusters[i]))
                 clusters[i]['FATALITIES'] = clusters[i]['FATALITIES'].values[randix]
                 clusters[i]['SIZES'] = clusters[i]['SIZES'].values[randix]
+            elif only_rate:
+                clusters[i]['FATALITIES'] = 0.
+                clusters[i]['SIZES'] = np.ones(len(clusters[i]))
 
         # Get all raw sequences that are above some min length
         sizeTraj, fatTraj, durSize, durFat = avalanche_trajectory(clusters)
