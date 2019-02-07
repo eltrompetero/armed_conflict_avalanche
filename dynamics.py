@@ -46,6 +46,7 @@ def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
                 dateSize.append( np.vstack((t, s)).T.astype(float) )
                 durSize.append(dur_)
                 
+                # fatalities must be spread out over at least two different days
                 if df['FATALITIES'].sum()>=min_fat & (df['FATALITIES'].values>0).sum()>1:
                     f = df['FATALITIES'].values
                     dateFat.append( np.vstack((t, f)).T.astype(float) )
@@ -113,7 +114,8 @@ def load_trajectories(event_type, dx, dt, gridno,
                       region='africa',
                       n_interpolate=250,
                       shuffle=False,
-                      only_rate=False):
+                      only_rate=False,
+                      reverse=False):
     """Wrapper for interpolate size and fatalities trajectories from given file for given
     spatiotemporal scales.
 
@@ -134,6 +136,8 @@ def load_trajectories(event_type, dx, dt, gridno,
         trajectories.
     only_rate : bool, False
         If True, return cum profile of avalanches rate.
+    reverse : bool, False
+        If True, reverse time order of avalanche events.
 
     Returns
     -------
@@ -173,8 +177,12 @@ def load_trajectories(event_type, dx, dt, gridno,
                 clusters[i]['FATALITIES'] = clusters[i]['FATALITIES'].values[randix]
                 clusters[i]['SIZES'] = clusters[i]['SIZES'].values[randix]
             elif only_rate:
-                clusters[i]['FATALITIES'] = 0.
+                clusters[i]['FATALITIES'] = np.clip(clusters[i]['FATALITIES'].values, 0, 1)
                 clusters[i]['SIZES'] = np.ones(len(clusters[i]))
+            elif reverse:
+                clusters[i].index = (clusters[i].index[-1] -
+                                     (clusters[i].index-clusters[i].index[0])).values
+                clusters[i] = clusters[i].iloc[::-1]
 
         # Get all raw sequences that are above some min length
         sizeTraj, fatTraj, durSize, durFat = avalanche_trajectory(clusters)
