@@ -103,6 +103,8 @@ def interp_avalanche_trajectory(dateFat, x, insert_zero=False, append_one=False)
             x_ = df[:,0]/df[-1,0]
             # cumulative profile
             y_ = np.cumsum(df[:,1])/totalSize[i]
+            # symmetrize cdf
+            y_ = (y_+np.insert(y_[:-1],0,0))/2
         
         # assert not np.isnan(x_).any() and not np.isnan(y_).any()
         traj[i] = interp1d(x_, y_)(x)
