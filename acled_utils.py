@@ -25,8 +25,8 @@ DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
 
 def check_relation(alphaBds, upsBds, dfBds):
     """
-    Checks the basic relation between the time scales exponent alpha with another scaling variable like
-    fatalities. The relation checked for this case would be
+    Checks the basic relation between the time scales exponent alpha with another scaling
+    variable like fatalities. The relation checked for this case would be
         $\\alpha - 1 = (\\upsilon-1) d_{\\rm f}$
 
     Parameters
@@ -36,8 +36,8 @@ def check_relation(alphaBds, upsBds, dfBds):
     upsBds : tuple
         Bound for variable to scale with T, like upsilon for fatalities.
     dfBds : ndarray
-        Bounds for scaling of second variable with T (fractal dimension). Each col represented lower then
-        upper bounds respectively.
+        Bounds for scaling of second variable with T (fractal dimension). Each sequential col
+        represents lower then upper bounds respectively.
 
     Returns
     -------
@@ -49,17 +49,46 @@ def check_relation(alphaBds, upsBds, dfBds):
         return False
     if ( (((alphaBds[0]-1)>(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[0]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
          (((alphaBds[1]-1)>(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[1]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
-         (((alphaBds[0]-1)<(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[1]-1)>(dfBds[:,1]*(upsBds[1]-1)))).any() ):
+         (((alphaBds[0]-1)<(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[1]-1)>(dfBds[:,0]*(upsBds[0]-1)))).any() or
+         (((alphaBds[0]-1)<(dfBds[:,1]*(upsBds[1]-1))) & ((alphaBds[1]-1)>(dfBds[:,1]*(upsBds[1]-1)))).any() ):
         return True
     return False
+
+def exponent_bounds(alphaBds, upsBds, dfBds):
+    """Checks the basic relation between the time scales exponent alpha with another scaling
+    variable like fatalities. The relation checked for this case would be
+        $\\alpha - 1 = (\\upsilon-1) d_{\\rm f}$
+
+    Show max range possible for third exponent given other two.
+
+    Parameters
+    ----------
+    alphaBds : tuple
+        Bound for alpha, exponent for P(T) ~ T^-alpha.
+    upsBds : tuple
+        Bound for variable to scale with T, like upsilon for fatalities.
+    dfBds : tuple
+
+    Returns
+    -------
+    tuples
+    """
+
+    dfRange = (alphaBds[0]-1)/(upsBds[1]-1), (alphaBds[1]-1)/(upsBds[0]-1)
+    alphaRange = dfBds[0]*(upsBds[0]-1)+1, dfBds[1]*(upsBds[1]-1)+1
+    upsRange = (alphaBds[0]-1)/dfBds[1]+1, (alphaBds[1]-1)/dfBds[0]+1
+    return alphaRange, upsRange, dfRange
 
 def percentile_bds(X, perc, as_delta=False):
     """Just a wrapper around np.percentile to make it easier."""
 
     if hasattr(X,'__len__') and (not np.isnan(X).any()):
         if as_delta:
-            return (np.percentile(X,50)-np.percentile(X, perc[0]),
-                    np.percentile(X,perc[1])-np.percentile(X,50))
+            if type(as_delta) is bool:
+                return (np.percentile(X,50)-np.percentile(X, perc[0]),
+                        np.percentile(X,perc[1])-np.percentile(X,50))
+            return (as_delta-np.percentile(X, perc[0]),
+                    np.percentile(X,perc[1])-as_delta)
         return np.percentile(X, perc[0]), np.percentile(X, perc[1])
     return None
 
@@ -153,10 +182,10 @@ def _coarse_grain_voronoi_tess(dx, fileno):
             
     return nextLayerPixel
 
-def voronoi_pix_diameter(spaceThreshold):
+def voronoi_pix_diameter(spaceThreshold, n_samp=10):
     pixDiameter=np.zeros(len(spaceThreshold))
     for i,dx in enumerate(spaceThreshold):
-        pixDiameter[i]=_sample_lattice_spacing(dx, 10)
+        pixDiameter[i]=_sample_lattice_spacing(dx, n_samp)
     return pixDiameter
 
 def _sample_lattice_spacing(dx, sample_size):
@@ -172,17 +201,18 @@ def _sample_lattice_spacing(dx, sample_size):
     dist : float
         In units of km on Earth.
     """
+
     import pickle
     poissd=pickle.load(open('voronoi_grids/%d/00.p'%dx,'rb'))['poissd']
     
     if sample_size>len(poissd.samples):
         sample_size=len(poissd.samples)
         
-    randix=np.random.choice(np.arange(len(poissd.samples)), size=sample_size, replace=False)
+    randix=np.random.choice(np.arange(len(poissd.samples)), size=sample_size, replace=True)
 
-    d=np.zeros(sample_size)
-    for ix in randix:
-        d=poissd.get_closest_neighbor_dist(poissd.samples[ix])
+    d = np.zeros(sample_size)
+    for i,ix in enumerate(randix):
+        d[i] = poissd.get_closest_neighbor_dist(poissd.samples[ix])
 
     return d.mean()*6370
 

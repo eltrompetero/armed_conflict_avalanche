@@ -42,10 +42,8 @@ def discrete_lower_bound_range(d):
 # Pipeline functions. #
 # =================== # 
 def check_consistency(eventType, gridno,
-                      pval_threshold=.05,
-                      perc=(16,84),
-                      fitn=5,
-                      fractal_bds_ix=range(3,9)):
+                      pval_threshold=.1,
+                      perc=(16,84)):
     """Check for which time and length scales the exponent relations between fatalities
     and sizes is consisten with the durations. These relations are consistent if they
     overlap within some bootstrapped confidence intervals.
@@ -57,13 +55,10 @@ def check_consistency(eventType, gridno,
     ----------
     eventType : str
     gridno : int
-    pval_threshold : float, .05
+    pval_threshold : float, .1
     perc : tuple, (16,84)
         For distribution exponents tau, ups, and alpha. Default corresponds to 68% error
         bars analogous to a single standard deviation.
-    fitn : int, 5
-        No. of points used to fit fractal dimensions.
-    fractal_bds_ix : list-like, range(3,9)
 
     Returns
     -------
@@ -81,6 +76,18 @@ def check_consistency(eventType, gridno,
     sizeInfo=data['sizeInfo']
     fatalityInfo=data['fatalityInfo']
     durationInfo=data['durationInfo']
+    
+    folder = 'geosplits/africa/%s/full_data_set/bin_agg'%eventType
+    fname = '%s/%s%s'%(folder,'voronoi_noactor_','grid_stats%s.p'%str(gridno).zfill(2))
+    data = pickle.load(open(fname,'rb'))
+    diameters = data['diameters']
+    sizes = data['sizes']
+    fatalities = data['fatalities']
+    durations = data['durations']
+    nDiameter = np.array([(d>=lb).sum() for d,lb in zip(diameters,diameterInfo['lb'])])
+    nSize = np.array([(s>=lb).sum() for s,lb in zip(sizes,sizeInfo['lb'])])
+    nFatality = np.array([(f>=lb).sum() for f,lb in zip(fatalities,fatalityInfo['lb'])])
+    nDuration = np.array([(t>=lb).sum() for t,lb in zip(durations,durationInfo['lb'])])
 
     diameterInfo['nuBds']=np.array([percentile_bds(X, perc) for X in diameterInfo['nuSample']])
     sizeInfo['tauBds']=np.array([percentile_bds(X, perc) for X in sizeInfo['tauSample']])
@@ -91,133 +98,132 @@ def check_consistency(eventType, gridno,
     #fatalityInfo['upsBds'] = np.array([sigma_bds(X, 1) for X in fatalityInfo['upsSample']])
     #durationInfo['alphaBds'] = np.array([sigma_bds(X, 1) for X in durationInfo['alphaSample']])
     
-    fname = 'cache/%s_fractal_dimension_fitn%d_%s.p'%(eventType,fitn,str(gridno).zfill(2))
+    fname = 'cache/%s_fractal_dimension_%s.p'%(eventType,str(gridno).zfill(2))
     data = pickle.load(open(fname, 'rb'))
-    dfGridBds = data['dfGridBds']
-    dsGridBds = data['dsGridBds']
-    dlGridBds = data['dlGridBds']
-    
+    #dfGridBds = data['dfGridBds']
+    #dsGridBds = data['dsGridBds']
+    #dlGridBds = data['dlGridBds']
+    dfGridBds = np.vstack([percentile_bds(x,perc) if not x is None else (np.nan,np.nan)
+                           for x in data['dfGridSample']])
+    dsGridBds = np.vstack([percentile_bds(x,perc) if not x is None else (np.nan,np.nan)
+                           for x in data['dsGridSample']])
+    dlGridBds = np.vstack([percentile_bds(x,perc) if not x is None else (np.nan,np.nan)
+                           for x in data['dlGridSample']])
+
     # check fatality & duration
-    consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
+    consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)
     for ix in range(len(sizeInfo['tau'])):
         if not np.isnan(durationInfo['alpha'][ix]): 
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
                                             fatalityInfo['upsBds'][ix],
-                                            dfGridBds[0][fractal_bds_ix])
+                                            dfGridBds[ix][None,:])
     fatalityInfo['consistent'] = consistent
     
     # check size & duration
-    consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)==1
+    consistent = np.zeros(len(sizeInfo['tau']), dtype=bool)
     for ix in range(len(sizeInfo['tau'])):
         if not np.isnan(durationInfo['alpha'][ix]):
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
                                             sizeInfo['tauBds'][ix],
-                                            dsGridBds[0][fractal_bds_ix])
+                                            dsGridBds[ix][None,:])
     sizeInfo['consistent'] = consistent
 
     # check length & duration
-    consistent = np.zeros(len(diameterInfo['nu']), dtype=bool)==1
+    consistent = np.zeros(len(diameterInfo['nu']), dtype=bool)
     for ix in range(len(diameterInfo['nu'])):
         if not np.isnan(durationInfo['alpha'][ix]):
             consistent[ix] = check_relation(durationInfo['alphaBds'][ix],
                                             diameterInfo['nuBds'][ix],
-                                            dlGridBds[0][fractal_bds_ix])
+                                            dlGridBds[ix][None,:])
     diameterInfo['consistent'] = consistent
 
     # places in array where exponent relations are consistent
     consistent = sizeInfo['consistent'] & fatalityInfo['consistent']
-    #consistent = fatalityInfo['consistent']
+    Fconsistent = fatalityInfo['consistent']
+    Sconsistent = sizeInfo['consistent']
     # places in array where exponent relation is consistent and measured power laws are significant
-    #sig = ( (fatalityInfo['pval']>pval_threshold) &
-    #        (durationInfo['pval']>pval_threshold) )
-    sig = ( (sizeInfo['pval']>pval_threshold) &
-            (fatalityInfo['pval']>pval_threshold) &
-            (durationInfo['pval']>pval_threshold) )
-   
+    sig = ( (sizeInfo['pval']>pval_threshold) & (nSize>=50) &
+            (fatalityInfo['pval']>pval_threshold) & (nFatality>=50) &
+            (durationInfo['pval']>pval_threshold) & (nDuration>=50) )
+    
     Lconsistent = consistent & diameterInfo['consistent']
-    Lsig = (diameterInfo['pval']>pval_threshold) & (durationInfo['pval']>pval_threshold)
+    Lsig = ((diameterInfo['pval']>pval_threshold) & (nDiameter>=50) &
+            (durationInfo['pval']>pval_threshold) & (nDuration>=50))
     Lsig &= sig
     
-    return consistent, sig, Lconsistent, Lsig
+    return consistent, sig, Lconsistent, Lsig, Sconsistent, Fconsistent
 
-def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, dayThreshold,
-                      fitn=7, offset=-1, eventType=None, gridno=None):
-    """Calculate fractal dimensions from scaling of means."""
+def fractal_dimension(diameters, sizes, fatalities, durations,
+                      diameterInfo, sizeInfo, fatalityInfo, durationInfo,
+                      eventType=None, gridno=None, perc=(16,84), n_boot_samples=250, suffix=''):
+    """Calculate fractal dimensions."""
+
     from .exponents import fractal_dimension
-
-    T = len(dayThreshold)
-    L = len(spaceThreshold)
-
-    # Collect all (dx,dt) pairs to look at
-    dsGrid = np.zeros((2,len(spaceThreshold)))
-    dfGrid = np.zeros((2,len(spaceThreshold)))
-    dlGrid = np.zeros((2,len(spaceThreshold)))
+    
+    K = len(diameters)
 
     # Collect all (dx,dt) pairs to look at
-    dsGridBds = np.zeros((2,len(spaceThreshold),2))
-    dfGridBds = np.zeros((2,len(spaceThreshold),2))
-    dlGridBds = np.zeros((2,len(spaceThreshold),2))
+    dsGrid = np.zeros(K)
+    dfGrid = np.zeros(K)
+    dlGrid = np.zeros(K)
+
+    # Collect all (dx,dt) pairs to look at
+    dsGridBds = np.zeros((K,2))
+    dfGridBds = np.zeros((K,2))
+    dlGridBds = np.zeros((K,2))
     
     # bootstrap sample for error bars
     dsGridSample = []
     dfGridSample = []
     dlGridSample = []
 
-    for i in range(len(spaceThreshold)):
-        # simplest, most data-driven approach of considering everything but obvious
-        # outliers at 1
-        t=[t[t>1] for t in durations[i*T:(i+1)*T]]
-        d=[d[d>0] for d in diameters[i*T:(i+1)*T]]
-        f=[f[f>1] for f in fatalities[i*T:(i+1)*T]]
-        s=[s[s>1] for s in sizes[i*T:(i+1)*T]]
-            
+    for i in range(K):
         # calculate fractal dimension
-        perc = (16,84)
-        dfGrid[0,i], dfGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], f[:fitn],
-                                                               return_sample=True,
-                                                               return_err=perc)
-        if offset==0:
-            dfGrid[1,i], dfGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:], f[-fitn:],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
+        x, y = durations[i], fatalities[i]
+        keepix = (x>=durationInfo['lb'][i]) & (y>=fatalityInfo['lb'][i])
+        #keepix = (x>=2) & (y>=2)
+        x, y = x[keepix], y[keepix]
+        if keepix.sum()>=10 and np.unique(x).size>=2 and np.unique(y).size>=2:
+            dfGrid[i], dfGridBds[i,:], samp = fractal_dimension(x, y,
+                                                                return_sample=True,
+                                                                return_err=perc,
+                                                                n_bootstrap_iters=n_boot_samples)
         else:
-            dfGrid[1,i], dfGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
-                                                                   f[-fitn+offset:offset],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
-        dfGridSample.append((samp0, samp1))
+            dfGrid[i] = np.nan
+            dfGridBds[i,:] = np.nan
+            samp = None
+        dfGridSample.append(samp)
         
-        dsGrid[0,i], dsGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], s[:fitn],
-                                                               return_sample=True,
-                                                               return_err=perc)
-        if offset==0:
-            dsGrid[1,i], dsGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:], s[-fitn:],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
+        x, y = durations[i], sizes[i]
+        keepix = (x>=durationInfo['lb'][i]) & (y>=sizeInfo['lb'][i])
+        #keepix = (x>=2) & (y>=2)
+        x, y = x[keepix], y[keepix]
+        if keepix.sum()>=10 and np.unique(x).size>=2 and np.unique(y).size>=2:
+            dsGrid[i], dsGridBds[i,:], samp = fractal_dimension(x, y,
+                                                                return_sample=True,
+                                                                n_bootstrap_iters=n_boot_samples)
         else:
-            dsGrid[1,i], dsGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
-                                                                   s[-fitn+offset:offset],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
-        dsGridSample.append((samp0, samp1))
-            
-        dlGrid[0,i], dlGridBds[0,i,:], samp0=fractal_dimension(t[:fitn], d[:fitn],
-                                                               return_sample=True,
-                                                               return_err=perc)
-        if offset==0:
-            dlGrid[1,i], dlGridBds[1,i,:], samp1=fractal_dimension(t[-fitn:],
-                                                                   d[-fitn:],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
-        else:
-            dlGrid[1,i], dlGridBds[1,i,:], samp1=fractal_dimension(t[-fitn+offset:offset],
-                                                                   d[-fitn+offset:offset],
-                                                                   return_sample=True,
-                                                                   return_err=perc)
-        dlGridSample.append((samp0, samp1))
+            dsGrid[i] = np.nan
+            dsGridBds[i,:] = np.nan
+            samp = None
+        dsGridSample.append(samp)
 
+        x, y = durations[i], diameters[i]
+        keepix = (x>=durationInfo['lb'][i]) & (y>=diameterInfo['lb'][i])
+        #keepix = (x>=2) & (y>=2)
+        x, y = x[keepix], y[keepix]
+        if keepix.sum()>=10 and np.unique(x).size>=2 and np.unique(y).size>=2:
+            dlGrid[i], dlGridBds[i,:], samp = fractal_dimension(x, y,
+                                                                return_sample=True,
+                                                                n_bootstrap_iters=n_boot_samples)
+        else:
+            dlGrid[i] = np.nan
+            dlGridBds[i,:] = np.nan
+            samp = None
+        dlGridSample.append(samp)
+ 
     if not (eventType is None and gridno is None):
-        fname = 'cache/%s_fractal_dimension_fitn%d_%s.p'%(eventType,fitn,str(gridno).zfill(2))
+        fname = 'cache/%s_fractal_dimension_%s%s.p'%(eventType, str(gridno).zfill(2),suffix)
         pickle.dump({'dlGrid':dlGrid,'dfGrid':dfGrid,'dsGrid':dsGrid,
                      'dfGridBds':dfGridBds,'dlGridBds':dlGridBds,'dsGridBds':dsGridBds,
                      'dfGridSample':dfGridSample, 'dlGridSample':dlGridSample, 'dsGridSample':dsGridSample,
@@ -235,6 +241,7 @@ def power_law_fit(eventType,
                   nBootSamples,
                   nCpus,
                   save_pickle=True,
+                  suffix='',
                   run_diameter=True,
                   run_size=True,
                   run_fatality=True,
@@ -272,8 +279,8 @@ def power_law_fit(eventType,
         durationInfo
     """
     
-    fname=('plotting/%s_ecdfs%s.p'%(eventType,str(gridno).zfill(2)) if finiteBound else
-           'plotting/%s_ecdfs_inf_range%s.p'%(eventType,str(gridno).zfill(2)))
+    fname=('plotting/%s_ecdfs%s%s.p'%(eventType,str(gridno).zfill(2),suffix) if finiteBound else
+           'plotting/%s_ecdfs_inf_range%s%s.p'%(eventType,str(gridno).zfill(2),suffix))
     
     diameterInfo={}
     sizeInfo={}
@@ -383,6 +390,7 @@ def post_power_law_fit(eventType,
                        nBootSamples,
                        nCpus,
                        save_pickle=True,
+                       suffix='',
                        run_diameter=True):
     """Run fitting and significance testing and pickle results.
     
@@ -413,8 +421,8 @@ def post_power_law_fit(eventType,
         durationInfo
     """
     
-    fname=('plotting/%s_ecdfs%s.p'%(eventType,str(gridno).zfill(2)) if finiteBound else
-           'plotting/%s_ecdfs_inf_range%s.p'%(eventType,str(gridno).zfill(2)))
+    fname=('plotting/%s_ecdfs%s%s.p'%(eventType,str(gridno).zfill(2),suffix) if finiteBound else
+           'plotting/%s_ecdfs_inf_range%s%s.p'%(eventType,str(gridno).zfill(2),suffix))
     
     data = pickle.load(open(fname,'rb'))
     diameterInfo = data['diameterInfo']
