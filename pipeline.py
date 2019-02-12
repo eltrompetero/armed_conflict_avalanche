@@ -155,7 +155,7 @@ def check_consistency(eventType, gridno,
 
 def fractal_dimension(diameters, sizes, fatalities, durations,
                       diameterInfo, sizeInfo, fatalityInfo, durationInfo,
-                      eventType=None, gridno=None, perc=(16,84), n_boot_samples=250):
+                      eventType=None, gridno=None, perc=(16,84), n_boot_samples=250, suffix=''):
     """Calculate fractal dimensions."""
 
     from .exponents import fractal_dimension
@@ -223,7 +223,7 @@ def fractal_dimension(diameters, sizes, fatalities, durations,
         dlGridSample.append(samp)
  
     if not (eventType is None and gridno is None):
-        fname = 'cache/%s_fractal_dimension_%s.p'%(eventType, str(gridno).zfill(2))
+        fname = 'cache/%s_fractal_dimension_%s%s.p'%(eventType, str(gridno).zfill(2),suffix)
         pickle.dump({'dlGrid':dlGrid,'dfGrid':dfGrid,'dsGrid':dsGrid,
                      'dfGridBds':dfGridBds,'dlGridBds':dlGridBds,'dsGridBds':dsGridBds,
                      'dfGridSample':dfGridSample, 'dlGridSample':dlGridSample, 'dsGridSample':dsGridSample,
@@ -241,6 +241,7 @@ def power_law_fit(eventType,
                   nBootSamples,
                   nCpus,
                   save_pickle=True,
+                  suffix='',
                   run_diameter=True,
                   run_size=True,
                   run_fatality=True,
@@ -278,8 +279,8 @@ def power_law_fit(eventType,
         durationInfo
     """
     
-    fname=('plotting/%s_ecdfs%s.p'%(eventType,str(gridno).zfill(2)) if finiteBound else
-           'plotting/%s_ecdfs_inf_range%s.p'%(eventType,str(gridno).zfill(2)))
+    fname=('plotting/%s_ecdfs%s%s.p'%(eventType,str(gridno).zfill(2),suffix) if finiteBound else
+           'plotting/%s_ecdfs_inf_range%s%s.p'%(eventType,str(gridno).zfill(2),suffix))
     
     diameterInfo={}
     sizeInfo={}
@@ -389,6 +390,7 @@ def post_power_law_fit(eventType,
                        nBootSamples,
                        nCpus,
                        save_pickle=True,
+                       suffix='',
                        run_diameter=True):
     """Run fitting and significance testing and pickle results.
     
@@ -419,8 +421,8 @@ def post_power_law_fit(eventType,
         durationInfo
     """
     
-    fname=('plotting/%s_ecdfs%s.p'%(eventType,str(gridno).zfill(2)) if finiteBound else
-           'plotting/%s_ecdfs_inf_range%s.p'%(eventType,str(gridno).zfill(2)))
+    fname=('plotting/%s_ecdfs%s%s.p'%(eventType,str(gridno).zfill(2),suffix) if finiteBound else
+           'plotting/%s_ecdfs_inf_range%s%s.p'%(eventType,str(gridno).zfill(2),suffix))
     
     data = pickle.load(open(fname,'rb'))
     diameterInfo = data['diameterInfo']
