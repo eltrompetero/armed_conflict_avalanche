@@ -92,41 +92,14 @@ def interp_avalanche_trajectory(dateFat, x,
     if cum:
         for i,df in enumerate(dateFat):
             totalSize[i] = df[:,1].sum()
-            if insert_zero and append_one:
-                # rescaled time
-                x_ = np.append(np.insert((df[:,0]+1)/(df[-1,0]+2), 0, 0), 1)
-                # cumulative profile
-                y_ = np.append(np.insert(np.cumsum(df[:,1])/totalSize[i], 0, 0), 1)
-            elif insert_zero:
-                # rescaled time
-                x_ = np.insert((df[:,0]+1)/(df[-1,0]+1), 0, 0)
-                # cumulative profile
-                y_ = np.insert(np.cumsum(df[:,1])/totalSize[i], 0, 0)
-            elif append_one:
-                # rescaled time
-                x_ = np.append(df[:,0]/(df[-1,0]+1), 1)
-                # cumulative profile
-                y_ = np.append(np.cumsum(df[:,1])/totalSize[i], 1)
-            elif symmetrize:
-                # rescaled time
-                x_ = df[:,0]/df[-1,0]
-                # cumulative profile
-                y_ = np.cumsum(df[:,1])/totalSize[i]
-                # symmetrize cdf
-                y_ = (y_+np.insert(y_[:-1],0,0))/2
-                # account for bias on end points
-                y_[0] *= 2
-                y_[-1] = y_[-1]*2-1
 
-                if run_checks:
-                    assert y_[0]<y_[1] or abs(y_[0]-y_[1])<1e-12, (y_[0],y_[1])
-                    assert y_[-1]>y_[-2] or abs(y_[-1]-y_[-2])<1e-12, (y_[-1],y_[-2])
-            else:
-                # rescaled time
-                x_ = df[:,0]/df[-1,0]
-                # cumulative profile
-                y_ = np.cumsum(df[:,1])/totalSize[i]
+            # rescaled time
+            x_ = df[:,0]/df[-1,0]
+            # cumulative profile
+            y_ = np.cumsum(df[:,1])/totalSize[i]
             
+            x_ = np.insert(x_,range(x_.size),x_)
+            y_ = np.insert(np.insert(y_,range(y_.size),y_)[:-1],0,0)
             traj[i] = interp1d(x_, y_)(x)
     
     else:
@@ -161,7 +134,7 @@ def load_trajectories(event_type, dx, dt, gridno,
                       only_rate=False,
                       reverse=False,
                       smear=False,
-                      cum=False):
+                      cum=True):
     """Wrapper for interpolate size and fatalities trajectories from given file for given
     spatiotemporal scales.
 
