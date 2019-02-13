@@ -339,3 +339,29 @@ def avalanche_trajectory_ua(g, x, min_len=5):
     avgTrajectory /= len(dateFat)
     
     return avgTrajectory, dateFat
+
+def rate_profile_normalized(t, size, xtraj):
+    xprofile = np.arange(t[-1]-t[0]+1, dtype=float)
+    xprofile /= xprofile[-1]
+    profile = np.zeros(xprofile.size)
+    profile[t] = size
+    traj = interp1d(xprofile, profile)(xtraj)
+    
+    # normalize integral for interval t=(0,1) to 1
+    profile[t] = size/trapz(profile, x=xprofile)
+    scaledtraj = interp1d(xprofile, profile)(xtraj)
+    
+    return traj, scaledtraj
+
+def rate_profile(t, size, scale_exponent, xtraj):
+    xprofile = np.arange(t[-1]-t[0]+1, dtype=float)
+    xprofile /= xprofile[-1]
+    profile = np.zeros(xprofile.size)
+    profile[t] = size
+    traj = interp1d(xprofile, profile)(xtraj)
+    
+    # normalize integral for interval t=(0,1) to 1
+    profile[t] = size/t[-1]**(scale_exponent-1)
+    scaledtraj = interp1d(xprofile, profile)(xtraj)
+    
+    return traj, scaledtraj
