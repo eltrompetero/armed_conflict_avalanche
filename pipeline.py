@@ -43,7 +43,9 @@ def discrete_lower_bound_range(d):
 # =================== # 
 def check_consistency(eventType, gridno,
                       pval_threshold=.1,
-                      perc=(16,84)):
+                      perc=(16,84),
+                      cluster_method='bin_agg',
+                      suffix=''):
     """Check for which time and length scales the exponent relations between fatalities
     and sizes is consisten with the durations. These relations are consistent if they
     overlap within some bootstrapped confidence intervals.
@@ -71,13 +73,13 @@ def check_consistency(eventType, gridno,
     """
 
     from .acled_utils import percentile_bds
-    data = pickle.load(open('plotting/%s_ecdfs_inf_range%s.p'%(eventType,str(gridno).zfill(2)),'rb'))
+    data = pickle.load(open('plotting/%s_ecdfs_inf_range%s%s.p'%(eventType,str(gridno).zfill(2),suffix),'rb'))
     diameterInfo=data['diameterInfo']
     sizeInfo=data['sizeInfo']
     fatalityInfo=data['fatalityInfo']
     durationInfo=data['durationInfo']
     
-    folder = 'geosplits/africa/%s/full_data_set/bin_agg'%eventType
+    folder = 'geosplits/africa/%s/full_data_set/%s'%(eventType,cluster_method)
     fname = '%s/%s%s'%(folder,'voronoi_noactor_','grid_stats%s.p'%str(gridno).zfill(2))
     data = pickle.load(open(fname,'rb'))
     diameters = data['diameters']

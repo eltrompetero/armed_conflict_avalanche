@@ -129,6 +129,7 @@ def interp_avalanche_trajectory(dateFat, x,
 def load_trajectories(event_type, dx, dt, gridno,
                       prefix='voronoi_noactor_',
                       region='africa',
+                      cluster_method='bin_agg',
                       n_interpolate=250,
                       shuffle=False,
                       only_rate=False,
@@ -168,7 +169,7 @@ def load_trajectories(event_type, dx, dt, gridno,
     """
     
     # load data and take all avalanches at each scale
-    dr = 'geosplits/%s/%s/full_data_set/bin_agg'%(region, event_type)
+    dr = 'geosplits/%s/%s/full_data_set/%s'%(region, event_type, cluster_method)
     fname = '%s/%sgrid%s.p'%(dr, prefix, str(gridno).zfill(2))
     subdf = pickle.load(open('%s/%sdf.p'%(dr, prefix), 'rb'))['subdf']
     subdf['SIZES'] = np.ones(len(subdf))
