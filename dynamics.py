@@ -98,6 +98,7 @@ def interp_avalanche_trajectory(dateFat, x,
             # cumulative profile
             y_ = np.cumsum(df[:,1])/totalSize[i]
             
+            # build stepwise picture
             x_ = np.insert(x_,range(x_.size),x_)
             y_ = np.insert(np.insert(y_,range(y_.size),y_)[:-1],0,0)
             traj[i] = interp1d(x_, y_)(x)
@@ -130,7 +131,7 @@ def load_trajectories(event_type, dx, dt, gridno,
                       prefix='voronoi_noactor_',
                       region='africa',
                       cluster_method='bin_agg',
-                      n_interpolate=250,
+                      n_interpolate=15,
                       shuffle=False,
                       only_rate=False,
                       reverse=False,
@@ -150,7 +151,7 @@ def load_trajectories(event_type, dx, dt, gridno,
     gridno : int
     prefix : str, 'voronoi_noactor_'
     region : str, 'africa'
-    n_interpolate : int, 250
+    n_interpolate : int, 15
     shuffle : bool, False
         If True, shuffle the sizes and fatalities to get a "time shuffled" version of the
         trajectories.

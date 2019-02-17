@@ -18,10 +18,34 @@ import scipy.stats as stats
 from scipy.optimize import minimize
 import gmplot
 from warnings import warn
-from misc.globe import SphereCoordinate,PoissonDiscSphere
+from misc.globe import SphereCoordinate,PoissonDiscSphere,haversine	
 from numba import jit,njit
 DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
 
+
+def track_max_pair_dist(lonlat, as_delta=True):
+    phitheta = lonlat/180*np.pi
+    
+    maxDistPair = [phitheta[0],phitheta[1]]
+    maxdist = np.zeros(len(phitheta))
+    maxdist[1] = haversine(phitheta[0], phitheta[1])
+    
+    for i in range(2,maxdist.size):
+        newdist = [haversine(maxDistPair[0],phitheta[i]),
+                   haversine(maxDistPair[1],phitheta[i])]
+        if newdist[0]>maxdist[i-1] or newdist[1]>maxdist[i-1]:
+            if newdist[0]>newdist[1]:
+                maxDistPair[1] = phitheta[i]
+                maxdist[i] = newdist[0]
+            else:
+                maxDistPair[0] = phitheta[i]
+                maxdist[i] = newdist[1]
+        else:
+            maxdist[i] = maxdist[i-1]
+            
+    if as_delta:
+        return np.insert(np.diff(maxdist), 0, 0)
+    return maxdist
 
 def check_relation(alphaBds, upsBds, dfBds):
     """
