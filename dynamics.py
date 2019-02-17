@@ -36,7 +36,7 @@ def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
         List of (day, fatalities) tuples.
     """
     
-    dateFat, dateSize, durSize, durFat = [],[],[],[]
+    dateFat, dateSize, dateDist, durSize, durFat, durDist = [],[],[],[],[],[]
     for df in g:
         dur_ = (df.index[-1] - df.index[0]).days
         if dur_>=min_len:
@@ -46,13 +46,17 @@ def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
                 dateSize.append( np.vstack((t, s)).T.astype(float) )
                 durSize.append(dur_)
                 
+                if df['DISTANCE'].iloc[-1]>0:
+                    dateDist.append( np.vstack((t, df['DISTANCE'].values, s)).T )
+                    durDist.append( dur_ )
+                
                 # fatalities must be spread out over at least two different days
                 if df['FATALITIES'].sum()>=min_fat & (df['FATALITIES'].values>0).sum()>1:
                     f = df['FATALITIES'].values
                     dateFat.append( np.vstack((t, f, s)).T.astype(float) )
                     durFat.append(dur_)
 
-    return dateSize, dateFat, np.array(durSize), np.array(durFat)
+    return dateSize, dateFat, dateDist, np.array(durSize), np.array(durFat), np.array(durDist)
 
 def interp_avalanche_trajectory(dateFat, x,
                                 cum=True,
@@ -127,6 +131,39 @@ def interp_avalanche_trajectory(dateFat, x,
 
     return traj, totalSize
 
+def interp_dist_trajectory(dateDist, x,
+                           run_checks=False):
+    """Average avalanche trajectory over many different avalanches using linear
+    interpolation. 
+
+    Parameters
+    ----------
+    dateDist : pd.DataFrame
+    x : ndarray
+    
+    Returns
+    -------
+    ndarray
+        Each row is an interpolated cumulative trajectory.
+    """
+    
+    # traj of each avalanche in given data set
+    traj = np.zeros((len(dateDist),len(x)))
+    totalSize = np.zeros(len(dateDist))
+    
+    for i,dataxy in enumerate(dateDist):
+        totalSize[i] = dataxy[-1,1]
+
+        # rescaled time
+        x_ = dataxy[:,0]/dataxy[-1,0]
+        # rescaled distance
+        y_ = dataxy[:,1]/dataxy[-1,1]
+        
+        # build linearly interpolated profile
+        traj[i] = interp1d(x_, y_)(x)
+    
+    return traj, totalSize
+
 def load_trajectories(event_type, dx, dt, gridno,
                       prefix='voronoi_noactor_',
                       region='africa',
@@ -169,6 +206,8 @@ def load_trajectories(event_type, dx, dt, gridno,
         Fatality profiles (traj, duration, total size).
     """
     
+    from .acled_utils import track_max_pair_dist
+
     # load data and take all avalanches at each scale
     dr = 'geosplits/%s/%s/full_data_set/%s'%(region, event_type, cluster_method)
     fname = '%s/%sgrid%s.p'%(dr, prefix, str(gridno).zfill(2))
@@ -181,18 +220,31 @@ def load_trajectories(event_type, dx, dt, gridno,
 
     sizeTrajByCluster = []
     fatTrajByCluster = []
+    distTrajByCluster = []
     durSizeByCluster = []
     durFatByCluster = []
+    durDistByCluster = []
     totalSizeByCluster = []
     totalFatByCluster = []
+    totalDistByCluster = []
 
     for i,c in enumerate(clustersix):
         # all subsets of subdf corresponding to clusters at this scale
-        clusters = [subdf.loc[ix,('EVENT_DATE','FATALITIES','SIZES')] for ix in c]
+        clusters = [subdf.loc[ix,('EVENT_DATE','FATALITIES','SIZES','LONGITUDE','LATITUDE')] for ix in c]
+
         printed = False 
         # reorganize by unique event per day
         for i,c in enumerate(clusters):
-            clusters[i] = c.groupby('EVENT_DATE').sum() 
+            lonlat = c.loc[:,('LONGITUDE','LATITUDE')].values
+            if lonlat.ndim==2 and len(lonlat)>1:
+                c['DISTANCE'] = track_max_pair_dist(lonlat, False)
+            else:
+                c['DISTANCE'] = np.zeros(1)
+            lonlat0 = lonlat[0]
+            gb = c.groupby('EVENT_DATE')
+            clusters[i] = gb.sum()
+            clusters[i]['DISTANCE'] = gb.max()['DISTANCE'].values
+
             if shuffle:
                 randix = np.random.permutation(len(clusters[i]))
                 clusters[i]['FATALITIES'] = clusters[i]['FATALITIES'].values[randix]
@@ -231,10 +283,11 @@ def load_trajectories(event_type, dx, dt, gridno,
                     #assert (np.diff(clusters[i].index).astype(int)>=0).all()
 
         # Get all raw sequences that are above some min length
-        sizeTraj, fatTraj, durSize, durFat = avalanche_trajectory(clusters)
+        sizeTraj, fatTraj, distTraj, durSize, durFat, durDist = avalanche_trajectory(clusters)
 
         durSizeByCluster.append(durSize)
         durFatByCluster.append(durFat)
+        durDistByCluster.append(durDist)
 
         # interpolate trajectories
         traj, totalSize = interp_avalanche_trajectory(sizeTraj, x, cum=cum)
@@ -246,8 +299,15 @@ def load_trajectories(event_type, dx, dt, gridno,
         assert len(traj)==len(totalFat)==len(durFat)
         fatTrajByCluster.append( traj )
         totalFatByCluster.append( (totalFat,[i[:,2].sum() for i in fatTraj]) )
+
+        traj, totalDist = interp_dist_trajectory(distTraj, x)
+        assert len(traj)==len(totalDist)==len(durDist)
+        distTrajByCluster.append( traj )
+        totalDistByCluster.append( (totalDist,[i[:,2].sum() for i in distTraj]) )
+
     return ((sizeTrajByCluster, durSizeByCluster, totalSizeByCluster), 
-            (fatTrajByCluster, durFatByCluster, totalFatByCluster)) 
+            (fatTrajByCluster, durFatByCluster, totalFatByCluster), 
+            (distTrajByCluster, durDistByCluster, totalDistByCluster)) 
 
 def parallel_load_trajectories(event_type, gridno, dx, dt, **kwargs):
     """
@@ -275,11 +335,12 @@ def parallel_load_trajectories(event_type, gridno, dx, dt, **kwargs):
         return load_trajectories(event_type, dx, dt, i, **kwargs)
     
     pool = mp.Pool(mp.cpu_count()-1)
-    sizeInfo, fatInfo = zip(*pool.map(f, gridno))
+    sizeInfo, fatInfo, distInfo = zip(*pool.map(f, gridno))
     pool.close()
     
     sizeProfiles = {'traj':[], 'norm':[], 'dur':[]}
     fatProfiles = {'traj':[], 'norm':[], 'dur':[]}
+    distProfiles = {'traj':[], 'norm':[], 'dur':[]}
 
     for i,g in enumerate(gridno):
         sizeProfiles['traj'].append(sizeInfo[i][0])
@@ -290,7 +351,11 @@ def parallel_load_trajectories(event_type, gridno, dx, dt, **kwargs):
         fatProfiles['dur'].append(fatInfo[i][1])
         fatProfiles['norm'].append(fatInfo[i][2])
 
-    return sizeProfiles, fatProfiles
+        distProfiles['traj'].append(distInfo[i][0])
+        distProfiles['dur'].append(distInfo[i][1])
+        distProfiles['norm'].append(distInfo[i][2])
+
+    return sizeProfiles, fatProfiles, distProfiles
 
 def average_trajectories_by_coarseness(trajectories):
     """Average over the trajectories calculated from various random grids to get error
