@@ -249,6 +249,7 @@ def load_trajectories(event_type, dx, dt, gridno,
                 randix = np.random.permutation(len(clusters[i]))
                 clusters[i]['FATALITIES'] = clusters[i]['FATALITIES'].values[randix]
                 clusters[i]['SIZES'] = clusters[i]['SIZES'].values[randix]
+                clusters[i]['DISTANCE'] = np.maximum.accumulate(clusters[i]['DISTANCE'].values[randix])
             elif only_rate:
                 clusters[i]['FATALITIES'] = np.clip(clusters[i]['FATALITIES'].values, 0, 1)
                 clusters[i]['SIZES'] = np.ones(len(clusters[i]))
