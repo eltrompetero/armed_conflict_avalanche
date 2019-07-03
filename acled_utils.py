@@ -24,6 +24,19 @@ DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
 
 
 def track_max_pair_dist(lonlat, as_delta=True):
+    """Keep track of spatial extent of cluster. By default, returns delta growth.
+    
+    Parameters
+    ----------
+    lonlat : ndarray
+    as_delta : bool, True
+
+    Returns
+    -------
+    ndarray
+        Distance per lonlat.
+    """
+
     phitheta = lonlat/180*np.pi
     
     maxDistPair = [phitheta[0],phitheta[1]]

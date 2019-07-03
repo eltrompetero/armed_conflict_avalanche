@@ -1,7 +1,7 @@
-# =============================================================================================== #
+# ====================================================================================== #
 # Module for analyzing ACLED data.
 # Author: Eddie Lee, edlee@alumni.princeton.edu
-# =============================================================================================== #
+# ====================================================================================== #
 from scipy.interpolate import interp1d
 import multiprocess as mp
 import numpy as np
@@ -34,6 +34,11 @@ def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
         List of (day, size) tuples.
     ndarray
         List of (day, fatalities) tuples.
+    ndarray
+        List of (day, diameter) tuples.
+    ndarray
+    ndarray
+    ndarray
     """
     
     dateFat, dateSize, dateDist, durSize, durFat, durDist = [],[],[],[],[],[]
@@ -196,6 +201,8 @@ def load_trajectories(event_type, dx, dt, gridno,
         If True, return cum profile of avalanches rate.
     reverse : bool, False
         If True, reverse time order of avalanche events.
+    smear : bool, False
+    cum : bool, True
 
     Returns
     -------
@@ -237,7 +244,7 @@ def load_trajectories(event_type, dx, dt, gridno,
         for i,c in enumerate(clusters):
             lonlat = c.loc[:,('LONGITUDE','LATITUDE')].values
             if lonlat.ndim==2 and len(lonlat)>1:
-                c['DISTANCE'] = track_max_pair_dist(lonlat, False)
+                c['DISTANCE'] = track_max_pair_dist(lonlat, False)  # keep track of total distance
             else:
                 c['DISTANCE'] = np.zeros(1)
             lonlat0 = lonlat[0]
@@ -300,11 +307,13 @@ def load_trajectories(event_type, dx, dt, gridno,
         assert len(traj)==len(totalFat)==len(durFat)
         fatTrajByCluster.append( traj )
         totalFatByCluster.append( (totalFat,[i[:,2].sum() for i in fatTraj]) )
-
+        
         traj, totalDist = interp_dist_trajectory(distTraj, x)
         assert len(traj)==len(totalDist)==len(durDist)
         distTrajByCluster.append( traj )
+        # include total cluster size in last col? must be for some analysis I forgot about
         totalDistByCluster.append( (totalDist,[i[:,2].sum() for i in distTraj]) )
+        #totalDistByCluster.append( (totalDist,[i[-1,1] for i in distTraj]) )
 
     return ((sizeTrajByCluster, durSizeByCluster, totalSizeByCluster), 
             (fatTrajByCluster, durFatByCluster, totalFatByCluster), 
@@ -327,9 +336,12 @@ def parallel_load_trajectories(event_type, gridno, dx, dt, **kwargs):
     Returns
     -------
     dict
-        Sizes
+        Sizes. Each value in dict contains a list of the results per random Voronoi grid 
+        that is analyzed.
     dict
         Fatalities 
+    dict
+        Diameters
     """
     
     def f(i):
