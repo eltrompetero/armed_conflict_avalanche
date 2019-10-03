@@ -1,7 +1,7 @@
-# =============================================================================================== #
+# ====================================================================================== #
 # Module for analyzing ACLED data.
 # Author: Eddie Lee, edlee@alumni.princeton.edu
-# =============================================================================================== #
+# ====================================================================================== #
 import numpy as np
 from sklearn.cluster import MeanShift
 from sklearn.neighbors import BallTree,DistanceMetric
@@ -148,10 +148,9 @@ def transform_bds_to_offset(x,bds):
     return np.vstack((x-bds[0],bds[1]-x))
 
 def coarse_grain_voronoi_tess(dx, fileno):
-    """
-    Successive coarse-graining from lowest layer to each upper layers. To keep the coarse-graining
-    consistent, coarse-graining happens only between adjacent levels and then the entire
-    coarse-graining operation is traced from the bottom to the top layer.
+    """Successive coarse-graining from lowest layer to each upper layers. To keep the
+    coarse-graining consistent, coarse-graining happens only between adjacent levels and
+    then the entire coarse-graining operation is traced from the bottom to the top layer.
 
     Parameters
     ----------
@@ -170,10 +169,10 @@ def coarse_grain_voronoi_tess(dx, fileno):
     assert (np.diff(dx)<0).all(), "Grid must get coarser."
     
     # mappings between adjacent layers
-    nextLayerPixel=_coarse_grain_voronoi_tess(dx, fileno)
+    nextLayerPixel = _coarse_grain_voronoi_tess(dx, fileno)
     
     # Iterate through layers and track to back bottom-most layer
-    bottomLayerMapping=[nextLayerPixel[0]]
+    bottomLayerMapping = [nextLayerPixel[0]]
     for el in range(1, len(dx)-1):
         bottomLayerMapping.append(nextLayerPixel[el][bottomLayerMapping[el-1]])
     return bottomLayerMapping
@@ -220,9 +219,13 @@ def _coarse_grain_voronoi_tess(dx, fileno):
     return nextLayerPixel
 
 def voronoi_pix_diameter(spaceThreshold, n_samp=10):
-    pixDiameter=np.zeros(len(spaceThreshold))
+    """Get an estimate of the average distance between the centers of Voronoi tiles by
+    loading grid 00.p for each resolution specified.
+    """
+
+    pixDiameter = np.zeros(len(spaceThreshold))
     for i,dx in enumerate(spaceThreshold):
-        pixDiameter[i]=_sample_lattice_spacing(dx, n_samp)
+        pixDiameter[i] = _sample_lattice_spacing(dx, n_samp)
     return pixDiameter
 
 def _sample_lattice_spacing(dx, sample_size):
@@ -245,11 +248,11 @@ def _sample_lattice_spacing(dx, sample_size):
     if sample_size>len(poissd.samples):
         sample_size=len(poissd.samples)
         
-    randix=np.random.choice(np.arange(len(poissd.samples)), size=sample_size, replace=True)
+    randix = np.random.choice(np.arange(len(poissd.samples)), size=sample_size, replace=True)
 
     d = np.zeros(sample_size)
     for i,ix in enumerate(randix):
-        d[i] = poissd.get_closest_neighbor_dist(poissd.samples[ix])
+        d[i] = poissd.closest_neighbor_dist(poissd.samples[ix])
 
     return d.mean()*6370
 
@@ -352,25 +355,6 @@ def extract_ua_from_geosplit(geoSplit):
             print(i,g)
             raise Exception
     return ua
-
-def cluster_diameter(lonlat):
-    """Return largest distance (km) between all pairs of latlon coordinates.
-    
-    Parameters
-    ----------
-    lonlat : ndarray
-    
-    Returns
-    -------
-    dmax : float
-    """
-    from misc.globe import haversine
-
-    if len(lonlat)>1:
-        counter=0
-        d=pdist(lonlat/180*np.pi, lambda u,v: haversine(u,v,6370))
-        return d.max()
-    return 0
 
 def duration_and_size(geoSplit):
     """Extract interesting info from clustered data."""

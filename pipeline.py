@@ -37,6 +37,26 @@ def discrete_lower_bound_range(d):
         return None
     return d.min(), d.max()
 
+def load_default_pickles(gridno=0):
+    """For shortening the preamble on most Jupyter notebooks.
+    """
+
+    # voronoi binary aggregation
+    region = 'africa'
+    prefix = 'voronoi_noactor_'
+    method = 'voronoi'
+    eventType = 'battle'
+    folder = 'geosplits/%s/%s/full_data_set/bin_agg'%(region,eventType)
+
+    # Load data
+    subdf = pickle.load(open('%s/%sdf.p'%(folder, prefix),'rb'))['subdf']
+    L = 9
+    T = 11
+
+    fname = '%s/%s%s'%(folder,prefix,'grid%s.p'%str(gridno).zfill(2))
+    gridOfSplits = pickle.load(open(fname,'rb'))['gridOfSplits']
+    
+    return subdf, gridOfSplits
 
 # =================== # 
 # Pipeline functions. #

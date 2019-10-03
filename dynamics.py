@@ -223,7 +223,7 @@ def load_trajectories(event_type, dx, dt, gridno,
     print("Loading %s"%fname)
     gridOfSplits = pickle.load(open(fname, 'rb'))['gridOfSplits']
     clustersix = [gridOfSplits[(dx_,dt_)] for dx_,dt_ in zip(dx, dt)]
-    x = np.linspace(0,1,n_interpolate)
+    x = np.linspace(0, 1, n_interpolate)
 
     sizeTrajByCluster = []
     fatTrajByCluster = []
@@ -240,7 +240,7 @@ def load_trajectories(event_type, dx, dt, gridno,
         clusters = [subdf.loc[ix,('EVENT_DATE','FATALITIES','SIZES','LONGITUDE','LATITUDE')] for ix in c]
 
         printed = False 
-        # reorganize by unique event per day
+        # collapse all events occurring on the same day
         for i,c in enumerate(clusters):
             lonlat = c.loc[:,('LONGITUDE','LATITUDE')].values
             if lonlat.ndim==2 and len(lonlat)>1:
