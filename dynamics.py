@@ -16,7 +16,7 @@ def count_up_unique_actors(x):
         n[i] = len(ua)
     return n
 
-def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
+def avalanche_trajectory(g, min_len=4, min_size=3, min_fat=3):
     """Extract from data the discrete sequence of events and their sizes.
     
     Parameters
@@ -24,14 +24,14 @@ def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
     g : pd.DataFrame
     min_len : int, 4
         Shortest duration of avalanche permitted for inclusion.
-    min_size : int, 2
+    min_size : int, 3
         Least number of unique events for inclusion.
-    min_fat : int, 2
+    min_fat : int, 3
         
     Returns
     -------
     ndarray
-        List of (day, size) tuples.
+        List of (day, size) tuples. Days start at 0.
     ndarray
         List of (day, fatalities) tuples.
     ndarray
@@ -65,9 +65,6 @@ def avalanche_trajectory(g, min_len=4, min_size=2, min_fat=2):
 
 def interp_avalanche_trajectory(dateFat, x,
                                 cum=True,
-                                insert_zero=False,
-                                append_one=False,
-                                symmetrize=False,
                                 run_checks=False):
     """Average avalanche trajectory over many different avalanches using linear
     interpolation. Can insert 0 at the beginning and repeat max value at end. Since
@@ -82,11 +79,6 @@ def interp_avalanche_trajectory(dateFat, x,
     x : ndarray
     cum : bool, True
         If True, return cumulative form interpolated.
-    insert_zero : bool, False
-        If True, insert zero at beginning of time series to ensure that CDF starts at 0.
-    append_one : bool, False
-        Add 1 at end.
-    symmetrize : bool, False
     
     Returns
     -------
@@ -105,11 +97,14 @@ def interp_avalanche_trajectory(dateFat, x,
             # rescaled time
             x_ = df[:,0]/df[-1,0]
             # cumulative profile
-            y_ = np.cumsum(df[:,1])/totalSize[i]
+            y_ = np.cumsum(df[:,1])
+            y_ -= 1
+            y_[-1] -= 1
+            y_ /= y_[-1]
             
             # build stepwise picture
-            x_ = np.insert(x_,range(x_.size),x_)
-            y_ = np.insert(np.insert(y_,range(y_.size),y_)[:-1],0,0)
+            #x_ = np.insert(x_, range(x_.size), x_)
+            #y_ = np.insert(np.insert(y_, range(y_.size),y_)[:-1], 0, 0)
             traj[i] = interp1d(x_, y_)(x)
     
     else:
@@ -215,7 +210,7 @@ def load_trajectories(event_type, dx, dt, gridno,
     
     from .acled_utils import track_max_pair_dist
 
-    # load data and take all avalanches at each scale
+    # load data and take all conflict avalanches at each specified scale (dx, dt)
     dr = 'geosplits/%s/%s/full_data_set/%s'%(region, event_type, cluster_method)
     fname = '%s/%sgrid%s.p'%(dr, prefix, str(gridno).zfill(2))
     subdf = pickle.load(open('%s/%sdf.p'%(dr, prefix), 'rb'))['subdf']
@@ -234,7 +229,8 @@ def load_trajectories(event_type, dx, dt, gridno,
     totalSizeByCluster = []
     totalFatByCluster = []
     totalDistByCluster = []
-
+    
+    # look over each scale (dx,dt) specified
     for i,c in enumerate(clustersix):
         # all subsets of subdf corresponding to clusters at this scale
         clusters = [subdf.loc[ix,('EVENT_DATE','FATALITIES','SIZES','LONGITUDE','LATITUDE')] for ix in c]
@@ -249,7 +245,7 @@ def load_trajectories(event_type, dx, dt, gridno,
                 c['DISTANCE'] = np.zeros(1)
             lonlat0 = lonlat[0]
             gb = c.groupby('EVENT_DATE')
-            clusters[i] = gb.sum()
+            clusters[i] = gb.sum()  # sum all fatalities and sizes that occurred on the same day
             clusters[i]['DISTANCE'] = gb.max()['DISTANCE'].values
 
             if shuffle:
@@ -261,8 +257,7 @@ def load_trajectories(event_type, dx, dt, gridno,
                 clusters[i]['FATALITIES'] = np.clip(clusters[i]['FATALITIES'].values, 0, 1)
                 clusters[i]['SIZES'] = np.ones(len(clusters[i]))
             elif reverse:
-                clusters[i].index = (clusters[i].index[-1] -
-                                     (clusters[i].index-clusters[i].index[0]))
+                clusters[i].index = (clusters[i].index[-1] - (clusters[i].index-clusters[i].index[0]))
                 clusters[i] = clusters[i].iloc[::-1]
 
             elif smear:

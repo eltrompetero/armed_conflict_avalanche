@@ -10,7 +10,9 @@ import pickle
 
 def extract_from_df(subdf, clustersix):
     """Extract the data points necessary from the DataFrame for analysis. These will be
-    the time-ordered, reports, fatalities, and locations.
+    the time-ordered, day-by-day reports, fatalities, and locations.
+
+    Reports and fatalities are summed by day. Max locations are saved.
 
     Parameters
     ----------
@@ -59,7 +61,7 @@ def extract_from_df(subdf, clustersix):
 
     return clusters
 
-def interp_clusters(clusters, x_interp):
+def interp_clusters(clusters, x_interp, piecewise=False):
     """Loop overconflict avalanche trajectories.
 
     Parameters
@@ -77,16 +79,29 @@ def interp_clusters(clusters, x_interp):
     
     data = {}
     traj = {}
+    clusterix = {}  # indices of clusters kept for analysis and not removed because they
+                    # didn't meet the cutoff
 
-    data['S'] = regularize_sizes([c[['T','S']].values for c in clusters])
-    data['F'] = regularize_fatalities([c[['T','F']].values for c in clusters])
-    data['L'] = regularize_diameters([c[['T','L']].values for c in clusters])
+    data['S'], clusterix['S'] = regularize_sizes([c[['T','S']].values for c in clusters])
+    data['F'], clusterix['F'] = regularize_fatalities([c[['T','F']].values for c in clusters],
+                                                      [1/c['S'].sum() for c in clusters])
+    data['L'], clusterix['L'] = regularize_diameters([c[['T','L']].values for c in clusters])
     
-    traj['S'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
-    traj['F'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
-    traj['L'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['L']])
-    return data, traj
+    if piecewise:
+        traj['S'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
+        traj['F'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
+        traj['L'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['L']])
+    else:
+        traj['S'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
+        traj['F'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
+        traj['L'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['L']])
 
+    return data, traj, clusterix
+
+
+# ================ #
+# Helper functions #
+# ================ #
 def regularize_sizes(listtraj, min_size=3, min_dur=4):
     """Turn sizes trajectory into cumulative profile.
 
@@ -99,34 +114,60 @@ def regularize_sizes(listtraj, min_size=3, min_dur=4):
     Returns
     -------
     list of ndarray
+    list of ints
+        Indices of trajectories that were kept. These correspond to the indices of the
+        clusters.
     """
     
     reglisttraj = []
-    for xy in listtraj:
+    keepix = []
+
+    for i,xy in enumerate(listtraj):
         if xy[-1,0]>=min_dur and xy[:,1].sum()>=min_size:
             reglisttraj.append(xy.astype(int))
             reglisttraj[-1][:,1] = np.cumsum(reglisttraj[-1][:,1])
             # remove endpoint bias
             reglisttraj[-1][:,1] -= 1
             reglisttraj[-1][-1,1] -= 1
+            keepix.append(i)
 
-    return reglisttraj
+    return reglisttraj, keepix
 
-def regularize_fatalities(*args, **kwargs):
+def regularize_fatalities(listtraj, fraction_bias, min_size=3, min_dur=4):
     """Turn fatalities trajectory into cumulative profile.
+
+    Way of regularizing involves subtracting a mean bias across all trajectories which
+    means that individual trajectories might be negative but the mean should be
+    reasonable.
 
     Parameters
     ----------
     listtraj : list of ndarray
-    min_size : int, 2
+    fraction_bias : list
+    min_size : int, 3
     min_dur : int, 4
 
     Returns
     -------
     list of ndarray
+    list of ints
+        Indices of trajectories that were kept. These correspond to the indices of the
+        clusters.
     """
+
+    reglisttraj = []
+    keepix = []
+
+    for i,(xy,fb) in enumerate(zip(listtraj,fraction_bias)):
+        if xy[-1,0]>=min_dur and xy[:,1].sum()>=min_size:
+            reglisttraj.append(xy.astype(float))
+            reglisttraj[-1][:,1] = np.cumsum(reglisttraj[-1][:,1])
+            # remove endpoint bias (avg no. of fatalities per report)
+            reglisttraj[-1][:,1] -= fb * reglisttraj[-1][-1,1]
+            reglisttraj[-1][-1,1] -= fb * reglisttraj[-1][-1,1]
+            keepix.append(i)
     
-    return regularize_sizes(*args, **kwargs)
+    return reglisttraj, keepix
 
 def regularize_diameters(listtraj, min_dur=4, min_diameter=1e-6):
     """Turn diameters trajectory into cumulative profile.
@@ -138,14 +179,20 @@ def regularize_diameters(listtraj, min_dur=4, min_diameter=1e-6):
     Returns
     -------
     list of ndarray
+    list of ints
+        Indices of trajectories that were kept. These correspond to the indices of the
+        clusters.
     """
 
     reglisttraj = []
-    for xy in listtraj:
+    keepix = []
+
+    for i,xy in enumerate(listtraj):
         if xy[-1,0]>=min_dur and xy[-1,1]>=min_diameter:
             reglisttraj.append(xy.copy())
+            keepix.append(i)
 
-    return reglisttraj
+    return reglisttraj, keepix
 
 def interp(x, y, xinterp):
     """Linear interpolation of trajectories normalized along x and y.
@@ -164,4 +211,28 @@ def interp(x, y, xinterp):
     # normalize
     x = x/x[-1]
     y = y/y[-1]
-    return interp1d(x, y)(xinterp)
+    return interp1d(x, y, bounds_error=False)(xinterp)
+
+def piecewise_interp(x, y, xinterp, **kwargs):
+    """Linear interpolation of trajectories normalized along x and y and with piecewise
+    interpretation of relationship between x and y.
+
+    Parameters
+    ----------
+    x : ndarray
+        Vector of integers.
+    y : ndarray
+    xinterp : ndarray
+
+    Returns
+    -------
+    ndarray
+        Interpolated trajectory.
+    """
+    
+    # normalize
+    x = np.insert(x, range(1,x.size),  x[1:])
+    x = x/x[-1]
+    y = np.insert(y, range(y.size-1), y[:-1])
+    y = y/y[-1]
+    return interp1d(x, y, assume_sorted=True, **kwargs)(xinterp)
