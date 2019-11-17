@@ -8,7 +8,7 @@ import numpy as np
 import pickle
 
 
-def extract_from_df(subdf, clustersix):
+def extract_from_df(subdf, clustersix, run_checks=False):
     """Extract the data points necessary from the DataFrame for analysis. These will be
     the time-ordered, day-by-day reports, fatalities, and locations.
 
@@ -17,8 +17,9 @@ def extract_from_df(subdf, clustersix):
     Parameters
     ----------
     subdf : pandas.DataFrame
-    list of lists : indices for the events in conflict avalanches
-    cum : bool, True
+    clustersix : list of lists
+        Indices for the events in conflict avalanches
+    run_checks : bool, False
 
     Returns
     -------
@@ -29,7 +30,11 @@ def extract_from_df(subdf, clustersix):
     
     from .acled_utils import track_max_pair_dist
 
+    totalf = 0
+    totals = 0
+
     # load data and take all avalanches at each scale
+    # sizes meant to keep track of the number of reports
     subdf['SIZES'] = np.ones(len(subdf))
     clusters = []
 
@@ -58,6 +63,16 @@ def extract_from_df(subdf, clustersix):
         c.columns = 'T','F','S','L'
 
         clusters.append(c)
+        totalf += c['F'].sum()
+        totals += c['S'].sum()
+
+    if run_checks:
+        # check that days on which events happened increase monotonically
+        assert all([(np.sign(np.diff(c['T']))>0).all() for c in clusters])
+        # check that total number of fatalities matches up
+        assert subdf['FATALITIES'].sum()==totalf
+        # check that total number of reports matches up
+        assert subdf['SIZES'].shape[0]==totals
 
     return clusters
 
@@ -85,6 +100,8 @@ def interp_clusters(clusters, x_interp, piecewise=False):
     data['S'], clusterix['S'] = regularize_sizes([c[['T','S']].values for c in clusters])
     data['F'], clusterix['F'] = regularize_fatalities([c[['T','F']].values for c in clusters],
                                                       [1/c['S'].sum() for c in clusters])
+    # according to old dynamics code, you should subtract the average fraction across all avalanches
+                                      #[np.mean([1/c['S'].sum() for c in clusters if c['S'].sum()>2])]*len(clusters))
     data['L'], clusterix['L'] = regularize_diameters([c[['T','L']].values for c in clusters])
     
     if piecewise:
@@ -217,10 +234,13 @@ def piecewise_interp(x, y, xinterp, **kwargs):
     """Linear interpolation of trajectories normalized along x and y and with piecewise
     interpretation of relationship between x and y.
 
+    Curves as defined such that the value after the jump occurs at the end of the flat
+    segment (this is like the right-handed CDF).
+
     Parameters
     ----------
     x : ndarray
-        Vector of integers.
+        Vector of integers. Must be sorted.
     y : ndarray
     xinterp : ndarray
 
@@ -235,4 +255,8 @@ def piecewise_interp(x, y, xinterp, **kwargs):
     x = x/x[-1]
     y = np.insert(y, range(y.size-1), y[:-1])
     y = y/y[-1]
+
+    # flat step at the end
+    #x = np.append(x, 1)
+    #y = np.append(y, 1)
     return interp1d(x, y, assume_sorted=True, **kwargs)(xinterp)
