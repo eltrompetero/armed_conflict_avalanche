@@ -98,8 +98,9 @@ def interp_clusters(clusters, x_interp, piecewise=False):
                     # didn't meet the cutoff
 
     data['S'], clusterix['S'] = regularize_sizes([c[['T','S']].values for c in clusters])
-    data['F'], clusterix['F'] = regularize_fatalities([c[['T','F']].values for c in clusters],
-                                                      [1/c['S'].sum() for c in clusters])
+    # bias in average fatality trajectories has to be accounted for later (on the ensemble average)
+    data['F'], clusterix['F'] = regularize_fatalities([c[['T','F']].values for c in clusters])
+                                                      #[1/c['S'].sum() for c in clusters])
     # according to old dynamics code, you should subtract the average fraction across all avalanches
                                       #[np.mean([1/c['S'].sum() for c in clusters if c['S'].sum()>2])]*len(clusters))
     data['L'], clusterix['L'] = regularize_diameters([c[['T','L']].values for c in clusters])
@@ -150,7 +151,7 @@ def regularize_sizes(listtraj, min_size=3, min_dur=4):
 
     return reglisttraj, keepix
 
-def regularize_fatalities(listtraj, fraction_bias, min_size=3, min_dur=4):
+def regularize_fatalities(listtraj, fraction_bias=None, min_size=3, min_dur=4):
     """Turn fatalities trajectory into cumulative profile.
 
     Way of regularizing involves subtracting a mean bias across all trajectories which
@@ -160,7 +161,7 @@ def regularize_fatalities(listtraj, fraction_bias, min_size=3, min_dur=4):
     Parameters
     ----------
     listtraj : list of ndarray
-    fraction_bias : list
+    fraction_bias : list, None
     min_size : int, 3
     min_dur : int, 4
 
@@ -174,6 +175,8 @@ def regularize_fatalities(listtraj, fraction_bias, min_size=3, min_dur=4):
 
     reglisttraj = []
     keepix = []
+    if fraction_bias is None:
+        fraction_bias = [0]*len(listtraj)
 
     for i,(xy,fb) in enumerate(zip(listtraj,fraction_bias)):
         if xy[-1,0]>=min_dur and xy[:,1].sum()>=min_size:
@@ -210,6 +213,49 @@ def regularize_diameters(listtraj, min_dur=4, min_diameter=1e-6):
             keepix.append(i)
 
     return reglisttraj, keepix
+
+def size_endpoint_bias(clusters, clusterix):
+    """Endpoint bias for fatality trajectories assuming that fatalities are distributed
+    uniformly across all reports such that the bias is just given by the average reports
+    bias.
+
+    Parameters
+    ----------
+    clusters : list of pd.DataFrame
+    clusterix : list of ints
+        This is returned by extract_from_df().
+
+    Returns
+    -------
+    float
+        Bias at endpoints induced by definition of conflict avalanches by where there is
+        at least one conflict report.
+    """
+
+    return (1/np.array([clusters[i]['S'].sum() for i in clusterix])).mean()
+
+def keep_fat_of_dur(dataF, mn, mx):
+    """Return indices of elements for fatalities that satisfy mn <= f < mx.
+
+    Remember that fatalities durations are off by one because counting starts at t=0.
+
+    Parameters
+    ----------
+    dataF : list of ndarrays
+        Fatalities trajectories from dict "data".
+    mn : int
+    mx : int
+    
+    Returns
+    -------
+    list of int
+        Indices of fatalities that satisfy duration bounds.
+    """
+
+    assert 0<mn<mx
+    assert mx<=8192
+
+    return [i for i,traj in enumerate(dataF) if mn<=traj[-1,0]<mx]
 
 def interp(x, y, xinterp):
     """Linear interpolation of trajectories normalized along x and y.
