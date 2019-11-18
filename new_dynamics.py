@@ -127,13 +127,17 @@ def extract_from_df(subdf, clustersix, run_checks=False, null_type=None):
 
     return clusters
 
-def interp_clusters(clusters, x_interp, piecewise=False):
+def interp_clusters(clusters, x_interp, method=None):
     """Loop overconflict avalanche trajectories.
 
     Parameters
     ----------
     clusters : list
     x_interp : ndarray
+    method : str, None
+        Force particular method on all trajectories.
+        'piecewise'
+        'linear'
 
     Returns
     -------
@@ -156,13 +160,17 @@ def interp_clusters(clusters, x_interp, piecewise=False):
                                       #[np.mean([1/c['S'].sum() for c in clusters if c['S'].sum()>2])]*len(clusters))
     data['L'], clusterix['L'] = regularize_diameters([c[['T','L']].values for c in clusters])
     
-    if piecewise:
+    if method=='piecewise':
         traj['S'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
         traj['F'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
         traj['L'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['L']])
-    else:
+    elif method=='linear':
         traj['S'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
         traj['F'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
+        traj['L'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['L']])
+    else:
+        traj['S'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
+        traj['F'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
         traj['L'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['L']])
 
     return data, traj, clusterix
