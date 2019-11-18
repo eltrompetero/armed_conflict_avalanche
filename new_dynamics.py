@@ -6,9 +6,10 @@ from scipy.interpolate import interp1d
 import multiprocess as mp
 import numpy as np
 import pickle
+import pandas as pd
 
 
-def extract_from_df(subdf, clustersix, run_checks=False):
+def extract_from_df(subdf, clustersix, run_checks=False, null_type=None):
     """Extract the data points necessary from the DataFrame for analysis. These will be
     the time-ordered, day-by-day reports, fatalities, and locations.
 
@@ -20,6 +21,16 @@ def extract_from_df(subdf, clustersix, run_checks=False):
     clustersix : list of lists
         Indices for the events in conflict avalanches
     run_checks : bool, False
+    null_type : str, None
+        'permute': Shuffle the order of the events while maintaining the dates on which
+            events happened..
+        'uniform': Smear events randomly and uniformly over entire interval of conflict
+            cluster.
+        'flat': Smear events uniformly through time and enforce equal numbers of events
+            per day (this second part is not done for diameters, a point that would
+            require some more complicated gynamstics).
+        'completelyflat': Set a single event per day between first and last days. More for
+            a sanity check.
 
     Returns
     -------
@@ -41,6 +52,45 @@ def extract_from_df(subdf, clustersix, run_checks=False):
     for i,cix in enumerate(clustersix):
         # all subsets of subdf corresponding to clusters at this scale
         c = subdf.loc[cix,('EVENT_DATE','FATALITIES','SIZES','LONGITUDE','LATITUDE')]
+        if null_type=='permute':
+            # permute measurements of size together
+            randix = np.random.permutation(range(len(c)))
+            c.iloc[:,1:] = c.iloc[randix,1:].values
+        elif null_type=='uniform' and len(cix)>2:  # can't do this with very short samples
+            # uniformly sample days in between first and last events, ensuring that first and last dates are
+            # maintained and keeping the same total number of days
+            dt = int((c['EVENT_DATE'].max()-c['EVENT_DATE'].min())/np.timedelta64(1,'D'))
+            randdates = c['EVENT_DATE'].min() + np.array([pd.Timedelta(days=i)
+                                                          for i in np.random.randint(dt+1, size=len(c)-2)])
+            c.iloc[0,0] = c['EVENT_DATE'].min()
+            c.iloc[-1,0] = c['EVENT_DATE'].max()
+            c.iloc[1:-1,0] = np.sort(randdates)
+
+            # permute measurements of size together
+            randix = np.random.permutation(range(len(c)))
+            c.iloc[:,1:] = c.iloc[randix,1:].values
+        elif null_type=='flat' and len(cix)>2:
+            # equally space all events out over all the observed days 
+            dt = int((c['EVENT_DATE'].max()-c['EVENT_DATE'].min())/np.timedelta64(1,'D'))
+            randdates = c['EVENT_DATE'].min() + np.array([pd.Timedelta(days=i)
+                                                          for i in np.random.randint(dt+1, size=len(c)-2)])
+            c.iloc[0,0] = c['EVENT_DATE'].min()
+            c.iloc[-1,0] = c['EVENT_DATE'].max()
+            c.iloc[1:-1,0] = np.sort(randdates)
+
+            # apportion all events equally over all days
+            c.iloc[:,1:3] = c.iloc[:,1:3].values.sum(0)/len(c)
+        elif null_type=='completelyflat':
+            # equally space all events out over the entire range of days between first and last
+            dt = int((c['EVENT_DATE'].max()-c['EVENT_DATE'].min())/np.timedelta64(1,'D'))
+            dates = c['EVENT_DATE'].min() + np.array([pd.Timedelta(days=i)
+                                                      for i in range(dt+1)])
+            data = np.hstack((dates[:,None], np.ones((dt+1,4))))
+            c = pd.DataFrame({'EVENT_DATE':dates,
+                              'FATALITIES':np.ones(dt+1),
+                              'SIZES':np.ones(dt+1),
+                              'LONGITUDE':np.random.choice(c['LONGITUDE'].values, size=dt+1),
+                              'LATITUDE':np.random.choice(c['LATITUDE'].values, size=dt+1)})
 
         # distance is the cum max
         lonlat = c.loc[:,('LONGITUDE','LATITUDE')].values
@@ -63,8 +113,9 @@ def extract_from_df(subdf, clustersix, run_checks=False):
         c.columns = 'T','F','S','L'
 
         clusters.append(c)
-        totalf += c['F'].sum()
-        totals += c['S'].sum()
+        if run_checks:
+            totalf += c['F'].sum()
+            totals += c['S'].sum()
 
     if run_checks:
         # check that days on which events happened increase monotonically
