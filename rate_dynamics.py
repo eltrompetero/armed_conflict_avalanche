@@ -46,22 +46,31 @@ def interp_clusters(clusters, x_interp, bins, npoints, method=None):
     traj['F'] = []
     traj['L'] = []
     for n in npoints:
-        y = np.vstack([i[:,1] for i in data['S'] if len(i)==n]).mean(0)
-        yerr = np.vstack([i[:,1] for i in data['S'] if len(i)==n]).std(0, ddof=1)
-        traj['S'].append( (y, interp1d(range(n), y)(x_interp*(n-1)), yerr) )
+        try:
+            y = np.vstack([i[:,1] for i in data['S'] if len(i)==n]).mean(0)
+            yerr = np.vstack([i[:,1] for i in data['S'] if len(i)==n]).std(0, ddof=1)
+            traj['S'].append( (y, interp1d(range(n), y)(x_interp*(n-1)), yerr) )
+        except ValueError:
+            traj['S'].append( (np.zeros(n)+np.nan, np.zeros(x_interp.size)+np.nan, np.zeros(n)+np.nan) )
 
-        y = np.vstack([i[:,1] for i in data['F'] if len(i)==n]).mean(0)
-        yerr = np.vstack([i[:,1] for i in data['F'] if len(i)==n]).std(0, ddof=1)
-        # account for endpoint bias on mean trajectories
-        sbias = size_endpoint_bias(clusters, np.array(clusterix['F'])[[i for i,f in enumerate(data['F'])
-                                                                       if len(f)==n]])
-        y[0] -= sbias*y.sum()
-        y[-1] -= sbias*y.sum()
-        traj['F'].append( (y, interp1d(range(n), y)(x_interp*(n-1)), yerr) )
+        try:
+            y = np.vstack([i[:,1] for i in data['F'] if len(i)==n]).mean(0)
+            yerr = np.vstack([i[:,1] for i in data['F'] if len(i)==n]).std(0, ddof=1)
+            # account for endpoint bias on mean trajectories
+            sbias = size_endpoint_bias(clusters, np.array(clusterix['F'])[[i for i,f in enumerate(data['F'])
+                                                                           if len(f)==n]])
+            y[0] -= sbias*y.sum()
+            y[-1] -= sbias*y.sum()
+            traj['F'].append( (y, interp1d(range(n), y)(x_interp*(n-1)), yerr) )
+        except ValueError:
+            traj['F'].append( (np.zeros(n)+np.nan, np.zeros(x_interp.size)+np.nan, np.zeros(n)+np.nan) )
 
-        y = np.vstack([i[:,1] for i in data['L'] if len(i)==n]).mean(0)
-        yerr = np.vstack([i[:,1] for i in data['L'] if len(i)==n]).std(0, ddof=1)
-        traj['L'].append( (y, interp1d(range(n), y)(x_interp*(n-1)), yerr) )
+        try:
+            y = np.vstack([i[:,1] for i in data['L'] if len(i)==n]).mean(0)
+            yerr = np.vstack([i[:,1] for i in data['L'] if len(i)==n]).std(0, ddof=1)
+            traj['L'].append( (y, interp1d(range(n), y)(x_interp*(n-1)), yerr) )
+        except ValueError:
+            traj['L'].append( (np.zeros(n)+np.nan, np.zeros(x_interp.size)+np.nan, np.zeros(n)+np.nan) )
 
     return data, traj, clusterix
 
