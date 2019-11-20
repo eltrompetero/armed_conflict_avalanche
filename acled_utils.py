@@ -29,6 +29,7 @@ def track_max_pair_dist(lonlat, as_delta=True):
     Parameters
     ----------
     lonlat : ndarray
+        Time-ordered list of geographic coordinates.
     as_delta : bool, True
 
     Returns

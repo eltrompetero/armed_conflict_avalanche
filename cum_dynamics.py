@@ -248,12 +248,15 @@ def regularize_fatalities(listtraj, fraction_bias=None, min_size=3, min_dur=4):
     
     return reglisttraj, keepix
 
-def regularize_diameters(listtraj, min_dur=4, min_diameter=1e-6):
+def regularize_diameters(listtraj, min_dur=4, min_diameter=1e-6, start_at_zero=False):
     """Turn diameters trajectory into cumulative profile.
 
     Parameters
     ----------
     listtraj : list of ndarray
+    min_dur : int, 4
+    min_diameter : float, 1e-6
+    start_at_zero : bool, False
 
     Returns
     -------
@@ -268,7 +271,13 @@ def regularize_diameters(listtraj, min_dur=4, min_diameter=1e-6):
 
     for i,xy in enumerate(listtraj):
         if xy[-1,0]>=min_dur and xy[-1,1]>=min_diameter:
-            reglisttraj.append(xy.copy())
+            if start_at_zero:
+                # start all trajectories with diameter=0
+                xy = np.insert(xy, 0, np.zeros((1,2)), axis=0)
+                # increment time counter
+                xy[1:,0] += 1
+            
+            reglisttraj.append(xy)
             keepix.append(i)
 
     return reglisttraj, keepix
