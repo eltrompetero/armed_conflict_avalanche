@@ -200,7 +200,7 @@ def regularize_sizes(listtraj, min_size=3, min_dur=4):
     keepix = []
 
     for i,xy in enumerate(listtraj):
-        if xy[-1,0]>=min_dur and xy[:,1].sum()>=min_size:
+        if xy[0,0]>=min_dur and xy[:,1].sum()>=min_size:
             reglisttraj.append(xy.astype(int))
             reglisttraj[-1][:,1] = np.cumsum(reglisttraj[-1][:,1])
             # remove endpoint bias
