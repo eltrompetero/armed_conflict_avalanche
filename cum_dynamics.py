@@ -159,6 +159,7 @@ def interp_clusters(clusters, x_interp, method=None):
     # according to old dynamics code, you should subtract the average fraction across all avalanches
                                       #[np.mean([1/c['S'].sum() for c in clusters if c['S'].sum()>2])]*len(clusters))
     data['L'], clusterix['L'] = regularize_diameters([c[['T','L']].values for c in clusters])
+    assert len(data['S'])>0
     
     if method=='piecewise':
         traj['S'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
@@ -200,7 +201,7 @@ def regularize_sizes(listtraj, min_size=3, min_dur=4):
     keepix = []
 
     for i,xy in enumerate(listtraj):
-        if xy[0,0]>=min_dur and xy[:,1].sum()>=min_size:
+        if xy[-1,0]>=min_dur and xy[:,1].sum()>=min_size:
             reglisttraj.append(xy.astype(int))
             reglisttraj[-1][:,1] = np.cumsum(reglisttraj[-1][:,1])
             # remove endpoint bias
