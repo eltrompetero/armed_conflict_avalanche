@@ -134,31 +134,23 @@ class NTD():
         radius = []
 
         while counter<n_steps:
-            # iterate through the current set of branches that are growing without
-            # considering new branches that are added in this loop
-            n = len(growingBranches)
-            i = 0  # counter for size of current generation
-            while i<n:
-                randix = self.rng.randint(n)
-                gb = growingBranches[randix]
-                # increment branch but note whether or not it has reached a branch point
-                if not gb.grow():
-                    # create all children of this branch
-                    for j in range(r):
-                        # new branches have random length
-                        nb = Branch('%s%d'%(gb.label,j),
-                                    int(b**(len(gb.label)+1)*rand_factor_fun()),
-                                    ancestral_length=gb.len+gb.ancestralLen)
-                        nb.grow()
-                        growingBranches.append(nb)
-                    deadBranches.append(growingBranches.pop(randix))
-                    n -= 1
-                    i -= 1
-                if (counter%record_every)==0:
-                    el = [gb.pos+gb.ancestralLen for gb in growingBranches]
-                    radius.append(max(el))
-                counter += 1
-                i += 1
+            randix = self.rng.randint(len(growingBranches))
+            gb = growingBranches[randix]
+            # increment branch but note whether or not it has reached a branch point
+            if not gb.grow():
+                # create all children of this branch
+                for j in range(r):
+                    # new branches have random length
+                    nb = Branch('%s%d'%(gb.label,j),
+                                int(b**(len(gb.label)+1)*rand_factor_fun()),
+                                ancestral_length=gb.len+gb.ancestralLen)
+                    nb.grow()
+                    growingBranches.append(nb)
+                deadBranches.append(growingBranches.pop(randix))
+            if (counter%record_every)==0:
+                el = [gb.pos+gb.ancestralLen for gb in growingBranches]
+                radius.append(max(el))
+            counter += 1
         radius = np.array(radius)
         
         self.growingBranches = growingBranches
@@ -266,7 +258,7 @@ class NTD():
 
 
 class ConflictReportsTrajectory(NTD):
-    def __init__(self, r, b, theta, gamma, rng=None):
+    def __init__(self, r, b, theta, gammas, gammaf, rng=None):
         """
         Parameters
         ----------
@@ -275,7 +267,10 @@ class ConflictReportsTrajectory(NTD):
         b : int
             Exponential growth base.
         theta : float
-        gamma : float
+        gammas : float
+            Growth exponent for reports.
+        gammaf : float
+            Growth exponent for fatalities.
         rng : np.random.RandomState
         """
         
@@ -283,7 +278,8 @@ class ConflictReportsTrajectory(NTD):
         self.r = r
         self.b = b
         self.theta = theta
-        self.gamma = gamma
+        self.gammas = gammas
+        self.gammaf = gammaf
         self.rng = rng or np.random.RandomState()
 
     def grow(self, n_steps,
@@ -304,10 +300,13 @@ class ConflictReportsTrajectory(NTD):
             Max radius (as measured from origin) per time step.
         ndarray
             Cumulative number of reports per time step.
+        ndarray
+            Cumulative number of fatalities per time step.
         """
         
+        cumF = np.zeros(n_steps, dtype=int)
         cumS = np.zeros(n_steps, dtype=int)
-        b, r, c, g = self.b, self.r, self.theta, self.gamma
+        b, r, c, gs, gf = self.b, self.r, self.theta, self.gammas, self.gammaf
         mx_rand_coeff = mx_rand_coeff or b
         counter = 0
         growingBranches = [Branch('%d'%i, b) for i in range(r)]
@@ -315,44 +314,37 @@ class ConflictReportsTrajectory(NTD):
         radius = []
 
         while counter<n_steps:
-            # iterate through the current set of branches that are growing without
-            # considering new branches that are added in this loop
-            n = len(growingBranches)
-            i = 0  # counter for size of current generation
-            while i<n:
-                # randomly select a branch to add onto
-                randix = self.rng.randint(n)
-                gb = growingBranches[randix]
-                # increment branch but note whether or not it has reached a branch point
-                if not gb.grow():
-                    # create all children of this branch
-                    for j in range(r):
-                        # new branches have random length
-                        nb = Branch('%s%d'%(gb.label,j),
-                                int(b**(len(gb.label)+1) * self.rng.uniform(1/mx_rand_coeff, mx_rand_coeff)),
-                                ancestral_length=gb.len+gb.ancestralLen)
-                        nb.grow()
-                        growingBranches.append(nb)
-                    deadBranches.append(growingBranches.pop(randix))
-                    # if this branch is now dead, then we must decrement the number of growing branches
-                    n -= 1
-                    i -= 1
-                
+            # randomly select a branch to add onto
+            randix = self.rng.randint(len(growingBranches))
+            gb = growingBranches[randix]
+            # try to increment branch
+            # if branching point reached, then spawn children, remove dead branch, and try again
+            if not gb.grow():
+                # create all children of this branch
+                for j in range(r):
+                    # new branches have random length
+                    nb = Branch('%s%d'%(gb.label,j),
+                            int(b**(len(gb.label)+1) * self.rng.uniform(1/mx_rand_coeff, mx_rand_coeff)),
+                            ancestral_length=gb.len+gb.ancestralLen)
+                    growingBranches.append(nb)
+                deadBranches.append(growingBranches.pop(randix))
+            # else successfully added new conflict site and start generating events
+            else: 
                 # count all future events generated by this new conflict site
-                cumS[counter:] += (np.arange(n_steps-counter)**(1+g) * (counter+1)**-c).astype(int)
+                cumS[counter:] += (np.arange(n_steps-counter)**(1+gs) * (counter+1)**-c).astype(int)
                 # at least one event per site
                 cumS[counter:] += 1
+                cumF[counter:] += (np.arange(n_steps-counter)**(1+gf) * (counter+1)**-c).astype(int)
                 
                 if (counter%record_every)==0:
                     radius.append(max([gb.pos+gb.ancestralLen for gb in growingBranches]))
                 counter += 1
-                i += 1
         radius = np.array(radius)
         
         self.growingBranches = growingBranches
         self.deadBranches = deadBranches
         self.radius = radius
-        return radius, cumS
+        return radius, cumS, cumF
         
     def sample(self, n_samples, durations,
                record_every=10,
@@ -371,9 +363,11 @@ class ConflictReportsTrajectory(NTD):
         Returns
         -------
         list of ndarray
+            Max radius trajectories.
+        list of ndarray
             Cumulative size trajectories.
         list of ndarray
-            Max radius trajectories.
+            Cumulative fatalities trajectories.
         """
         
         assert n_samples>0
@@ -387,18 +381,18 @@ class ConflictReportsTrajectory(NTD):
 
         def loop_wrapper(t, self=self):
             self.rng = np.random.RandomState()
-            r, s = self.grow(t, record_every=record_every, **grow_kw)
+            r, s, f = self.grow(t, record_every=record_every, **grow_kw)
             if iprint:
                 print("Done with avalanche of duration %d."%t)
-            return r, s
+            return r, s, f
 
         try:
             pool = mp.Pool(mp.cpu_count()-1)
-            r, s = list(zip(*pool.map(loop_wrapper, durations)))
+            r, s, f = list(zip(*pool.map(loop_wrapper, durations)))
         finally:
             pool.close()
             
-        return r, s
+        return r, s, f
 #end ConflictReportsTrajectory
 
 
