@@ -117,6 +117,8 @@ def extract_from_df(subdf, clustersix, run_checks=False, null_type=None):
             totalf += c['F'].sum()
             totals += c['S'].sum()
 
+        print("Done with %d."%i)
+
     if run_checks:
         # check that days on which events happened increase monotonically
         assert all([(np.sign(np.diff(c['T']))>0).all() for c in clusters])

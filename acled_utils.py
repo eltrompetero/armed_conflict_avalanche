@@ -13,17 +13,17 @@ from geopy.distance import vincenty,great_circle
 from itertools import combinations,chain
 from scipy.spatial.distance import squareform
 from misc.plot import colorcycle
-from misc.utils import unique_rows
+from misc.utils import ortho_plane, max_dist_pair2D
 import scipy.stats as stats
 from scipy.optimize import minimize
 import gmplot
 from warnings import warn
-from misc.globe import SphereCoordinate,PoissonDiscSphere,haversine	
+from misc.globe import SphereCoordinate,PoissonDiscSphere,haversine,jithaversine
 from numba import jit,njit
 DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
 
 
-def track_max_pair_dist(lonlat, as_delta=True):
+def track_max_pair_dist(lonlat, as_delta=True, use_jit=True):
     """Keep track of spatial extent of cluster. By default, returns delta growth.
     
     Parameters
@@ -44,22 +44,65 @@ def track_max_pair_dist(lonlat, as_delta=True):
     maxdist = np.zeros(len(phitheta))
     maxdist[1] = haversine(phitheta[0], phitheta[1])
     
-    for i in range(2,maxdist.size):
-        newdist = [haversine(maxDistPair[0],phitheta[i]),
-                   haversine(maxDistPair[1],phitheta[i])]
-        if newdist[0]>maxdist[i-1] or newdist[1]>maxdist[i-1]:
-            if newdist[0]>newdist[1]:
-                maxDistPair[1] = phitheta[i]
-                maxdist[i] = newdist[0]
-            else:
-                maxDistPair[0] = phitheta[i]
-                maxdist[i] = newdist[1]
+    for i in range(2, maxdist.size):
+        newdist = _max_pair_dist(lonlat[:i])
+        if newdist>maxdist[i-1]:
+            maxdist[i] = newdist
         else:
             maxdist[i] = maxdist[i-1]
-            
+    # this algorithm is slow
+    #for i in range(2, maxdist.size):
+    #    if use_jit:
+    #        newdist = pdist(phitheta[:i+1], jithaversine).max() 
+    #    else:
+    #        newdist = pdist(phitheta[:i+1], haversine).max() 
+    #    if newdist>maxdist[i-1]:
+    #        maxdist[i] = newdist
+    #    else:
+    #        maxdist[i] = maxdist[i-1]
+    
+    # this algorithm is not correct for all possible cases
+    #for i in range(2, maxdist.size):
+    #    newdist = [haversine(maxDistPair[0],phitheta[i]),
+    #               haversine(maxDistPair[1],phitheta[i])]
+    #    if newdist[0]>maxdist[i-1] or newdist[1]>maxdist[i-1]:
+    #        if newdist[0]>newdist[1]:
+    #            maxDistPair[1] = phitheta[i]
+    #            maxdist[i] = newdist[0]
+    #        else:
+    #            maxDistPair[0] = phitheta[i]
+    #            maxdist[i] = newdist[1]
+    #    else:
+    #        maxdist[i] = maxdist[i-1]
     if as_delta:
         return np.insert(np.diff(maxdist), 0, 0)
     return maxdist
+
+def _max_pair_dist(lonlat):
+    lonlat = np.unique(lonlat, axis=0)
+    if len(lonlat)==1:
+        return 0.
+
+    # convert coordinates into a 3D vector
+    phitheta = lonlat / 180 * np.pi
+    phitheta[:,1] -= np.pi/2
+
+    xyz = np.zeros((len(phitheta), 3))
+    xyz[:,0] = np.sin(phitheta[:,1]) * np.cos(phitheta[:,0])
+    xyz[:,1] = np.sin(phitheta[:,1]) * np.sin(phitheta[:,0])
+    xyz[:,2] = np.cos(phitheta[:,1])
+
+    assert np.isclose(np.linalg.norm(xyz, axis=1), 1).all()
+
+    # collapse points down to plane orthogonal to center of mass
+    mxyz = xyz.mean(0)
+    mxyz /= np.linalg.norm(mxyz)
+    v1, v2 = ortho_plane(mxyz)
+
+    newxy = np.vstack((xyz.dot(v1), xyz.dot(v2))).T
+    maxdistix = max_dist_pair2D(newxy)
+
+    return jithaversine(phitheta[maxdistix[0]], phitheta[maxdistix[1]])
 
 def check_relation(alphaBds, upsBds, dfBds):
     """
@@ -226,7 +269,8 @@ def voronoi_pix_diameter(spaceThreshold, n_samp=10):
 
     pixDiameter = np.zeros(len(spaceThreshold))
     for i,dx in enumerate(spaceThreshold):
-        pixDiameter[i] = _sample_lattice_spacing(dx, n_samp)
+        # there is a factor of 2 in how spacing is determined between points in Voronoi algo
+        pixDiameter[i] = _sample_lattice_spacing(dx, n_samp) * 2
     return pixDiameter
 
 def _sample_lattice_spacing(dx, sample_size):
