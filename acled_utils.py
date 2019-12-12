@@ -23,7 +23,7 @@ from numba import jit,njit
 DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
 
 
-def track_max_pair_dist(lonlat, as_delta=True, use_jit=True):
+def track_max_pair_dist(lonlat, as_delta=True, use_pdist=False):
     """Keep track of spatial extent of cluster. By default, returns delta growth.
     
     Parameters
@@ -31,6 +31,8 @@ def track_max_pair_dist(lonlat, as_delta=True, use_jit=True):
     lonlat : ndarray
         Time-ordered list of geographic coordinates.
     as_delta : bool, True
+    use_pdist : bool, False
+        Slow way of computing every pairwise distance.
 
     Returns
     -------
@@ -39,68 +41,47 @@ def track_max_pair_dist(lonlat, as_delta=True, use_jit=True):
     """
 
     phitheta = lonlat/180*np.pi
+    phitheta[:,1] += np.pi/2
     
     maxDistPair = [phitheta[0],phitheta[1]]
-    maxdist = np.zeros(len(phitheta))
+    maxdist = np.zeros(len(phitheta))  # always start at 0
     maxdist[1] = haversine(phitheta[0], phitheta[1])
     
-    for i in range(2, maxdist.size):
-        newdist = _max_pair_dist(lonlat[:i])
-        if newdist>maxdist[i-1]:
-            maxdist[i] = newdist
-        else:
-            maxdist[i] = maxdist[i-1]
-    # this algorithm is slow
-    #for i in range(2, maxdist.size):
-    #    if use_jit:
-    #        newdist = pdist(phitheta[:i+1], jithaversine).max() 
-    #    else:
-    #        newdist = pdist(phitheta[:i+1], haversine).max() 
-    #    if newdist>maxdist[i-1]:
-    #        maxdist[i] = newdist
-    #    else:
-    #        maxdist[i] = maxdist[i-1]
+    if not use_pdist:
+        for i in range(2, maxdist.size):
+            newdist = _max_pair_dist(lonlat[:i+1])
+            if newdist>maxdist[i-1]:
+                maxdist[i] = newdist
+            else:
+                maxdist[i] = maxdist[i-1]
+    else:
+        # this algorithm is slow (but guaranteed to be correct)
+        for i in range(2, maxdist.size):
+            phitheta_ = np.unique(phitheta[:i+1], axis=0)
+            if len(phitheta_)>1:
+                newdist = pdist(phitheta_, jithaversine).max() 
+            else:
+                newdist = 0
+            if newdist>maxdist[i-1]:
+                maxdist[i] = newdist
+            else:
+                maxdist[i] = maxdist[i-1]
     
-    # this algorithm is not correct for all possible cases
-    #for i in range(2, maxdist.size):
-    #    newdist = [haversine(maxDistPair[0],phitheta[i]),
-    #               haversine(maxDistPair[1],phitheta[i])]
-    #    if newdist[0]>maxdist[i-1] or newdist[1]>maxdist[i-1]:
-    #        if newdist[0]>newdist[1]:
-    #            maxDistPair[1] = phitheta[i]
-    #            maxdist[i] = newdist[0]
-    #        else:
-    #            maxDistPair[0] = phitheta[i]
-    #            maxdist[i] = newdist[1]
-    #    else:
-    #        maxdist[i] = maxdist[i-1]
     if as_delta:
         return np.insert(np.diff(maxdist), 0, 0)
     return maxdist
 
 def _max_pair_dist(lonlat):
+    from misc.globe import max_geodist_pair
+
     lonlat = np.unique(lonlat, axis=0)
     if len(lonlat)==1:
         return 0.
 
     # convert coordinates into a 3D vector
     phitheta = lonlat / 180 * np.pi
-    phitheta[:,1] -= np.pi/2
-
-    xyz = np.zeros((len(phitheta), 3))
-    xyz[:,0] = np.sin(phitheta[:,1]) * np.cos(phitheta[:,0])
-    xyz[:,1] = np.sin(phitheta[:,1]) * np.sin(phitheta[:,0])
-    xyz[:,2] = np.cos(phitheta[:,1])
-
-    assert np.isclose(np.linalg.norm(xyz, axis=1), 1).all()
-
-    # collapse points down to plane orthogonal to center of mass
-    mxyz = xyz.mean(0)
-    mxyz /= np.linalg.norm(mxyz)
-    v1, v2 = ortho_plane(mxyz)
-
-    newxy = np.vstack((xyz.dot(v1), xyz.dot(v2))).T
-    maxdistix = max_dist_pair2D(newxy)
+    phitheta[:,1] += np.pi/2
+    maxdistix = max_geodist_pair(phitheta)
 
     return jithaversine(phitheta[maxdistix[0]], phitheta[maxdistix[1]])
 

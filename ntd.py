@@ -166,6 +166,7 @@ class NTD():
         
     def plot(self, fig=None, ax=None,
              angle_index_offset=-1,
+             unit=1,
              origin_line_width=10):
         """
         Parameters
@@ -173,6 +174,9 @@ class NTD():
         fig : plt.Figure, None
         ax : plt.Axes, None
         angle_index_offset : int, -1
+        unit : float, 1
+            Length of each piece of LineCollection used to vary thickness. This can be
+            helpful if pieces are missing near the origin.
         origin_line_width : float, 10
         
         Returns
@@ -186,14 +190,19 @@ class NTD():
             ax = fig.add_subplot(111, aspect='equal')
     
         branches = self.growingBranches + self.deadBranches
-        branchids = [br.label for br in branches]  # branch ids by generation
+        branchids = [br.label for br in branches]
 
-        branchidsbygen = []
+        branchidsbygen = []  # branch ids by generation
         for i in range(1, max([len(el) for el in branchids])+1):
             branchidsbygen.append([b for b in branchids if len(b)==i])
 
         plotAngle = {}
         rt = []  # position labeled as radius and angle pairs
+        
+        angle = 2 * np.pi / self.r
+        for i in range(self.r):
+            rt.append(((0, 0),
+                      (branches[branchids.index(branchidsbygen[0][i])].pos, (i+angle_index_offset)*angle)))
 
         gencount = 1
         while gencount<(len(branchidsbygen)):
@@ -203,25 +212,25 @@ class NTD():
             for i,bid in enumerate(branchidsbygen[gencount-1]):
                 bran = branches[branchids.index(bid)]
                 if gencount==1:
-                    rt0 = bran.ancestralLen, i*angle
+                    rt0 = bran.pos, i*angle
                 else:
-                    rt0 = (bran.ancestralLen, plotAngle[bran.label[:-1]] +
-                                              angle*(int(bran.label[-1]) + angle_index_offset))
+                    # branching angle is offset from parent branch
+                    rt0 = (bran.ancestralLen + bran.pos, plotAngle[bran.label[:-1]] +
+                                                         angle*(int(bran.label[-1]) + angle_index_offset))
                 plotAngle[bid] = rt0[1]
 
                 # find all its children and connect to them
                 for j in range(self.r):
                     if bran.label+str(j) in branchids:
                         childbran = branches[branchids.index(bran.label+str(j))]
-                        rt.append((rt0,(childbran.ancestralLen,
+                        #if gencount==(len(branchidsbygen)-1):
+                        rt.append((rt0,(childbran.ancestralLen + childbran.pos,
                                         plotAngle[childbran.label[:-1]] +
                                         angle/self.r*(int(childbran.label[-1]) + angle_index_offset))))
-
             gencount += 1
 
         xy = rt2xy(rt)
-        
-        unit = 1
+
         lineColl = []
         for p1,p2 in xy:
             el = np.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)

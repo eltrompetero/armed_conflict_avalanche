@@ -9,7 +9,7 @@ import pickle
 import pandas as pd
 
 
-def extract_from_df(subdf, clustersix, run_checks=False, null_type=None):
+def extract_from_df(subdf, clustersix, run_checks=False, null_type=None, iprint=False):
     """Extract the data points necessary from the DataFrame for analysis. These will be
     the time-ordered, day-by-day reports, fatalities, and locations.
 
@@ -31,6 +31,7 @@ def extract_from_df(subdf, clustersix, run_checks=False, null_type=None):
             require some more complicated gynamstics).
         'completelyflat': Set a single event per day between first and last days. More for
             a sanity check.
+    iprint : bool, False
 
     Returns
     -------
@@ -116,8 +117,9 @@ def extract_from_df(subdf, clustersix, run_checks=False, null_type=None):
         if run_checks:
             totalf += c['F'].sum()
             totals += c['S'].sum()
-
-        print("Done with %d."%i)
+        
+        if iprint:
+            print("Done with %d."%i)
 
     if run_checks:
         # check that days on which events happened increase monotonically
