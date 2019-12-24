@@ -1,6 +1,62 @@
+# ====================================================================================== #
+# Module for analyzing ACLED data.
+# Author: Eddie Lee, edlee@alumni.princeton.edu
+# ====================================================================================== #
 import numpy as np
 from statsmodels.stats.proportion import proportion_confint
+import matplotlib.pyplot as plt
+import os
 
+
+def setup_gif(t, lonlat, dr='gif', overwrite=False):
+    """Plot evolution of conflict avalanche simply by the order in which they appear in
+    the data by day.
+
+    Parameters
+    ----------
+    t : ndarray
+    lonlat : ndarray
+        Lonlat coordinates.
+    dr : str, 'gif'
+    overwrite : bool, False
+    """
+
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+
+    # check to see if folder exists
+    if os.path.isdir(dr):
+        if len(os.listdir(dr)) and not overwrite:
+            raise Exception
+        else:
+            for f in os.listdir(dr):
+                os.remove('%s/%s'%(dr,f))
+    else:
+        os.makedirs(dr)
+    
+    # make plot
+    fig = plt.figure(figsize=(12,12))
+    ax = fig.add_subplot(111, projection=ccrs.PlateCarree())
+    ax.add_feature(cfeature.LAND)
+    ax.add_feature(cfeature.OCEAN)
+    ax.add_feature(cfeature.COASTLINE)
+    ax.add_feature(cfeature.LAKES)
+    ax.add_feature(cfeature.RIVERS)
+    ax.add_feature(cfeature.BORDERS)
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False,
+                      linewidth=1, color='gray', alpha=0.5, linestyle='--')
+    ax.set_extent([-19, 53, -37, 39], crs=ccrs.PlateCarree())
+    
+    # iterate through all days from 0 til the end and save a figure for each day
+    for i in range(t.max()+1):
+        ix = i==t
+        if ix.any():
+            ax.plot(lonlat[ix,0], lonlat[ix,1], '.',
+                    c='C1',
+                    alpha=.1,
+                    mew=0,
+                    transform=ccrs.PlateCarree())
+        fig.savefig('%s/%s.png'%(dr,str(i).zfill(5)), dpi=120)
 
 def get_slopes(percent, traj):
     """Slope of temporal profile measured at beginning and end.
