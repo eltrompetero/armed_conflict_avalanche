@@ -46,6 +46,7 @@ def setup_gif(t, lonlat, dr='gif', overwrite=False):
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False,
                       linewidth=1, color='gray', alpha=0.5, linestyle='--')
     ax.set_extent([-19, 53, -37, 39], crs=ccrs.PlateCarree())
+    textvar = fig.text(0, 0, 'Day 0')
     
     # iterate through all days from 0 til the end and save a figure for each day
     for i in range(t.max()+1):
@@ -56,6 +57,8 @@ def setup_gif(t, lonlat, dr='gif', overwrite=False):
                     alpha=.1,
                     mew=0,
                     transform=ccrs.PlateCarree())
+        textvar.remove()
+        textvar = fig.text(.18, .2, 'Day %d'%i, fontsize=30)
         fig.savefig('%s/%s.png'%(dr,str(i).zfill(5)), dpi=120)
 
 def get_slopes(percent, traj):
