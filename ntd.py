@@ -4,6 +4,7 @@
 # ====================================================================================== #
 import numpy as np
 import multiprocess as mp
+from misc.stats import PowerLaw
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
@@ -398,11 +399,13 @@ class NTD():
 
 class ConflictReportsTrajectory(NTD):
     def __init__(self, r, b, gamma_s, theta_s, gamma_f, theta_f, rng=None):
-        """
+        """Growing conflict trees on NTDs. Basically, NTDs but with site dynamics to count
+        fatalities and reports.
+
         Parameters
         ----------
         r : int
-            Splitting number.
+            Splitting number for each branch.
         b : int
             Exponential growth base.
         gamma_s : float
@@ -423,6 +426,8 @@ class ConflictReportsTrajectory(NTD):
         self.gammas = gamma_s
         self.gammaf = gamma_f
         self.rng = rng or np.random
+
+        self.ALPHA = 2.44
 
     def grow(self,
              threshold_s,
@@ -520,7 +525,9 @@ class ConflictReportsTrajectory(NTD):
     def _grow(self, n_steps,
              record_every=10,
              mx_rand_coeff=None):
-        """Grow NTD while keeping track of the number of conflict reports at each site.
+        """Old version. Deprecated 2020/01/22.
+
+        Grow NTD while keeping track of the number of conflict reports at each site.
         
         Parameters
         ----------
@@ -583,8 +590,10 @@ class ConflictReportsTrajectory(NTD):
         self.radius = radius
         return radius, cumS, cumF
         
-    def sample(self, n_samples, durations,
-               record_every=10,
+    def sample(self, n_samples, c0,
+               v_s0=0.01,
+               v_s1=10_000,
+               record_every=1,
                iprint=True,
                **grow_kw):
         """Generate many example trajectories.
@@ -592,8 +601,11 @@ class ConflictReportsTrajectory(NTD):
         Parameters
         ----------
         n_samples : int
-        durations : int or ndarray
-        record_every : int, 10
+        c0 : float
+            Threshold coefficient for when avalanche ends.
+        v_s0 : float, 0.01
+        v_s1 : float, 10_000
+        record_every : int, 1
         iprint : bool, True
         **grow_kw
         
@@ -608,28 +620,39 @@ class ConflictReportsTrajectory(NTD):
         """
         
         assert n_samples>0
-        if type(durations) is int:
-            assert durations>0
-            durations = np.zeros(n_samples)+durations
-        elif type(durations) is np.ndarray:
-            assert (durations>0).all()
-        else:
-            raise Exception("Unrecognized type for durations.")
+        assert c0>0
+        assert 0<v_s0<v_s1
+        assert record_every>=1
 
-        def loop_wrapper(t, self=self):
+        def loop_wrapper(args, self=self):
+            i, v_s = args
             self.rng = np.random.RandomState()
-            r, s, f = self.grow(t, record_every=record_every, **grow_kw)
-            if iprint:
-                print("Done with avalanche of duration %d."%t)
-            return r, s, f
+            v_f = (v_s/v_s0)**1.5  # this relationship is from measuring d_F/z - delta_f/zeta
+            
+            # must be in the limit of single events per site in periphery
+            # cutoff scales with expected duration
+            rt, st, ft = self.grow(c0 * (v_s/v_s0)**(1-1/self.df), 
+                                   v_s, v_f, v_s0=v_s0, record_every=record_every)
+            n = len(self.deadSites)
+            # total number of events per site x
+            sx = np.array([site.cum(st.size+1) for site in self.deadSites])
+            
+            if i>0 and ((i+1)%10)==0 and iprint: print('Done with %d'%(i+1))
 
+            return rt, st, ft, n, sx
+        
+        # sample from virulence
+        pls = PowerLaw(self.ALPHA, lower_bound=v_s0, upper_bound=v_s1)
+        v_s = pls.rvs(size=n_samples)
+
+        # run parallelized sampling procedure
         try:
             pool = mp.Pool(mp.cpu_count()-1)
-            r, s, f = list(zip(*pool.map(loop_wrapper, durations)))
+            r, s, f, n, sx = list(zip(*pool.map(loop_wrapper, enumerate(v_s))))
         finally:
             pool.close()
             
-        return r, s, f
+        return r, s, f, v_s, np.array(n), sx
 #end ConflictReportsTrajectory
 
 CRT = ConflictReportsTrajectory
