@@ -19,7 +19,8 @@ from scipy.optimize import minimize
 import gmplot
 from warnings import warn
 from misc.globe import SphereCoordinate,PoissonDiscSphere,haversine,jithaversine
-from numba import jit,njit
+from numba import jit, njit
+import pickle
 DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
 
 
@@ -246,11 +247,21 @@ def _coarse_grain_voronoi_tess(dx, fileno):
 def voronoi_pix_diameter(spaceThreshold, n_samp=10):
     """Get an estimate of the average distance between the centers of Voronoi tiles by
     loading grid 00.p for each resolution specified.
+
+    Parameters
+    ----------
+    spaceThreshold : list
+        The space threshold parameter known as "dx".
+        Ranges from 1280 to 5 in factors of 2.
+    n_samp : int, 10
+        Number of random pairs to take average of.
     """
 
     pixDiameter = np.zeros(len(spaceThreshold))
     for i,dx in enumerate(spaceThreshold):
-        # there is a factor of 2 in how spacing is determined between points in Voronoi algo
+        # there is a factor of 2 in how spacing is determined between points in Voronoi
+        # algo because any neighboring "tiles" within 2r are considered to belong to the
+        # same cluster
         pixDiameter[i] = _sample_lattice_spacing(dx, n_samp) * 2
     return pixDiameter
 
@@ -259,17 +270,17 @@ def _sample_lattice_spacing(dx, sample_size):
     Parameters
     ----------
     dx : float
+        Separation length.
     sample_size : int
-        no of random points to use to estimate radius
+        No of random points to use to estimate radius (by taking mean).
         
     Returns
     -------
     dist : float
-        In units of km on Earth.
+        Distance from one point to its closest neighbor (km).
     """
 
-    import pickle
-    poissd=pickle.load(open('voronoi_grids/%d/00.p'%dx,'rb'))['poissd']
+    poissd = pickle.load(open('voronoi_grids/%d/00.p'%dx,'rb'))['poissd']
     
     if sample_size>len(poissd.samples):
         sample_size=len(poissd.samples)
@@ -280,7 +291,7 @@ def _sample_lattice_spacing(dx, sample_size):
     for i,ix in enumerate(randix):
         d[i] = poissd.closest_neighbor_dist(poissd.samples[ix])
 
-    return d.mean()*6370
+    return d.mean() * 6370
 
 def sample_sphere(n=1,degree=True):
     if degree:
