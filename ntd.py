@@ -4,6 +4,7 @@
 # ====================================================================================== #
 import numpy as np
 import multiprocess as mp
+from misc.stats import PowerLaw
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
@@ -397,34 +398,140 @@ class NTD():
 
 
 class ConflictReportsTrajectory(NTD):
-    def __init__(self, r, b, theta, gammas, gammaf, rng=None):
-        """
+    def __init__(self, r, b, gamma_s, theta_s, gamma_f, theta_f,
+                 alpha=2.44,
+                 rng=None):
+        """Growing conflict trees on NTDs. Basically, NTDs but with site dynamics to count
+        fatalities and reports.
+
         Parameters
         ----------
         r : int
-            Splitting number.
+            Splitting number for each branch.
         b : int
             Exponential growth base.
-        theta : float
-        gammas : float
+        gamma_s : float
             Growth exponent for reports.
-        gammaf : float
+        theta_s : float
+        gamma_f : float
             Growth exponent for fatalities.
-        rng : np.random.RandomState
+        theta_f : float
+        alpha : float, 2.44
+            Exponent for distribution of virulence.
+        rng : np.random.RandomState, None
         """
         
         assert r>1 and b>1
         self.r = r
         self.b = b
-        self.theta = theta
-        self.gammas = gammas
-        self.gammaf = gammaf
-        self.rng = rng or np.random.RandomState()
+        self.df = 1+np.log(r)/np.log(b)
+        self.thetas = theta_s
+        self.thetaf = theta_f
+        self.gammas = gamma_s
+        self.gammaf = gamma_f
+        self.rng = rng or np.random
 
-    def grow(self, n_steps,
+        self.alpha = alpha
+
+    def grow(self,
+             threshold_s,
+             v_s=1,
+             v_f=1,
+             v_s0=1,
              record_every=10,
              mx_rand_coeff=None):
-        """Grow NTD while keeping track of the number of conflict reports at each site.
+        """Grow NTD til the rate of endemic event generation drops below some given
+        threshold. We are guaranteed that this is what determines conflict extinction and
+        not the rate of new sites being added.
+        
+        Parameters
+        ----------
+        threshold_s : float
+            Rate threshold below which conflict avalanche stops. This does not include the
+            addition of the first event at every conflict site.
+        v_s : float or tuple, 1
+        v_f : float or tuple, 1
+        record_every : int, 10
+            Record max radius every number of steps.
+        max_rand_coeff : float, self.b
+            
+        Returns
+        -------
+        ndarray
+            Max radius (as measured from origin) per time step.
+        ndarray
+            Cumulative number of reports per time step.
+        ndarray
+            Cumulative number of fatalities per time step.
+        """
+        
+        b, r, ths, thf, gs, gf = self.b, self.r, self.thetas, self.thetaf, self.gammas, self.gammaf
+        mx_rand_coeff = mx_rand_coeff or b
+        growingBranches = [Branch('%d'%i, b) for i in range(r)]
+        deadBranches = []
+        radius = [0]
+        activeSites = [Site(0, v_s, gs, ths, v_f, gf, thf)]
+        deadSites = []
+        counter = 1  # time counter
+
+        while (v_s*counter**-(1/self.df)) > threshold_s:
+            # randomly select a branch to add onto
+            randix = self.rng.randint(len(growingBranches))
+            gb = growingBranches[randix]
+
+            # try to increment branch
+            # if branching point reached, then spawn children, remove dead branch, and try again
+            if not gb.grow():
+                # create all children of this branch
+                for j in range(r):
+                    # new branches have random length
+                    nb = Branch('%s%d'%(gb.label,j),
+                            int(b**(len(gb.label)+1) * self.rng.uniform(1/mx_rand_coeff, mx_rand_coeff)),
+                            ancestral_length=gb.len+gb.ancestralLen)
+                    growingBranches.append(nb)
+                deadBranches.append(growingBranches.pop(randix))
+
+            # else successfully added new conflict site and start generating events
+            # time only ticks in this portion of the loop
+            else:
+                # generate new site that starts at t=counter
+                activeSites.append(Site(counter, v_s, gs, ths, v_f, gf, thf))
+
+                if (counter%record_every)==0:
+                    radius.append(max([gb.pos+gb.ancestralLen for gb in growingBranches]))
+                counter += 1
+        deadSites = activeSites
+
+        radius = np.array(radius)
+        
+        # calculate size and fat trajectories in discrete units
+        cumS = np.zeros(counter, dtype=int)
+        cumF = np.zeros(counter, dtype=int)
+        for site in deadSites:
+            # starting report count comes from fluctuations induced through virulence
+            # this cannot go below 1 because every site, by definition, starts with at least one conflict
+            # event
+            assert site.v_s>=v_s0
+            #startingReportCount = int(v_s0 + 1)
+            startingReportCount = int(v_s/v_s0)
+            cumS[site.t0:] += (site.cum(np.arange(site.t0, counter), t0_offset=1).astype(int) +
+                               startingReportCount)
+            cumF[site.t0:] += site.cum_f(np.arange(site.t0, counter), t0_offset=1).astype(int)
+        
+        # save status of sim
+        self.growingBranches = growingBranches
+        self.deadBranches = deadBranches
+        self.radius = radius
+        self.deadSites = deadSites
+
+        return radius, cumS, cumF
+
+    def _grow(self, n_steps,
+             record_every=10,
+             mx_rand_coeff=None):
+        """Old version. Deprecated 2020/01/22.
+
+        Grow NTD while keeping track of the number of conflict reports at each site.
         
         Parameters
         ----------
@@ -445,7 +552,7 @@ class ConflictReportsTrajectory(NTD):
         
         cumF = np.zeros(n_steps, dtype=int)
         cumS = np.zeros(n_steps, dtype=int)
-        b, r, c, gs, gf = self.b, self.r, self.theta, self.gammas, self.gammaf
+        b, r, ths, thf, gs, gf = self.b, self.r, self.thetas, self.thetaf, self.gammas, self.gammaf
         mx_rand_coeff = mx_rand_coeff or b
         counter = 0
         growingBranches = [Branch('%d'%i, b) for i in range(r)]
@@ -470,10 +577,12 @@ class ConflictReportsTrajectory(NTD):
             # else successfully added new conflict site and start generating events
             else: 
                 # count all future events generated by this new conflict site
-                cumS[counter:] += (np.arange(n_steps-counter)**(1+gs) * (counter+1)**-c).astype(int)
+                cumS[counter:] += (np.arange(n_steps-counter)**(1+gs) * (counter+1)**-ths).astype(int)
                 # at least one event per site
                 cumS[counter:] += 1
-                cumF[counter:] += (np.arange(n_steps-counter)**(1+gf) * (counter+1)**-c).astype(int)
+                cumF[counter:] += (np.arange(n_steps-counter)**(1+gf) * (counter+1)**-thf).astype(int)
+                # at least one event per site
+                cumF[counter:] += 1
                 
                 if (counter%record_every)==0:
                     radius.append(max([gb.pos+gb.ancestralLen for gb in growingBranches]))
@@ -485,8 +594,10 @@ class ConflictReportsTrajectory(NTD):
         self.radius = radius
         return radius, cumS, cumF
         
-    def sample(self, n_samples, durations,
-               record_every=10,
+    def sample(self, n_samples, c0,
+               v_s0=0.01,
+               v_s1=10_000,
+               record_every=1,
                iprint=True,
                **grow_kw):
         """Generate many example trajectories.
@@ -494,8 +605,11 @@ class ConflictReportsTrajectory(NTD):
         Parameters
         ----------
         n_samples : int
-        durations : int or ndarray
-        record_every : int, 10
+        c0 : float
+            Threshold coefficient for when avalanche ends.
+        v_s0 : float, 0.01
+        v_s1 : float, 10_000
+        record_every : int, 1
         iprint : bool, True
         **grow_kw
         
@@ -510,29 +624,42 @@ class ConflictReportsTrajectory(NTD):
         """
         
         assert n_samples>0
-        if type(durations) is int:
-            assert durations>0
-            durations = np.zeros(n_samples)+durations
-        elif type(durations) is np.ndarray:
-            assert (durations>0).all()
-        else:
-            raise Exception("Unrecognized type for durations.")
+        assert c0>0
+        assert 0<v_s0<v_s1
+        assert record_every>=1
 
-        def loop_wrapper(t, self=self):
+        def loop_wrapper(args, self=self):
+            i, v_s = args
             self.rng = np.random.RandomState()
-            r, s, f = self.grow(t, record_every=record_every, **grow_kw)
-            if iprint:
-                print("Done with avalanche of duration %d."%t)
-            return r, s, f
+            v_f = (v_s/v_s0)**1.5  # this relationship is from measuring d_F/z - delta_f/zeta
+            
+            # must be in the limit of single events per site in periphery
+            # cutoff scales with expected duration
+            rt, st, ft = self.grow(c0 * (v_s/v_s0)**(1-1/self.df), 
+                                   v_s, v_f, v_s0=v_s0, record_every=record_every)
+            n = len(self.deadSites)
+            # total number of events per site x
+            sx = np.array([site.cum(st.size+1) for site in self.deadSites])
+            
+            if i>0 and ((i+1)%10)==0 and iprint: print('Done with %d'%(i+1))
 
+            return rt, st, ft, n, sx
+        
+        # sample from virulence
+        pls = PowerLaw(self.alpha, lower_bound=v_s0, upper_bound=v_s1)
+        v_s = pls.rvs(size=n_samples)
+
+        # run parallelized sampling procedure
         try:
             pool = mp.Pool(mp.cpu_count()-1)
-            r, s, f = list(zip(*pool.map(loop_wrapper, durations)))
+            r, s, f, n, sx = list(zip(*pool.map(loop_wrapper, enumerate(v_s))))
         finally:
             pool.close()
             
-        return r, s, f
+        return r, s, f, v_s, np.array(n), sx
 #end ConflictReportsTrajectory
+
+CRT = ConflictReportsTrajectory
 
 
 # ================ #
@@ -548,3 +675,93 @@ def rt2xy(rt):
     xy = [((row[0],row[1]),(row[2],row[3])) for row in xy]
 
     return xy
+
+# ============== #
+# Helper classes #
+# ============== #
+class Site():
+    """Conflict site with accumulation dynamics for both reports and fatalities."""
+    def __init__(self,
+                 t0,
+                 v_s,
+                 gamma_s,
+                 theta_s,
+                 v_f,
+                 gamma_f,
+                 theta_f,
+                 rng=None):
+        """
+        Parameters
+        ----------
+        t0 : int
+            Time at which conflict site was born.
+        v_s : float or tuple
+            Quenched disorder.
+        gamma_s : float
+            Rate exponent.
+        theta_s : float
+            Suppression exponent.
+        v_f : float or tuple
+        gamma_f : float
+        theta_f : float
+        rng : np.random.RandomState, None
+        """
+
+        assert theta_s>0 and gamma_s<0
+        assert theta_f>0 and gamma_f<0
+
+        self.t0 = t0
+        self.gamma_s = gamma_s
+        self.theta_s = theta_s
+        self.gamma_f = gamma_f
+        self.theta_f = theta_f
+        self.rng = rng or np.random
+
+        if hasattr(v_s,'__len__'):
+            self.v_s = self.rng.exponential(scale=v_s[0])
+        else:
+            assert v_s>0
+            self.v_s = v_s
+
+        if hasattr(v_f,'__len__'):
+            self.v_f = self.rng.exponential(scale=v_f[0])
+        else:
+            assert v_f>0
+            self.v_f = v_f
+
+        self.rate = self.rate_s
+        self.cum = self.cum_s
+
+    def rate_s(self, t, t0_offset=1):
+        """Instantaneous rate of conflict events.
+        """
+        
+        self.check_t(t)
+        return self.v_s * (t-self.t0+t0_offset)**self.gamma_s * (self.t0+t0_offset)**-self.theta_s
+
+    def cum_s(self, t, t0_offset=1):
+        """Cumulative conflict events.
+        """
+
+        self.check_t(t)
+        return self.v_s * (t-self.t0+t0_offset)**(1+self.gamma_s) * (self.t0+t0_offset)**-self.theta_s
+
+    def rate_f(self, t, t0_offset=1):
+        """Instantaneous rate of conflict events.
+        """
+
+        self.check_t(t)
+        return self.v_f * (t-self.t0+t0_offset)**self.gamma_f * (self.t0+t0_offset)**-self.theta_f
+
+    def cum_f(self, t, t0_offset=1):
+        """Cumulative conflict events.
+        """
+
+        self.check_t(t)
+        return self.v_f * (t-self.t0+t0_offset)**(1+self.gamma_f) * (self.t0+t0_offset)**-self.theta_f
+    
+    def check_t(self, t):
+        if hasattr(t, '__len__'):
+            assert (t>=self.t0).all()
+        else:
+            assert t>=self.t0, (t, self.t0)

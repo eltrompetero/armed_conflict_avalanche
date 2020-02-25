@@ -1,7 +1,7 @@
-# =============================================================================================== #
+# ====================================================================================== #
 # Module for analyzing ACLED data.
 # Author: Eddie Lee, edlee@alumni.princeton.edu
-# =============================================================================================== #
+# ====================================================================================== #
 from .acled_utils import *
 from data_sets.acled import *
 import pickle
@@ -13,12 +13,33 @@ from misc.powerlaw import discrete_powerlaw_correction_spline, powerlaw_correcti
 # ================= #
 # Helper functions. #
 # ================= #
+def default_dr(event_type='battle'):
+    """Return default directory for event type.
+
+    Parameters
+    ----------
+    event_type : str, 'battle'
+
+    Returns
+    -------
+    str
+    """
+    
+    if event_type=='battle':
+        return 'geosplits/africa/battle/full_data_set/bin_agg'
+    elif event_type=='civ_violence':
+        return 'geosplits/africa/civ_violence/full_data_set/bin_agg'
+    elif event_type=='riots':
+        return 'geosplits/africa/riots/full_data_set/bin_agg'
+    else: raise Exception("Unrecognized event type.")
+
 def diameter_lower_bound_range(d):
     """Return lower_bound_range to be used for fitting procedure.
     
     Fitting procedure ignores data sets without sufficient dynamic range. These are
     excluded from the realm of possibilities. This sets a bound on the variance of the
-    estimated exponent."""
+    estimated exponent.
+    """
 
     d = d[d>0]
     if (d.max()/d.min())<5:
@@ -37,26 +58,38 @@ def discrete_lower_bound_range(d):
         return None
     return d.min(), d.max()
 
-def load_default_pickles(gridno=0):
+def load_default_pickles(gridno=0,
+                         region='africa',
+                         event_type='battle'):
     """For shortening the preamble on most Jupyter notebooks.
+
+    Parameters
+    ----------
+    gridno : int, 0
+    event_type : str, 'battle'
+
+    Returns
+    -------
+    pandas.DataFrame
+        Data set of all conflict events of given type.
+    dict of list
+        Clustered conflict data points.
     """
 
     # voronoi binary aggregation
-    region = 'africa'
     prefix = 'voronoi_noactor_'
     method = 'voronoi'
-    eventType = 'battle'
-    folder = 'geosplits/%s/%s/full_data_set/bin_agg'%(region,eventType)
+    folder = 'geosplits/%s/%s/full_data_set/bin_agg'%(region,event_type)
 
     # Load data
     subdf = pickle.load(open('%s/%sdf.p'%(folder, prefix),'rb'))['subdf']
-    L = 9
-    T = 11
 
     fname = '%s/%s%s'%(folder,prefix,'grid%s.p'%str(gridno).zfill(2))
     gridOfSplits = pickle.load(open(fname,'rb'))['gridOfSplits']
     
     return subdf, gridOfSplits
+
+
 
 # =================== # 
 # Pipeline functions. #
