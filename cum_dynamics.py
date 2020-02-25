@@ -9,11 +9,16 @@ import pickle
 import pandas as pd
 
 
-def extract_from_df(subdf, clustersix, run_checks=False, null_type=None, iprint=False):
+def extract_from_df(subdf, clustersix,
+                    run_checks=False,
+                    null_type=None,
+                    iprint=False):
     """Extract the data points necessary from the DataFrame for analysis. These will be
     the time-ordered, day-by-day reports, fatalities, and locations.
 
     Reports and fatalities are summed by day. Max locations are saved.
+
+    This is the main function to run in this module.
 
     Parameters
     ----------

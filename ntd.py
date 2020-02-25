@@ -398,7 +398,9 @@ class NTD():
 
 
 class ConflictReportsTrajectory(NTD):
-    def __init__(self, r, b, gamma_s, theta_s, gamma_f, theta_f, rng=None):
+    def __init__(self, r, b, gamma_s, theta_s, gamma_f, theta_f,
+                 alpha=2.44,
+                 rng=None):
         """Growing conflict trees on NTDs. Basically, NTDs but with site dynamics to count
         fatalities and reports.
 
@@ -414,6 +416,8 @@ class ConflictReportsTrajectory(NTD):
         gamma_f : float
             Growth exponent for fatalities.
         theta_f : float
+        alpha : float, 2.44
+            Exponent for distribution of virulence.
         rng : np.random.RandomState, None
         """
         
@@ -427,7 +431,7 @@ class ConflictReportsTrajectory(NTD):
         self.gammaf = gamma_f
         self.rng = rng or np.random
 
-        self.ALPHA = 2.44
+        self.alpha = alpha
 
     def grow(self,
              threshold_s,
@@ -642,7 +646,7 @@ class ConflictReportsTrajectory(NTD):
             return rt, st, ft, n, sx
         
         # sample from virulence
-        pls = PowerLaw(self.ALPHA, lower_bound=v_s0, upper_bound=v_s1)
+        pls = PowerLaw(self.alpha, lower_bound=v_s0, upper_bound=v_s1)
         v_s = pls.rvs(size=n_samples)
 
         # run parallelized sampling procedure
