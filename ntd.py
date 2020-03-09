@@ -488,9 +488,10 @@ class ConflictReportsTrajectory(NTD):
         growingBranches = [Branch('%d'%i, b) for i in range(r)]
         deadBranches = []
         radius = [0]
-        activeSites = [Site(1, v_s, g_s, ths, v_f, g_f, thf)]
-        deadSites = [Site(0, v_s, g_s, ths, v_f, g_f, thf)]  # seed site
-        counter = 2  # time counter
+        activeSites = [Site(0, v_s, g_s, ths, v_f, g_f, thf)]  # seed site
+        deadSites = []
+        t0 = [0]  # start time for branch
+        counter = 1  # time counter
         
         # grow randomly branching tree
         while ((v_s * counter**(1 - 2 / self.df)) > threshold_s) and counter<=mx_counter:
@@ -515,6 +516,7 @@ class ConflictReportsTrajectory(NTD):
             else:
                 # generate new site that starts at t=counter
                 activeSites.append( Site(counter, v_s, g_s, ths, v_f, g_f, thf) )
+                t0.append(counter)
 
                 if (counter%record_every)==0:
                     radius.append(max([gb.pos+gb.ancestralLen for gb in growingBranches]))
@@ -554,7 +556,7 @@ class ConflictReportsTrajectory(NTD):
         self.radius = radius
         self.deadSites = deadSites
 
-        return radius, cumS, cumF
+        return np.array(t0), radius, cumS, cumF
         
     def sample(self, n_samples, c0,
                v_s0=0.01,
@@ -567,7 +569,7 @@ class ConflictReportsTrajectory(NTD):
 
         Randomly sampling from virulence distribution given
             V_s ~ T,
-            V_f ~ T^{3/2},
+            V_f ~ T^{3/2} ~ V_s^{3/2},
             C_s = C_0 * T^{2 - 2/z}
         
         Parameters
@@ -606,7 +608,7 @@ class ConflictReportsTrajectory(NTD):
             
             # must be in the limit of single events per site in periphery
             # cutoff scales with expected duration
-            rt, st, ft = self.grow(c0 * (v_s/v_s0)**(2 - 2/self.df), v_s, v_f,
+            t0, rt, st, ft = self.grow(c0 * (v_s/v_s0)**(2 - 2/self.df), v_s, v_f,
                                    v_s0=v_s0,
                                    record_every=record_every)
             n = len(self.deadSites)
@@ -616,7 +618,7 @@ class ConflictReportsTrajectory(NTD):
             # print mod10 counter
             if i>0 and ((i+1)%10)==0 and iprint: print('Done with %d'%(i+1))
 
-            return rt, st, ft, n, sx
+            return rt, st, ft, n, t0, sx
         
         # sample from virulence
         pls = PowerLaw(self.alpha, lower_bound=v_s0, upper_bound=v_s1)
@@ -625,11 +627,11 @@ class ConflictReportsTrajectory(NTD):
         # run parallelized sampling procedure
         try:
             pool = mp.Pool(n_cpus)
-            r, s, f, n, sx = list(zip(*pool.map(loop_wrapper, enumerate(v_s))))
+            r, s, f, n, t0, sx = list(zip(*pool.map(loop_wrapper, enumerate(v_s))))
         finally:
             pool.close()
             
-        return r, s, f, v_s, np.array(n), sx
+        return r, s, f, v_s, np.array(n), t0, sx
 #end ConflictReportsTrajectory
 
 CRT = ConflictReportsTrajectory
