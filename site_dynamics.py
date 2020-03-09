@@ -140,7 +140,7 @@ class ThetaFitter():
                 """
                 
                 a, logb = args
-                if a<=0 or logb>10 : return 1e30
+                if a<=0 or logb>10 or theta<0 : return 1e30
 
                 # weighted
                 if weighted:
@@ -163,7 +163,7 @@ class ThetaFitter():
                 """
                 
                 a, logb, c = args
-                if a<=0 or logb>10 or c<0: return 1e30
+                if a<=0 or logb>10 or c<0 or theta<0 : return 1e30
 
                 # weighted
                 if weighted:
@@ -186,7 +186,7 @@ class ThetaFitter():
             a, logb, c
         """
 
-        self.theta = brute(self.cost_given_theta, ([-.4,-.8],), Ns=5)[0]
+        self.theta = brute(self.cost_given_theta, ([.4, 1.5],), Ns=10)[0]
         if c:
             self.a, self.logb = self.cost_given_theta(self.theta, c=c, full_output=True)['x']
             self.c = c
@@ -194,9 +194,41 @@ class ThetaFitter():
             self.a, self.logb, self.c = self.cost_given_theta(self.theta, full_output=True)['x']
         return self.theta, (self.a, self.logb, self.c)
 
+
+    def boot_error_bars(self, n_sample):
+        """Use bootstrap sampling to generate error bars on average profile.
+
+        Parameters
+        ----------
+        n_sample : int
+        """
+
+        np.random.seed(0) 
+        d = self.gammaplus1 - self.theta
+        avgdur = self.avg_profile()[0]
+        newavgdur = np.zeros((n_sample, avgdur.size))
+        
+        for counter in range(n_sample):
+            # random sample
+            randix = np.random.randint(self.g.size, size=self.g.size)
+            g_ = self.g[randix]
+            num = [self.trajectories[ix] for ix in randix]
+            den = [self.clusterT[ix] for ix in randix]
+
+            binsix_ = np.digitize(g_, self.bins)
+            
+            # calculate bootstrap sample average
+            for i in np.unique(binsix_)[:1]:
+                newavgdur[counter,i] += np.mean([num[ix].sum() / den[ix]**d
+                                                 for ix in np.where(binsix_==i)[0]])
+        
+        return np.vstack([avgdur - np.percentile(newavgdur, 5, axis=0),
+                          np.percentile(newavgdur, 95, axis=0) - avgdur])
+
     def plot(self, errs,
              theta_lb=None,
-             theta_ub=None):
+             theta_ub=None,
+             var='s'):
         """Plot fit to data alongside given data.
 
         Parameters
@@ -206,17 +238,19 @@ class ThetaFitter():
         theta_lb : float, None
             This is plotted if both theta_lb and theta_ub are specified.
         theta_ub : float, None
+        var : str, 's'
+            Variable that we're fitting in order to change the axis labels.
 
         Returns
         -------
         mpl.Figure
         """
         
-        avgdur, stddur = self.avg_profile(self.theta)
+        avgdur, stddur = self.avg_profile()
 
         # setup
         b = np.exp(self.logb)
-        x = np.linspace(.02, 1, 1000)
+        x = np.linspace(.02, .98, 1000)
         h = []
         fig, ax = plt.subplots()
         
@@ -232,7 +266,7 @@ class ThetaFitter():
         
         # plot properties
         ax.set(xlabel=r'relative starting time $g=t_0/T$',
-               ylabel=r'$\widebar{s_{x_i}(t_0/T})/T^{1+\gamma_s-\theta_s}$',
+               ylabel=r'$\widebar{%s_{x_i}(t_0/T})/T^{1+\gamma_{%s}-\theta_{%s}}$'%(var,var,var),
                xlim=(-.05,1.05),
                yscale='log')
         if not theta_lb is None and not theta_ub is None:
@@ -241,14 +275,14 @@ class ThetaFitter():
                        r'$\theta=%1.2f$'%self.theta,
                        r'$\theta^+$, $\theta^-$',
                        r'$\theta=0$',
-                       r'$\langle s(t_0)\rangle$'),
+                       r'$\langle %s(t_0)\rangle$'%var),
                       fontsize='small', handlelength=1, loc=3, ncol=2, columnspacing=.55)
         else:
             ax.legend(h, 
                       ('Data',
                        r'$\theta=%1.2f$'%self.theta,
                        r'$\theta=0$',
-                       r'$\langle s(t_0)\rangle$'),
+                       r'$\langle %s(t_0)\rangle$'%var),
                       fontsize='small', handlelength=1, loc=3, ncol=2, columnspacing=.55)
 
         return fig
