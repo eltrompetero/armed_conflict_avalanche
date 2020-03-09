@@ -439,6 +439,7 @@ class ConflictReportsTrajectory(NTD):
              v_f=1,
              v_s0=1,
              s0=1/15,
+             f0=1.8,
              record_every=10,
              mx_rand_coeff=None,
              mx_counter=np.inf):
@@ -459,6 +460,9 @@ class ConflictReportsTrajectory(NTD):
             Lower limit for distribution of v_s.
         s0 : float, 1/15
             Default value from calculation of averaged s0 (Conflict III, pg. 90).
+            Calculated in "2019-10-01 internal conflict avalanche dynamics.ipynb".
+        f0 : float, 1.83
+            Calculated in "2019-10-01 internal conflict avalanche dynamics.ipynb".
         record_every : int, 10
             Record max radius every number of steps.
         mx_rand_coeff : float, self.b
@@ -520,15 +524,18 @@ class ConflictReportsTrajectory(NTD):
         radius = np.array(radius)
         
         # calculate size and fat trajectories in discrete units
-        cumS = np.zeros(counter, dtype=int)  # by defn, avalanche must start with at least 1 event
+        cumS = np.zeros(counter, dtype=int)
         cumF = np.zeros(counter, dtype=int)
         for i, site in enumerate(deadSites):
-            # the seed site comes with at least one event by definition
+            # the seed site comes with at least one report by definition
             if i==0:
                 startingReportCount = 1
                 cumS[site.t0:] += (site.cum(np.arange(site.t0, counter), t0_offset=1).astype(int) +
                                    startingReportCount)
-                cumF[site.t0:] += site.cum_f(np.arange(site.t0, counter), t0_offset=1).astype(int)
+
+                startingFatCount = self.rng.poisson(v_f * f0)
+                cumF[site.t0:] += (site.cum_f(np.arange(site.t0, counter), t0_offset=1).astype(int) +
+                                   startingFatCount)
             else:
                 # this check only applies with v_s is randomly sampled
                 assert site.v_s>=v_s0
@@ -536,7 +543,10 @@ class ConflictReportsTrajectory(NTD):
                 startingReportCount = self.rng.poisson(v_s / v_s0 * s0)  
                 cumS[site.t0:] += (site.cum(np.arange(site.t0, counter), t0_offset=1).astype(int) +
                                    startingReportCount)
-                cumF[site.t0:] += site.cum_f(np.arange(site.t0, counter), t0_offset=1).astype(int)
+
+                startingFatCount = self.rng.poisson(v_f * f0)
+                cumF[site.t0:] += (site.cum_f(np.arange(site.t0, counter), t0_offset=1).astype(int) +
+                                   startingFatCount)
         
         # save status of sim
         self.growingBranches = growingBranches
