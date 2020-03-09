@@ -97,6 +97,8 @@ def extract_from_df(subdf, clustersix,
                               'SIZES':np.ones(dt+1),
                               'LONGITUDE':np.random.choice(c['LONGITUDE'].values, size=dt+1),
                               'LATITUDE':np.random.choice(c['LATITUDE'].values, size=dt+1)})
+        elif not null_type is None:
+            raise NotImplementedError("Unrecognized null type.")
 
         # distance is the cum max
         lonlat = c.loc[:,('LONGITUDE','LATITUDE')].values
@@ -144,9 +146,9 @@ def interp_clusters(clusters, x_interp, method=None):
     clusters : list
     x_interp : ndarray
     method : str, None
-        Force particular method on all trajectories.
-        'piecewise'
-        'linear'
+        Force particular method on all trajectories instead of assigning piecewise
+        interpolation to sizes and fatalities and linear interpolation on dynamics.
+        Possible values are 'piecewise' and 'linear'.
 
     Returns
     -------
