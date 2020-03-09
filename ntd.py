@@ -438,22 +438,34 @@ class ConflictReportsTrajectory(NTD):
              v_s=1,
              v_f=1,
              v_s0=1,
+             s0=1/15,
              record_every=10,
-             mx_rand_coeff=None):
-        """Grow NTD til the rate of endemic event generation drops below some given
-        threshold. We are guaranteed that this is what determines conflict extinction and
-        not the rate of new sites being added.
+             mx_rand_coeff=None,
+             mx_counter=np.inf):
+        """Grow NTD til the rate of events added from new sites joining at the periphery
+        falls below a fixed threshold. This is different from dynamics determined by
+        endemic conflict event generation at each site.
+
+        [total rate] = virulence * ( [endemic site rate] + [mean new site rate] )
         
         Parameters
         ----------
         threshold_s : float
-            Rate threshold below which conflict avalanche stops. This does not include the
-            addition of the first event at every conflict site.
+            Rate threshold below which conflict avalanche stops.
         v_s : float or tuple, 1
+            If tuple, determines parameters for random sampling.
         v_f : float or tuple, 1
+        v_s0 : float, 1
+            Lower limit for distribution of v_s.
+        s0 : float, 1/15
+            Default value from calculation of averaged s0 (Conflict III, pg. 90).
         record_every : int, 10
             Record max radius every number of steps.
-        max_rand_coeff : float, self.b
+        mx_rand_coeff : float, self.b
+            Coefficient for determining magnitude of random fluctuations in lengths of
+            branches.
+        mx_counter : int, np.inf
+            Max number of iterations to allow.
             
         Returns
         -------
@@ -465,29 +477,32 @@ class ConflictReportsTrajectory(NTD):
             Cumulative number of fatalities per time step.
         """
         
-        b, r, ths, thf, gs, gf = self.b, self.r, self.thetas, self.thetaf, self.gammas, self.gammaf
+        b, r, ths, thf, g_s, g_f = self.b, self.r, self.thetas, self.thetaf, self.gammas, self.gammaf
         mx_rand_coeff = mx_rand_coeff or b
+        assert mx_counter>2
+
         growingBranches = [Branch('%d'%i, b) for i in range(r)]
         deadBranches = []
         radius = [0]
-        activeSites = [Site(0, v_s, gs, ths, v_f, gf, thf)]
-        deadSites = []
-        counter = 1  # time counter
-
-        while (v_s*counter**-(1/self.df)) > threshold_s:
-            # randomly select a branch to add onto
+        activeSites = [Site(1, v_s, g_s, ths, v_f, g_f, thf)]
+        deadSites = [Site(0, v_s, g_s, ths, v_f, g_f, thf)]  # seed site
+        counter = 2  # time counter
+        
+        # grow randomly branching tree
+        while ((v_s * counter**(1 - 2 / self.df)) > threshold_s) and counter<=mx_counter:
+            # randomly select a branch to extend
             randix = self.rng.randint(len(growingBranches))
             gb = growingBranches[randix]
 
-            # try to increment branch
+            # try to extend selected branch
             # if branching point reached, then spawn children, remove dead branch, and try again
             if not gb.grow():
-                # create all children of this branch
+                # create r children of this branch
                 for j in range(r):
                     # new branches have random length
                     nb = Branch('%s%d'%(gb.label,j),
-                            int(b**(len(gb.label)+1) * self.rng.uniform(1/mx_rand_coeff, mx_rand_coeff)),
-                            ancestral_length=gb.len+gb.ancestralLen)
+                                int(b**(len(gb.label)+1) * self.rng.uniform(1/mx_rand_coeff, mx_rand_coeff)),
+                                ancestral_length=gb.len+gb.ancestralLen)
                     growingBranches.append(nb)
                 deadBranches.append(growingBranches.pop(randix))
 
@@ -495,28 +510,33 @@ class ConflictReportsTrajectory(NTD):
             # time only ticks in this portion of the loop
             else:
                 # generate new site that starts at t=counter
-                activeSites.append(Site(counter, v_s, gs, ths, v_f, gf, thf))
+                activeSites.append( Site(counter, v_s, g_s, ths, v_f, g_f, thf) )
 
                 if (counter%record_every)==0:
                     radius.append(max([gb.pos+gb.ancestralLen for gb in growingBranches]))
                 counter += 1
-        deadSites = activeSites
-
+        
+        deadSites += activeSites
         radius = np.array(radius)
         
         # calculate size and fat trajectories in discrete units
-        cumS = np.zeros(counter, dtype=int)
+        cumS = np.zeros(counter, dtype=int)  # by defn, avalanche must start with at least 1 event
         cumF = np.zeros(counter, dtype=int)
-        for site in deadSites:
-            # starting report count comes from fluctuations induced through virulence
-            # this cannot go below 1 because every site, by definition, starts with at least one conflict
-            # event
-            assert site.v_s>=v_s0
-            #startingReportCount = int(v_s0 + 1)
-            startingReportCount = int(v_s/v_s0)
-            cumS[site.t0:] += (site.cum(np.arange(site.t0, counter), t0_offset=1).astype(int) +
-                               startingReportCount)
-            cumF[site.t0:] += site.cum_f(np.arange(site.t0, counter), t0_offset=1).astype(int)
+        for i, site in enumerate(deadSites):
+            # the seed site comes with at least one event by definition
+            if i==0:
+                startingReportCount = 1
+                cumS[site.t0:] += (site.cum(np.arange(site.t0, counter), t0_offset=1).astype(int) +
+                                   startingReportCount)
+                cumF[site.t0:] += site.cum_f(np.arange(site.t0, counter), t0_offset=1).astype(int)
+            else:
+                # this check only applies with v_s is randomly sampled
+                assert site.v_s>=v_s0
+                # starting report count depends on virulence v_s and s0 (could be 0)
+                startingReportCount = self.rng.poisson(v_s / v_s0 * s0)  
+                cumS[site.t0:] += (site.cum(np.arange(site.t0, counter), t0_offset=1).astype(int) +
+                                   startingReportCount)
+                cumF[site.t0:] += site.cum_f(np.arange(site.t0, counter), t0_offset=1).astype(int)
         
         # save status of sim
         self.growingBranches = growingBranches
@@ -525,92 +545,32 @@ class ConflictReportsTrajectory(NTD):
         self.deadSites = deadSites
 
         return radius, cumS, cumF
-
-    def _grow(self, n_steps,
-             record_every=10,
-             mx_rand_coeff=None):
-        """Old version. Deprecated 2020/01/22.
-
-        Grow NTD while keeping track of the number of conflict reports at each site.
-        
-        Parameters
-        ----------
-        n_steps : int
-        record_every : int, 10
-            Record max radius every number of steps.
-        max_rand_coeff : float, self.b
-            
-        Returns
-        -------
-        ndarray
-            Max radius (as measured from origin) per time step.
-        ndarray
-            Cumulative number of reports per time step.
-        ndarray
-            Cumulative number of fatalities per time step.
-        """
-        
-        cumF = np.zeros(n_steps, dtype=int)
-        cumS = np.zeros(n_steps, dtype=int)
-        b, r, ths, thf, gs, gf = self.b, self.r, self.thetas, self.thetaf, self.gammas, self.gammaf
-        mx_rand_coeff = mx_rand_coeff or b
-        counter = 0
-        growingBranches = [Branch('%d'%i, b) for i in range(r)]
-        deadBranches = []
-        radius = []
-
-        while counter<n_steps:
-            # randomly select a branch to add onto
-            randix = self.rng.randint(len(growingBranches))
-            gb = growingBranches[randix]
-            # try to increment branch
-            # if branching point reached, then spawn children, remove dead branch, and try again
-            if not gb.grow():
-                # create all children of this branch
-                for j in range(r):
-                    # new branches have random length
-                    nb = Branch('%s%d'%(gb.label,j),
-                            int(b**(len(gb.label)+1) * self.rng.uniform(1/mx_rand_coeff, mx_rand_coeff)),
-                            ancestral_length=gb.len+gb.ancestralLen)
-                    growingBranches.append(nb)
-                deadBranches.append(growingBranches.pop(randix))
-            # else successfully added new conflict site and start generating events
-            else: 
-                # count all future events generated by this new conflict site
-                cumS[counter:] += (np.arange(n_steps-counter)**(1+gs) * (counter+1)**-ths).astype(int)
-                # at least one event per site
-                cumS[counter:] += 1
-                cumF[counter:] += (np.arange(n_steps-counter)**(1+gf) * (counter+1)**-thf).astype(int)
-                # at least one event per site
-                cumF[counter:] += 1
-                
-                if (counter%record_every)==0:
-                    radius.append(max([gb.pos+gb.ancestralLen for gb in growingBranches]))
-                counter += 1
-        radius = np.array(radius)
-        
-        self.growingBranches = growingBranches
-        self.deadBranches = deadBranches
-        self.radius = radius
-        return radius, cumS, cumF
         
     def sample(self, n_samples, c0,
                v_s0=0.01,
                v_s1=10_000,
                record_every=1,
                iprint=True,
+               n_cpus=None,
                **grow_kw):
         """Generate many example trajectories.
+
+        Randomly sampling from virulence distribution given
+            V_s ~ T,
+            V_f ~ T^{3/2},
+            C_s = C_0 * T^{2 - 2/z}
         
         Parameters
         ----------
         n_samples : int
         c0 : float
-            Threshold coefficient for when avalanche ends.
+            Threshold coefficient for when avalanche ends. This is multiplied by a scaling
+            function of total duration to get cutoff for any given avalanche simulation.
         v_s0 : float, 0.01
         v_s1 : float, 10_000
         record_every : int, 1
         iprint : bool, True
+        n_cpus : int, None
         **grow_kw
         
         Returns
@@ -627,20 +587,23 @@ class ConflictReportsTrajectory(NTD):
         assert c0>0
         assert 0<v_s0<v_s1
         assert record_every>=1
+        n_cpus = n_cpus or mp.cpu_count()-1
 
         def loop_wrapper(args, self=self):
             i, v_s = args
             self.rng = np.random.RandomState()
-            v_f = (v_s/v_s0)**1.5  # this relationship is from measuring d_F/z - delta_f/zeta
+            v_f = (v_s / v_s0)**1.5  # this relationship is from measuring d_F/z - delta_f/zeta
             
             # must be in the limit of single events per site in periphery
             # cutoff scales with expected duration
-            rt, st, ft = self.grow(c0 * (v_s/v_s0)**(1-1/self.df), 
-                                   v_s, v_f, v_s0=v_s0, record_every=record_every)
+            rt, st, ft = self.grow(c0 * (v_s/v_s0)**(2 - 2/self.df), v_s, v_f,
+                                   v_s0=v_s0,
+                                   record_every=record_every)
             n = len(self.deadSites)
             # total number of events per site x
             sx = np.array([site.cum(st.size+1) for site in self.deadSites])
             
+            # print mod10 counter
             if i>0 and ((i+1)%10)==0 and iprint: print('Done with %d'%(i+1))
 
             return rt, st, ft, n, sx
@@ -651,7 +614,7 @@ class ConflictReportsTrajectory(NTD):
 
         # run parallelized sampling procedure
         try:
-            pool = mp.Pool(mp.cpu_count()-1)
+            pool = mp.Pool(n_cpus)
             r, s, f, n, sx = list(zip(*pool.map(loop_wrapper, enumerate(v_s))))
         finally:
             pool.close()
