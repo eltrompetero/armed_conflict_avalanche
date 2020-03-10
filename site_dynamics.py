@@ -259,6 +259,7 @@ class ThetaFitter():
         Returns
         -------
         mpl.Figure
+        mpl.Axes
         """
         
         avgdur, stddur = self.avg_profile()
@@ -299,7 +300,7 @@ class ThetaFitter():
                        r'$\langle %s(t_0)\rangle$'%var),
                       fontsize='small', handlelength=1, loc=3, ncol=2, columnspacing=.55)
 
-        return fig
+        return fig, ax
 
     def pipeline_theta_estimate_bootstrap(self, n_samples):
         raise NotImplementedError
@@ -404,7 +405,7 @@ class SiteExtractor():
         self.eventsPerSite = eventsPerSite
     
     def define_one_cluster_wrapper(self):
-        """
+        """This function will be fed into .run().
         """
         def one_cluster_wrapper(args, resolutionRange=self.resolutionRange):
             """main loop

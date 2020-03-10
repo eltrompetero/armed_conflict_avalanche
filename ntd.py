@@ -424,7 +424,7 @@ class ConflictReportsTrajectory(NTD):
         assert r>1 and b>1
         self.r = r
         self.b = b
-        self.df = 1+np.log(r)/np.log(b)
+        self.df = 1 + np.log(r)/np.log(b)
         self.thetas = theta_s
         self.thetaf = theta_f
         self.gammas = gamma_s
@@ -465,14 +465,16 @@ class ConflictReportsTrajectory(NTD):
             Calculated in "2019-10-01 internal conflict avalanche dynamics.ipynb".
         record_every : int, 10
             Record max radius every number of steps.
-        mx_rand_coeff : float, self.b
-            Coefficient for determining magnitude of random fluctuations in lengths of
-            branches.
+        mx_rand_coeff : float, 0.5
+            Size of random additive fluctuations are mx_rand_coeff * mean_branch_length at
+            the current shell.
         mx_counter : int, np.inf
             Max number of iterations to allow.
             
         Returns
         -------
+        ndarray
+            Starting time (just linearly increasing time count).
         ndarray
             Max radius (as measured from origin) per time step.
         ndarray
@@ -482,7 +484,8 @@ class ConflictReportsTrajectory(NTD):
         """
         
         b, r, ths, thf, g_s, g_f = self.b, self.r, self.thetas, self.thetaf, self.gammas, self.gammaf
-        mx_rand_coeff = mx_rand_coeff or b
+        mx_rand_coeff = 0 if mx_rand_coeff is None else mx_rand_coeff
+        assert 0<=mx_rand_coeff<1
         assert mx_counter>2
 
         growingBranches = [Branch('%d'%i, b) for i in range(r)]
@@ -490,11 +493,10 @@ class ConflictReportsTrajectory(NTD):
         radius = [0]
         activeSites = [Site(0, v_s, g_s, ths, v_f, g_f, thf)]  # seed site
         deadSites = []
-        t0 = [0]  # start time for branch
         counter = 1  # time counter
         
         # grow randomly branching tree
-        while ((v_s * counter**(1 - 2 / self.df)) > threshold_s) and counter<=mx_counter:
+        while ((v_s * (counter+1)**-ths) > threshold_s) and counter<=mx_counter:
             # randomly select a branch to extend
             randix = self.rng.randint(len(growingBranches))
             gb = growingBranches[randix]
@@ -504,9 +506,10 @@ class ConflictReportsTrajectory(NTD):
             if not gb.grow():
                 # create r children of this branch
                 for j in range(r):
-                    # new branches have random length
+                    # new branches have random length modulated proportional to mean branch length
                     nb = Branch('%s%d'%(gb.label,j),
-                                int(b**(len(gb.label)+1) * self.rng.uniform(1/mx_rand_coeff, mx_rand_coeff)),
+                                int(b**(len(gb.label)+1) *
+                                    (1 + self.rng.uniform(-mx_rand_coeff, mx_rand_coeff))),
                                 ancestral_length=gb.len+gb.ancestralLen)
                     growingBranches.append(nb)
                 deadBranches.append(growingBranches.pop(randix))
@@ -516,7 +519,6 @@ class ConflictReportsTrajectory(NTD):
             else:
                 # generate new site that starts at t=counter
                 activeSites.append( Site(counter, v_s, g_s, ths, v_f, g_f, thf) )
-                t0.append(counter)
 
                 if (counter%record_every)==0:
                     radius.append(max([gb.pos+gb.ancestralLen for gb in growingBranches]))
@@ -526,28 +528,26 @@ class ConflictReportsTrajectory(NTD):
         radius = np.array(radius)
         
         # calculate size and fat trajectories in discrete units
-        cumS = np.zeros(counter, dtype=int)
-        cumF = np.zeros(counter, dtype=int)
+        cumS = np.zeros(counter)
+        cumF = np.zeros(counter)
         for i, site in enumerate(deadSites):
             # the seed site comes with at least one report by definition
             if i==0:
-                startingReportCount = 1
-                cumS[site.t0:] += (site.cum(np.arange(site.t0, counter), t0_offset=1).astype(int) +
-                                   startingReportCount)
+                startingReportCount = 0
+                cumS += site.cum(np.arange(site.t0, counter))
 
-                startingFatCount = self.rng.poisson(v_f * f0)
-                cumF[site.t0:] += (site.cum_f(np.arange(site.t0, counter), t0_offset=1).astype(int) +
-                                   startingFatCount)
+                startingFatCount = 0
+                cumF += site.cum_f(np.arange(site.t0, counter))
             else:
                 # this check only applies with v_s is randomly sampled
                 assert site.v_s>=v_s0
                 # starting report count depends on virulence v_s and s0 (could be 0)
-                startingReportCount = self.rng.poisson(v_s / v_s0 * s0)  
-                cumS[site.t0:] += (site.cum(np.arange(site.t0, counter), t0_offset=1).astype(int) +
+                startingReportCount = 0#self.rng.poisson(v_s / v_s0 * s0)  
+                cumS[site.t0:] += (site.cum(np.arange(site.t0, counter)) + 
                                    startingReportCount)
 
-                startingFatCount = self.rng.poisson(v_f * f0)
-                cumF[site.t0:] += (site.cum_f(np.arange(site.t0, counter), t0_offset=1).astype(int) +
+                startingFatCount = 0#self.rng.poisson(v_f * f0)
+                cumF[site.t0:] += (site.cum_f(np.arange(site.t0, counter)) + 
                                    startingFatCount)
         
         # save status of sim
@@ -556,7 +556,7 @@ class ConflictReportsTrajectory(NTD):
         self.radius = radius
         self.deadSites = deadSites
 
-        return np.array(t0), radius, cumS, cumF
+        return radius, cumS, cumF
         
     def sample(self, n_samples, c0,
                v_s0=0.01,
@@ -564,6 +564,7 @@ class ConflictReportsTrajectory(NTD):
                record_every=1,
                iprint=True,
                n_cpus=None,
+               discard_empty=False,
                **grow_kw):
         """Generate many example trajectories.
 
@@ -583,6 +584,7 @@ class ConflictReportsTrajectory(NTD):
         record_every : int, 1
         iprint : bool, True
         n_cpus : int, None
+        discard_empty : bool, False
         **grow_kw
         
         Returns
@@ -608,7 +610,7 @@ class ConflictReportsTrajectory(NTD):
             
             # must be in the limit of single events per site in periphery
             # cutoff scales with expected duration
-            t0, rt, st, ft = self.grow(c0 * (v_s/v_s0)**(2 - 2/self.df), v_s, v_f,
+            rt, st, ft = self.grow(c0 * (v_s/v_s0)**(1-self.thetas), v_s, v_f,
                                    v_s0=v_s0,
                                    record_every=record_every)
             n = len(self.deadSites)
@@ -618,7 +620,7 @@ class ConflictReportsTrajectory(NTD):
             # print mod10 counter
             if i>0 and ((i+1)%10)==0 and iprint: print('Done with %d'%(i+1))
 
-            return rt, st, ft, n, t0, sx
+            return rt, st, ft, n, sx
         
         # sample from virulence
         pls = PowerLaw(self.alpha, lower_bound=v_s0, upper_bound=v_s1)
@@ -627,11 +629,22 @@ class ConflictReportsTrajectory(NTD):
         # run parallelized sampling procedure
         try:
             pool = mp.Pool(n_cpus)
-            r, s, f, n, t0, sx = list(zip(*pool.map(loop_wrapper, enumerate(v_s))))
+            r, s, f, n, sx = list(zip(*pool.map(loop_wrapper, enumerate(v_s))))
         finally:
             pool.close()
+        
+        n = np.array(n)
+
+        if discard_empty:
+            keepix = [i for i,traj in enumerate(s) if traj[-1]>0]
+            r = [r[i] for i in keepix]
+            s = [s[i] for i in keepix]
+            f = [f[i] for i in keepix]
+            v_s = v_s[keepix]
+            n = n[keepix]
+            sx = [sx[i] for i in keepix]
             
-        return r, s, f, v_s, np.array(n), t0, sx
+        return r, s, f, v_s, n, sx
 #end ConflictReportsTrajectory
 
 CRT = ConflictReportsTrajectory
@@ -703,7 +716,8 @@ class Site():
         else:
             assert v_f>0
             self.v_f = v_f
-
+        
+        # default rate and cumulative profiles are of reports
         self.rate = self.rate_s
         self.cum = self.cum_s
 
