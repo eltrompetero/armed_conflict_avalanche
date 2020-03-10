@@ -115,9 +115,9 @@ class ThetaFitter():
 
         cost = self._define_cost_for_a_b_c(theta, avgdur, stddur, fix_c=c)
         if c:
-            soln = minimize(cost, [50, -50])
+            soln = minimize(cost, [50, -5])
         else:
-            soln = minimize(cost, [50, -5, 100])
+            soln = minimize(cost, [50, -5, 10])
 
         if full_output:
             return soln
@@ -142,14 +142,14 @@ class ThetaFitter():
                 a, logb = args
                 if a<=0 or logb>10 or theta<0 : return 1e30
 
-                # weighted
                 if weighted:
-                    return  (np.linalg.norm( ((1 - binsx + np.exp(logb))**gammaplus1 *
-                                             (np.exp(logb) + binsx)**-theta * a + c - avgdur[1:])/stddur[1:] ) +
-                             np.exp(logb))  # linear cost on large b
-                # unweighted
-                return np.linalg.norm( (1 - binsx + np.exp(logb))**gammaplus1 *
-                                        (np.exp(logb) + binsx)**-theta * a + c - avgdur[1:] ) + np.exp(logb)
+                    weights = stddur[1:]
+                else:
+                    weights = np.ones(avgdur.size-1)
+
+                return  np.linalg.norm( (((1 - binsx + np.exp(logb))**gammaplus1 *
+                                          (np.exp(logb) + binsx)**-theta + c) * a -
+                                         avgdur[1:])/weights ) + np.exp(logb)  # linear cost on large b
         else:
             def cost(args,
                      theta=theta,
@@ -165,14 +165,14 @@ class ThetaFitter():
                 a, logb, c = args
                 if a<=0 or logb>10 or c<0 or theta<0 : return 1e30
 
-                # weighted
                 if weighted:
-                    return  (np.linalg.norm( ((1 - binsx + np.exp(logb))**gammaplus1 *
-                                             (np.exp(logb) + binsx)**-theta * a + c - avgdur[1:])/stddur[1:] ) +
-                             np.exp(logb))  # linear cost on large b
-                # unweighted
-                return np.linalg.norm( (1 - binsx + np.exp(logb))**gammaplus1 *
-                                        (np.exp(logb) + binsx)**-theta * a + c - avgdur[1:] ) + np.exp(logb)
+                    weights = stddur[1:]
+                else:
+                    weights = np.ones(avgdur.size-1)
+
+                return  np.linalg.norm( (((1 - binsx + np.exp(logb))**gammaplus1 *
+                                          (np.exp(logb) + binsx)**-theta + c) * a -
+                                         avgdur[1:])/weights ) + np.exp(logb)  # linear cost on large b
         return cost
     
     def solve_theta(self, c=None):
@@ -224,6 +224,22 @@ class ThetaFitter():
         return np.vstack([avgdur - np.percentile(newavgdur, 5, axis=0),
                           np.percentile(newavgdur, 95, axis=0) - avgdur])
 
+    def scaling_fun(self,
+                    gammaplus1=None,
+                    theta=None,
+                    a=None,
+                    b=None,
+                    c=None):
+         
+        gammaplus1 = self.gammaplus1 if gammaplus1 is None else gammaplus1
+        theta = self.theta if theta is None else theta
+        a = self.a if a is None else a
+        b = np.exp(self.logb) if b is None else b
+        c = self.c if c is None else c
+
+        return lambda x, gp1=gammaplus1, th=theta, a=a, b=b, c=c: ((1 - x + b)**gammaplus1 *
+                                                                   (b + x)**-theta + c) * a
+
     def plot(self, errs,
              theta_lb=None,
              theta_ub=None,
@@ -248,7 +264,6 @@ class ThetaFitter():
         avgdur, stddur = self.avg_profile()
 
         # setup
-        b = np.exp(self.logb)
         x = np.linspace(.02, .98, 1000)
         h = []
         fig, ax = plt.subplots()
@@ -257,11 +272,11 @@ class ThetaFitter():
         h.append( ax.errorbar(self.binsx, avgdur[1:], errs[:,1:], fmt='o') )
         
         # plot model
-        h.append(ax.plot(x, (1 - x + b)**self.gammaplus1 * (b + x)**-self.theta * self.a + self.c, 'k-')[0])
+        h.append(ax.plot(x, self.scaling_fun()(x), 'k-')[0])
         if not theta_lb is None and not theta_ub is None:
-            h.append(ax.plot(x, (1 - x + b)**gammaplus1 * (b + x)**-theta_lb * a + self.c, 'k-.')[0])
-            ax.plot(x, (1 - x + b)**gammaplus1 * (b + x)**theta_ub * a + self.c, 'k-.')
-        h.append(ax.plot(x, (1 - x + b)**self.gammaplus1 * self.a + self.c, 'k--')[0])
+            h.append(ax.plot(x, self.scaling_fun(theta=theta_lb)(x), 'k-.')[0])
+            ax.plot(x, self.scaling_fun(theta=theta_ub)(x), 'k-.')
+        h.append(ax.plot(x, self.scaling_fun(theta=0)(x), 'k--')[0])
         
         # plot properties
         ax.set(xlabel=r'relative starting time $g=t_0/T$',
@@ -339,7 +354,8 @@ class SiteExtractor():
                  event_type='battle',
                  dxdt=(320,128),
                  resolution_range=[640,320,160],
-                 null_type=None):
+                 null_type=None,
+                 rng=None):
         """
         Parameters
         ----------
@@ -362,6 +378,7 @@ class SiteExtractor():
             self.nullType = 'shuffle'
         else:
             self.nullType = None
+        self.rng = rng or np.random
             
     def run(self):
         """Run internal avalanche pixelation. This is the main function that one should
@@ -393,8 +410,8 @@ class SiteExtractor():
             """main loop
             """
             
-            counter, heightBds, widthBds, xydata = args
-            rng = np.random.RandomState()
+            counter, heightBds, widthBds, xydata, seed = args
+            rng = np.random.RandomState(seed)
             eventsLabeledByPixelIx = {}  # dict containing indices of events clustered per Voronoi site
             
             # generate coarse grid
@@ -465,7 +482,7 @@ class SiteExtractor():
             
             # is this what I want when I shuffle?
             if self.nullType=='shuffle':
-                clustix = np.random.permutation(clustix)
+                clustix = self.rng.permutation(clustix)
 
             if (counts.size>=MIN_NO_GEO_PTS and  # only if there are sufficient unique locations
                 len(clustix)>=4 and 
@@ -480,12 +497,14 @@ class SiteExtractor():
                              uxy[:,1].max()/180*np.pi+padding_in_radians)
                 xydata = self.subdf.loc[clustix]
                 
-                yield counter, heightBds, widthBds, xydata
+                yield counter, heightBds, widthBds, xydata, self.rng.randint(0, 2**32-1)
                 counter += 1
 
     def cluster_ix(self):
         """Indices of clusters analyzed by coarse-graining function. This is for convenience when
         analyzing data after coarse-graining operation.
+
+        Note that this does not account for shuffling null.
         
         Parameters
         ----------
