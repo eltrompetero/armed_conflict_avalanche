@@ -4,7 +4,7 @@
 # ====================================================================================== #
 import numpy as np
 from pyutils.acled_utils import *
-import pyutils.pipeline as pipe
+import pyutils.new_pipeline as pipe
 from data_sets.acled import *
 from misc.globe import NoVoronoiTilesRemaining
 from data_sets.acled.coarse_grain import pixelate_voronoi
@@ -203,7 +203,6 @@ class ThetaFitter():
         n_sample : int
         """
 
-        np.random.seed(0) 
         d = self.gammaplus1 - self.theta
         avgdur = self.avg_profile()[0]
         newavgdur = np.zeros((n_sample, avgdur.size))
@@ -218,7 +217,7 @@ class ThetaFitter():
             binsix_ = np.digitize(g_, self.bins)
             
             # calculate bootstrap sample average
-            for i in np.unique(binsix_)[:1]:
+            for i in np.unique(binsix_):
                 newavgdur[counter,i] += np.mean([num[ix].sum() / den[ix]**d
                                                  for ix in np.where(binsix_==i)[0]])
         
@@ -334,6 +333,8 @@ class ThetaFitter():
 
 
 class SiteExtractor():
+    """Identify conflict pixels.
+    """
     def __init__(self,
                  event_type='battle',
                  dxdt=(320,128),
@@ -344,9 +345,9 @@ class SiteExtractor():
         ----------
         event_type : str, 'battle'
         dxdt : tuple, (320, 128)
-            Resolution on which conflict avalanches are built
+            Resolution on which conflict avalanches are built to be fed into gridOfSplits.
         resolution_range : list, [640,320,160]
-            Length "dx" with which to pixelate inside of conflict avalanche
+            Length "dx" with which to pixelate inside of conflict avalanche.
         null_type : str, None
             Possible values: 'shuffle'
         """
@@ -357,8 +358,10 @@ class SiteExtractor():
         self.subdf, self.gridOfSplits = pipe.load_default_pickles(event_type=event_type)
         if not null_type is None and not null_type in ['shuffle']:
             raise NotImplentedError("Unrecognized null type.")
-        else:
+        elif null_type=='shuffle':
             self.nullType = 'shuffle'
+        else:
+            self.nullType = None
             
     def run(self):
         """Run internal avalanche pixelation. This is the main function that one should
@@ -460,6 +463,7 @@ class SiteExtractor():
                                     return_counts=True)
             dt = self.subdf['EVENT_DATE'].loc[clustix].max() - self.subdf['EVENT_DATE'].loc[clustix].min()
             
+            # is this what I want when I shuffle?
             if self.nullType=='shuffle':
                 clustix = np.random.permutation(clustix)
 
