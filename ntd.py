@@ -119,7 +119,7 @@ class NTD():
                     rand_factor_fun=None,
                     reset=True):
         """Grow NTD but randomly extend branches by some factor. This is just like the
-        method grow() except for the randomness in the lengths of children branches.
+        method grow() except for the randomness in the lengthr of children branches.
         
         Parameters
         ----------
@@ -261,7 +261,7 @@ class NTD():
                              origin_line_width/(np.linalg.norm(p2)+1),
                              nsegments)
             lw = lw**lw_decay_exponent / origin_line_width**lw_decay_exponent * origin_line_width
-            lineColl.append(LineCollection(segments, linewidths=lw))
+            lineColl.append(LineCollection(segments, linewidthr=lw))
         
         # plotting limits
         xy = np.vstack(xy)
@@ -377,7 +377,7 @@ class NTD():
                              nsegments)
             lw = lw**lw_decay_exponent / origin_line_width**lw_decay_exponent * origin_line_width
             lineColl.append(Line3DCollection(segments,
-                                             linewidths=lw,
+                                             linewidthr=lw,
                                              colors=cmap(lw/origin_line_width)))
         
         # plotting limits
@@ -398,7 +398,7 @@ class NTD():
 
 
 class ConflictReportsTrajectory(NTD):
-    def __init__(self, r, b, gamma_s, theta_s, gamma_f, theta_f,
+    def __init__(self, r, b, gamma_r, theta_r, gamma_f, theta_f,
                  alpha=3.,
                  rng=None):
         """Growing conflict trees on NTDs. Basically, NTDs but with site dynamics to count
@@ -410,9 +410,9 @@ class ConflictReportsTrajectory(NTD):
             Splitting number for each branch.
         b : int
             Exponential growth base.
-        gamma_s : float
+        gamma_r : float
             Growth exponent for reports.
-        theta_s : float
+        theta_r : float
         gamma_f : float
             Growth exponent for fatalities.
         theta_f : float
@@ -422,25 +422,25 @@ class ConflictReportsTrajectory(NTD):
         """
         
         assert r>1 and b>1
-        assert gamma_s<=1 and theta_s>=0
+        assert gamma_r<=1 and theta_r>=0
         assert gamma_f<=1 and theta_f>=0
         self.r = r
         self.b = b
         self.df = 1 + np.log(r)/np.log(b)
-        self.thetas = theta_s
+        self.thetar = theta_r
         self.thetaf = theta_f
-        self.gammas = gamma_s
+        self.gammar = gamma_r
         self.gammaf = gamma_f
         self.rng = rng or np.random
 
         self.alpha = alpha
 
     def grow(self,
-             threshold_s,
-             v_s=1,
+             threshold_r,
+             v_r=1,
              v_f=1,
-             v_s0=1,
-             s0=1/15,
+             v_r0=1,
+             r0=1/15,
              f0=1.8,
              record_every=10,
              mx_rand_coeff=None,
@@ -453,15 +453,15 @@ class ConflictReportsTrajectory(NTD):
         
         Parameters
         ----------
-        threshold_s : float
+        threshold_r : float
             Rate threshold below which conflict avalanche stops.
-        v_s : float or tuple, 1
+        v_r : float or tuple, 1
             If tuple, determines parameters for random sampling.
         v_f : float or tuple, 1
-        v_s0 : float, 1
-            Lower limit for distribution of v_s.
-        s0 : float, 1/15
-            Default value from calculation of averaged s0 (Conflict III, pg. 90).
+        v_r0 : float, 1
+            Lower limit for distribution of v_r.
+        r0 : float, 1/15
+            Default value from calculation of averaged r0 (Conflict III, pg. 90).
             Calculated in "2019-10-01 internal conflict avalanche dynamics.ipynb".
         f0 : float, 1.83
             Calculated in "2019-10-01 internal conflict avalanche dynamics.ipynb".
@@ -485,7 +485,7 @@ class ConflictReportsTrajectory(NTD):
             Cumulative number of fatalities per time step.
         """
         
-        b, r, ths, thf, g_s, g_f = self.b, self.r, self.thetas, self.thetaf, self.gammas, self.gammaf
+        b, r, thr, thf, g_r, g_f = self.b, self.r, self.thetar, self.thetaf, self.gammar, self.gammaf
         mx_rand_coeff = 0 if mx_rand_coeff is None else mx_rand_coeff
         assert 0<=mx_rand_coeff<1
         assert mx_counter>2
@@ -493,12 +493,12 @@ class ConflictReportsTrajectory(NTD):
         growingBranches = [Branch('%d'%i, b) for i in range(r)]
         deadBranches = []
         radius = [0]
-        activeSites = [Site(0, v_s, g_s, ths, v_f, g_f, thf)]  # seed site
+        activeSites = [Site(0, v_r, g_r, thr, v_f, g_f, thf)]  # seed site
         deadSites = []
         counter = 1  # time counter
         
         # grow randomly branching tree
-        while ((v_s * (1-g_s) * (counter+1)**-g_s) > threshold_s) and counter<=mx_counter:
+        while ((v_r * (1-g_r) * (counter+1)**-g_r) > threshold_r) and counter<=mx_counter:
             # randomly select a branch to extend
             randix = self.rng.randint(len(growingBranches))
             gb = growingBranches[randix]
@@ -520,7 +520,7 @@ class ConflictReportsTrajectory(NTD):
             # time only ticks in this portion of the loop
             else:
                 # generate new site that starts at t=counter
-                activeSites.append( Site(counter, v_s, g_s, ths, v_f, g_f, thf) )
+                activeSites.append( Site(counter, v_r, g_r, thr, v_f, g_f, thf) )
 
                 if (counter%record_every)==0:
                     radius.append(max([gb.pos+gb.ancestralLen for gb in growingBranches]))
@@ -530,22 +530,22 @@ class ConflictReportsTrajectory(NTD):
         radius = np.array(radius)
         
         # calculate size and fat trajectories in discrete units
-        cumS = np.zeros(counter)
+        cumR = np.zeros(counter)
         cumF = np.zeros(counter)
         for i, site in enumerate(deadSites):
             # the seed site comes with at least one report by definition
             if i==0:
                 startingReportCount = 0
-                cumS += site.cum(np.arange(site.t0, counter))
+                cumR += site.cum(np.arange(site.t0, counter))
 
                 startingFatCount = 0
                 cumF += site.cum_f(np.arange(site.t0, counter))
             else:
-                # this check only applies with v_s is randomly sampled
-                assert site.v_s>=v_s0
-                # starting report count depends on virulence v_s and s0 (could be 0)
-                startingReportCount = 0#self.rng.poisson(v_s / v_s0 * s0)  
-                cumS[site.t0:] += (site.cum(np.arange(site.t0, counter)) + 
+                # this check only applies with v_r is randomly sampled
+                assert site.v_r>=v_r0
+                # starting report count depends on virulence v_r and r0 (could be 0)
+                startingReportCount = 0#self.rng.poisson(v_r / v_r0 * r0)  
+                cumR[site.t0:] += (site.cum(np.arange(site.t0, counter)) + 
                                    startingReportCount)
 
                 startingFatCount = 0#self.rng.poisson(v_f * f0)
@@ -558,11 +558,11 @@ class ConflictReportsTrajectory(NTD):
         self.radius = radius
         self.deadSites = deadSites
 
-        return radius, cumS, cumF
+        return radius, cumR, cumF
         
     def sample(self, n_samples, c0,
-               v_s0=0.01,
-               v_s1=10_000,
+               v_r0=0.01,
+               v_r1=10_000,
                record_every=1,
                iprint=True,
                n_cpus=None,
@@ -581,8 +581,8 @@ class ConflictReportsTrajectory(NTD):
         c0 : float
             Threshold coefficient for when avalanche ends. This is multiplied by a scaling
             function of total duration to get cutoff for any given avalanche simulation.
-        v_s0 : float, 0.01
-        v_s1 : float, 10_000
+        v_r0 : float, 0.01
+        v_r1 : float, 10_000
         record_every : int, 1
         iprint : bool, True
         n_cpus : int, None
@@ -601,53 +601,56 @@ class ConflictReportsTrajectory(NTD):
         
         assert n_samples>0
         assert c0>0
-        assert 0<v_s0<v_s1
+        assert 0<v_r0<v_r1
         assert record_every>=1
         n_cpus = n_cpus or mp.cpu_count()-1
 
         def loop_wrapper(args, self=self):
-            i, v_s = args
+            i, v_r = args
             self.rng = np.random.RandomState()
             # THIS NEEDS TO BE FIXED
-            v_f = (v_s / v_s0)**1.5  # this relationship is from measuring d_F/z - delta_f/zeta
+            v_f = (v_r / v_r0)**1.5  # this relationship is from measuring d_F/z - delta_f/zeta
             
             # must be in the limit of single events per site in periphery
             # cutoff scales with expected duration
-            rt, st, ft = self.grow(c0, v_s, v_f,
-                                   v_s0=v_s0,
+            lt, rt, ft = self.grow(c0, v_r, v_f,
+                                   v_r0=v_r0,
                                    record_every=record_every)
             n = len(self.deadSites)
             # total number of events per site x
-            sx = np.array([site.cum(st.size+1) for site in self.deadSites])
+            rx = np.array([site.cum(rt.size+1) for site in self.deadSites])
+            fx = np.array([site.cum(ft.size+1) for site in self.deadSites])
             
             # print mod10 counter
             if i>0 and ((i+1)%10)==0 and iprint: print('Done with %d'%(i+1))
 
-            return rt, st, ft, n, sx
+            return lt, rt, ft, n, rx, fx
         
         # sample from virulence
-        pls = PowerLaw(self.alpha, lower_bound=v_s0, upper_bound=v_s1)
-        v_s = pls.rvs(size=n_samples)
+        pls = PowerLaw(self.alpha, lower_bound=v_r0, upper_bound=v_r1)
+        v_r = pls.rvs(size=n_samples)
 
         # run parallelized sampling procedure
         try:
             pool = mp.Pool(n_cpus)
-            r, s, f, n, sx = list(zip(*pool.map(loop_wrapper, enumerate(v_s))))
+            l, r, f, n, rx, fx = list(zip(*pool.map(loop_wrapper, enumerate(v_r))))
         finally:
             pool.close()
         
         n = np.array(n)
 
         if discard_empty:
-            keepix = [i for i,traj in enumerate(s) if traj[-1]>0]
+            keepix = [i for i,traj in enumerate(r) if traj[-1]>0]
+            l = [l[i] for i in keepix]
             r = [r[i] for i in keepix]
-            s = [s[i] for i in keepix]
             f = [f[i] for i in keepix]
-            v_s = v_s[keepix]
+            v_r = v_r[keepix]
             n = n[keepix]
-            sx = [sx[i] for i in keepix]
+
+            rx = [rx[i] for i in keepix]
+            fx = [fx[i] for i in keepix]
             
-        return r, s, f, v_s, n, sx
+        return l, r, f, v_r, n, rx, fx
 #end ConflictReportsTrajectory
 
 CRT = ConflictReportsTrajectory
@@ -657,6 +660,8 @@ CRT = ConflictReportsTrajectory
 # Helper functions #
 # ================ #
 def rt2xy(rt):
+    """Convert radial coordinates to Euclidean.
+    """
     rt = np.vstack(rt).reshape(len(rt), 4)
     xy = np.zeros_like(rt)
     xy[:,0] = rt[:,0]*np.cos(rt[:,1])
@@ -674,9 +679,9 @@ class Site():
     """Conflict site with accumulation dynamics for both reports and fatalities."""
     def __init__(self,
                  t0,
-                 v_s,
-                 gamma_s,
-                 theta_s,
+                 v_r,
+                 gamma_r,
+                 theta_r,
                  v_f,
                  gamma_f,
                  theta_f,
@@ -686,11 +691,11 @@ class Site():
         ----------
         t0 : int
             Time at which conflict site was born.
-        v_s : float or tuple
+        v_r : float or tuple
             Quenched disorder.
-        gamma_s : float
+        gamma_r : float
             Rate exponent.
-        theta_s : float
+        theta_r : float
             Suppression exponent.
         v_f : float or tuple
         gamma_f : float
@@ -698,21 +703,21 @@ class Site():
         rng : np.random.RandomState, None
         """
 
-        assert theta_s>=0 and gamma_s<=1
+        assert theta_r>=0 and gamma_r<=1
         assert theta_f>=0 and gamma_f<=1
 
         self.t0 = t0
-        self.gamma_s = gamma_s
-        self.theta_s = theta_s
+        self.gamma_r = gamma_r
+        self.theta_r = theta_r
         self.gamma_f = gamma_f
         self.theta_f = theta_f
         self.rng = rng or np.random
 
-        if hasattr(v_s,'__len__'):
-            self.v_s = self.rng.exponential(scale=v_s[0])
+        if hasattr(v_r,'__len__'):
+            self.v_r = self.rng.exponential(scale=v_r[0])
         else:
-            assert v_s>0
-            self.v_s = v_s
+            assert v_r>0
+            self.v_r = v_r
 
         if hasattr(v_f,'__len__'):
             self.v_f = self.rng.exponential(scale=v_f[0])
@@ -721,22 +726,22 @@ class Site():
             self.v_f = v_f
         
         # default rate and cumulative profiles are of reports
-        self.rate = self.rate_s
-        self.cum = self.cum_s
+        self.rate = self.rate_r
+        self.cum = self.cum_r
 
-    def rate_s(self, t, t0_offset=1):
+    def rate_r(self, t, t0_offset=1):
         """Instantaneous rate of conflict events.
         """
         
         self.check_t(t)
-        return self.v_s * (t-self.t0+t0_offset)**-self.gamma_s * (self.t0+t0_offset)**-self.theta_s
+        return self.v_r * (t-self.t0+t0_offset)**-self.gamma_r * (self.t0+t0_offset)**-self.theta_r
 
-    def cum_s(self, t, t0_offset=1):
+    def cum_r(self, t, t0_offset=1):
         """Cumulative conflict events.
         """
 
         self.check_t(t)
-        return self.v_s * (t-self.t0+t0_offset)**(1-self.gamma_s) * (self.t0+t0_offset)**-self.theta_s
+        return self.v_r * (t-self.t0+t0_offset)**(1-self.gamma_r) * (self.t0+t0_offset)**-self.theta_r
 
     def rate_f(self, t, t0_offset=1):
         """Instantaneous rate of conflict events.

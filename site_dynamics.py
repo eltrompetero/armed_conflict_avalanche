@@ -289,7 +289,7 @@ class ThetaFitter():
         
         # plot properties
         ax.set(xlabel=r'relative starting time $g=t_0(x_i)/T$',
-               ylabel=r'$\left\langle\overline{%s_{x_i}(t_0/T)/T^{1-\gamma_{%s}-\theta_{%s}}}\right\rangle$'%(var,var,var),
+               ylabel=r'$\left\langle\ \overline{%s_{x_i}(t_0/T)/T^{1-\gamma_{%s}-\theta_{%s}}}\ \right\rangle$'%(var,var,var),
                xlim=(-.02,1.02),
                yscale='log')
         if not theta_lb is None and not theta_ub is None:
