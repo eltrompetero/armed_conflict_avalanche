@@ -248,7 +248,8 @@ class ThetaFitter():
     def plot(self, errs,
              theta_lb=None,
              theta_ub=None,
-             var='r'):
+             var='r',
+             return_handles=False):
         """Plot fit to data alongside given data.
 
         Parameters
@@ -260,11 +261,13 @@ class ThetaFitter():
         theta_ub : float, None
         var : str, 'r'
             Variable that we're fitting in order to change the axis labels.
+        return_handles : bool, False
 
         Returns
         -------
         mpl.Figure
         mpl.Axes
+        list of line handles (optional)
         """
         
         avgdur, stddur = self.avg_profile()
@@ -286,7 +289,7 @@ class ThetaFitter():
         
         # plot properties
         ax.set(xlabel=r'relative starting time $g=t_0(x_i)/T$',
-               ylabel=r'$\overline{%s_{x_i}(t_0/T)/T^{1-\gamma_{%s}-\theta_{%s}}}$'%(var,var,var),
+               ylabel=r'$\left\langle\overline{%s_{x_i}(t_0/T)/T^{1-\gamma_{%s}-\theta_{%s}}}\right\rangle$'%(var,var,var),
                xlim=(-.02,1.02),
                yscale='log')
         if not theta_lb is None and not theta_ub is None:
@@ -304,7 +307,9 @@ class ThetaFitter():
                        r'$\theta_%s=0$'%var,
                        r'$\langle %s(t_0)\rangle$'%var),
                       fontsize='small', handlelength=1, loc=1, ncol=2, columnspacing=.55)
-
+        
+        if return_handles: 
+            return fig, ax, h
         return fig, ax
 
     def bootstrap(self, n_samples,
