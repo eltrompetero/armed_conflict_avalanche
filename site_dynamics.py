@@ -201,6 +201,11 @@ class ThetaFitter():
         Parameters
         ----------
         n_sample : int
+
+        Returns
+        -------
+        ndarray
+            Error bars for plotting avgdur.
         """
 
         d = self.gammaplus1 - self.theta
@@ -243,7 +248,7 @@ class ThetaFitter():
     def plot(self, errs,
              theta_lb=None,
              theta_ub=None,
-             var='s'):
+             var='r'):
         """Plot fit to data alongside given data.
 
         Parameters
@@ -253,7 +258,7 @@ class ThetaFitter():
         theta_lb : float, None
             This is plotted if both theta_lb and theta_ub are specified.
         theta_ub : float, None
-        var : str, 's'
+        var : str, 'r'
             Variable that we're fitting in order to change the axis labels.
 
         Returns
@@ -280,66 +285,63 @@ class ThetaFitter():
         h.append(ax.plot(x, self.scaling_fun(theta=0)(x), 'k--')[0])
         
         # plot properties
-        ax.set(xlabel=r'relative starting time $g=t_0/T$',
-               ylabel=r'$\widebar{%s_{x_i}(t_0/T})/T^{1+\gamma_{%s}-\theta_{%s}}$'%(var,var,var),
-               xlim=(-.05,1.05),
+        ax.set(xlabel=r'relative starting time $g=t_0(x_i)/T$',
+               ylabel=r'$\overline{%s_{x_i}(t_0/T)/T^{1-\gamma_{%s}-\theta_{%s}}}$'%(var,var,var),
+               xlim=(-.02,1.02),
                yscale='log')
         if not theta_lb is None and not theta_ub is None:
             ax.legend(h, 
                       ('Data',
-                       r'$\theta=%1.2f$'%self.theta,
-                       r'$\theta^+$, $\theta^-$',
-                       r'$\theta=0$',
+                       r'$\theta_%s=%1.2f$'%(var, self.theta),
+                       r'$\theta^+_%s$, $\theta^-_%s$'%(var, var),
+                       r'$\theta_%s=0$'%var,
                        r'$\langle %s(t_0)\rangle$'%var),
-                      fontsize='small', handlelength=1, loc=3, ncol=2, columnspacing=.55)
+                      fontsize='small', handlelength=1, loc=1, ncol=2, columnspacing=.55)
         else:
             ax.legend(h, 
                       ('Data',
-                       r'$\theta=%1.2f$'%self.theta,
-                       r'$\theta=0$',
+                       r'$\theta_%s=%1.2f$'%(var, self.theta),
+                       r'$\theta_%s=0$'%var,
                        r'$\langle %s(t_0)\rangle$'%var),
-                      fontsize='small', handlelength=1, loc=3, ncol=2, columnspacing=.55)
+                      fontsize='small', handlelength=1, loc=1, ncol=2, columnspacing=.55)
 
         return fig, ax
 
-    def pipeline_theta_estimate_bootstrap(self, n_samples):
-        raise NotImplementedError
+    def bootstrap(self, n_samples,
+                  **solve_kw):
+        """Bootstrap to get an estimate of error bars on theta.
+        
+        Parameters
+        ----------
+        n_samples : int
+        **solve_kw
+
+        Returns
+        -------
+        ndarray
+            Estimates of theta.
+        tuple of lists
+            Other fit parameters.
+        """
+
         theta = np.zeros(n_samples)
         
         def one_loop_wrapper(randcounter):
             np.random.seed()
             
-            randix = np.random.randint(fractionalt0.size, size=fractionalt0.size)
-            fractionalt0_ = fractionalt0[randix]
-            num = [traj[res][ix] for ix in randix]
-            den = [wholeClusterDur[ix] for ix in randix]
+            # create another instance of ThetaFitter given bootstrapped data
+            randix = np.random.randint(self.g.size, size=self.g.size)
+            tf = ThetaFitter([self.trajectories[i] for i in randix],
+                             self.clusterT[randix],
+                             self.g[randix],
+                             gammaplus1=self.gammaplus1,
+                             weighted=self.weighted)
             
-            binsix = np.digitize(fractionalt0_, bins)
-
-            def cost_given_theta(theta, weighted=True):
-                avgdur = np.zeros(binsix.max()+1)
-                stddur = np.zeros(binsix.max()+1)
-                exponent = gammaplus1 - theta  # 1+gamma-theta from Conflict II pg. 121
-
-                for i in unique(binsix):
-                    avgdur[i] = np.mean([num[ix].sum()/den[ix]**exponent
-                                         for ix in where(binsix==i)[0]])
-                    stddur[i] = self.std_of_mean([num[ix].sum()/den[ix]**exponent
-                                                  for ix in where(binsix==i)[0]])
-                avgdur[avgdur==0] = np.nan
-
-                cost = self.define_cost_for_a_b(theta, avgdur, stddur)
-                soln = minimize(cost, [50,-5])
-                return soln['fun']
-            
-            return brute(cost_given_theta, ([-.3,-.8],), Ns=6)[0]
-            
-        pool = mp.Pool(mp.cpu_count()-1)
-        try:
-            theta = np.array(pool.map(one_loop_wrapper, range(n_samples)))
-        finally:
-            pool.close()
-        return theta
+            return tf.solve_theta(**solve_kw) 
+        
+        with mp.Pool(mp.cpu_count()-1) as pool:
+            theta, abc = list(zip(*pool.map(one_loop_wrapper, range(n_samples))))
+        return np.array(theta), list(zip(*abc))
 
     @classmethod
     def std_of_mean(cls, x):
