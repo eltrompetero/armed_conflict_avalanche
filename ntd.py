@@ -399,7 +399,7 @@ class NTD():
 
 class ConflictReportsTrajectory(NTD):
     def __init__(self, r, b, gamma_s, theta_s, gamma_f, theta_f,
-                 alpha=2.44,
+                 alpha=3.,
                  rng=None):
         """Growing conflict trees on NTDs. Basically, NTDs but with site dynamics to count
         fatalities and reports.
@@ -422,6 +422,8 @@ class ConflictReportsTrajectory(NTD):
         """
         
         assert r>1 and b>1
+        assert gamma_s<=1 and theta_s>=0
+        assert gamma_f<=1 and theta_f>=0
         self.r = r
         self.b = b
         self.df = 1 + np.log(r)/np.log(b)
@@ -496,7 +498,7 @@ class ConflictReportsTrajectory(NTD):
         counter = 1  # time counter
         
         # grow randomly branching tree
-        while ((v_s * (counter+1)**-ths) > threshold_s) and counter<=mx_counter:
+        while ((v_s * (1-g_s) * (counter+1)**-g_s) > threshold_s) and counter<=mx_counter:
             # randomly select a branch to extend
             randix = self.rng.randint(len(growingBranches))
             gb = growingBranches[randix]
@@ -606,11 +608,12 @@ class ConflictReportsTrajectory(NTD):
         def loop_wrapper(args, self=self):
             i, v_s = args
             self.rng = np.random.RandomState()
+            # THIS NEEDS TO BE FIXED
             v_f = (v_s / v_s0)**1.5  # this relationship is from measuring d_F/z - delta_f/zeta
             
             # must be in the limit of single events per site in periphery
             # cutoff scales with expected duration
-            rt, st, ft = self.grow(c0 * (v_s/v_s0)**(1-self.thetas), v_s, v_f,
+            rt, st, ft = self.grow(c0, v_s, v_f,
                                    v_s0=v_s0,
                                    record_every=record_every)
             n = len(self.deadSites)
@@ -695,8 +698,8 @@ class Site():
         rng : np.random.RandomState, None
         """
 
-        assert theta_s>0 and gamma_s<0
-        assert theta_f>0 and gamma_f<0
+        assert theta_s>=0 and gamma_s<=1
+        assert theta_f>=0 and gamma_f<=1
 
         self.t0 = t0
         self.gamma_s = gamma_s
@@ -726,28 +729,28 @@ class Site():
         """
         
         self.check_t(t)
-        return self.v_s * (t-self.t0+t0_offset)**self.gamma_s * (self.t0+t0_offset)**-self.theta_s
+        return self.v_s * (t-self.t0+t0_offset)**-self.gamma_s * (self.t0+t0_offset)**-self.theta_s
 
     def cum_s(self, t, t0_offset=1):
         """Cumulative conflict events.
         """
 
         self.check_t(t)
-        return self.v_s * (t-self.t0+t0_offset)**(1+self.gamma_s) * (self.t0+t0_offset)**-self.theta_s
+        return self.v_s * (t-self.t0+t0_offset)**(1-self.gamma_s) * (self.t0+t0_offset)**-self.theta_s
 
     def rate_f(self, t, t0_offset=1):
         """Instantaneous rate of conflict events.
         """
 
         self.check_t(t)
-        return self.v_f * (t-self.t0+t0_offset)**self.gamma_f * (self.t0+t0_offset)**-self.theta_f
+        return self.v_f * (t-self.t0+t0_offset)**-self.gamma_f * (self.t0+t0_offset)**-self.theta_f
 
     def cum_f(self, t, t0_offset=1):
         """Cumulative conflict events.
         """
 
         self.check_t(t)
-        return self.v_f * (t-self.t0+t0_offset)**(1+self.gamma_f) * (self.t0+t0_offset)**-self.theta_f
+        return self.v_f * (t-self.t0+t0_offset)**(1-self.gamma_f) * (self.t0+t0_offset)**-self.theta_f
     
     def check_t(self, t):
         if hasattr(t, '__len__'):
