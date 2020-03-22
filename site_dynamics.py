@@ -20,7 +20,7 @@ MIN_DAYS = 4
 
 
 class ThetaFitter():
-    """Class for fitting the peripheral suppression exponent theta.
+    """Class for fitting the peripheral suppression exponent theta on data.
     
     In order to use this class, must already know what gammaplus1 is beforehand. Using
     this value, one should solve for the best fit theta using solve_theta(). If a value
@@ -223,7 +223,7 @@ class ThetaFitter():
             self.c = c
         else:
             self.a, self.logb, self.c = self.define_cost_given_theta(full_output=True,
-                                                                     **kwargs)(self.theta)['x']
+                                                                      **kwargs)(self.theta)['x']
         return self.theta, (self.a, self.logb, self.c)
 
 
@@ -386,6 +386,62 @@ class ThetaFitter():
 #end ThetaFitter
 
 
+class ThetaFitterRBAC():
+    """Fit theta for RBAC model results.
+    """
+    def __init__(self, gamma, bins, t0, t, rx):
+        """
+        Parameters
+        ----------
+        gamma : float
+        g : ndarray
+            Fractional time.
+        t0 : ndarray
+            Starting time per conflict site.
+        t : ndarray
+            Duration of entire conflict avalanche.
+        rx : ndarray
+            Total number of events per site.
+        """
+
+        self.g = (t0 + 1) / t
+        self.binIx = np.digitize(self.g, bins) - 1
+        self.gamma = gamma
+        self.t = t
+        self.rx = rx
+        self.x = (bins[:-1] + bins[1:]) / 2
+
+    def define_cost_a_b(self, theta, y, exclude_first=False):
+        def cost_a_b(args, theta=theta, y=y):
+            a, logb = args
+            d = (a * (1 - self.x + np.exp(logb))**(1-self.gamma) *
+                 (self.x + np.exp(logb))**-theta - y) / a + np.exp(logb)
+            if exclude_first:
+                return np.linalg.norm(d[1:])
+            return np.linalg.norm(d)
+        return cost_a_b
+    
+    def define_cost(self, **kwargs):
+        def cost(theta):
+            rxNormalized = self.rx / self.t**(1 - self.gamma - theta)
+            y = np.array([rxNormalized[i==self.binIx].mean() for i in range(self.x.size)])
+            cost_a_b = self.define_cost_a_b(theta, y, **kwargs)
+            return minimize(cost_a_b, [y.mean(), -3],
+                            bounds=[(1e-6,np.inf),(-np.inf,np.inf)])['fun']
+        return cost
+
+    def solve_theta(self, **kwargs):
+        # find theta
+        fmin = lambda x, y, **kwargs: minimize(x, y, bounds=[(0,2)], **kwargs)
+        thetafit = brute(self.define_cost(**kwargs), [(.4,1)], Ns=7, finish=fmin)[0]
+        
+        # corresponding a and logb
+        rxNormalized = self.rx / self.t**(1 - self.gamma - thetafit)
+        y = np.array([rxNormalized[i==self.binIx].mean() for i in range(self.x.size)])
+        cost_a_b = self.define_cost_a_b(thetafit, y, **kwargs)
+        afit, logbfit = minimize(cost_a_b, [thetafit, self.gamma])['x']
+
+        return thetafit, afit, logbfit
 
 class SiteExtractor():
     """Identify conflict pixels.
