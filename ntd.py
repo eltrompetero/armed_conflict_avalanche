@@ -261,7 +261,7 @@ class NTD():
                              origin_line_width/(np.linalg.norm(p2)+1),
                              nsegments)
             lw = lw**lw_decay_exponent / origin_line_width**lw_decay_exponent * origin_line_width
-            lineColl.append(LineCollection(segments, linewidthr=lw))
+            lineColl.append(LineCollection(segments, linewidth=lw))
         
         # plotting limits
         xy = np.vstack(xy)
@@ -377,7 +377,7 @@ class NTD():
                              nsegments)
             lw = lw**lw_decay_exponent / origin_line_width**lw_decay_exponent * origin_line_width
             lineColl.append(Line3DCollection(segments,
-                                             linewidthr=lw,
+                                             linewidth=lw,
                                              colors=cmap(lw/origin_line_width)))
         
         # plotting limits
@@ -609,7 +609,7 @@ class ConflictReportsTrajectory(NTD):
             i, v_r = args
             self.rng = np.random.RandomState()
             # THIS NEEDS TO BE FIXED
-            v_f = (v_r / v_r0)**1.5  # this relationship is from measuring d_F/z - delta_f/zeta
+            v_f = (v_r / v_r0)**1.74  # this relationship is from relating virulence V_r with V_f
             
             # must be in the limit of single events per site in periphery
             # cutoff scales with expected duration

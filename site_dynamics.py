@@ -83,9 +83,9 @@ class ThetaFitter():
 
         return avgdur, stddur
 
-    def cost_given_theta(self, theta,
-                         c=None,
-                         full_output=False):
+    def define_cost_given_theta(self,
+                                full_output=False,
+                                **kwargs):
         """Calculate best fit for a given value of theta to find optimal theta
         that fits scaling collapse.
 
@@ -93,37 +93,55 @@ class ThetaFitter():
         
         Parameters
         ----------
-        theta : float
-            Exponent to collapse a * (1-f+b)^{1+gamma} * (b+f)^-theta + c
         weighted : bool, True
             Normalized error bars by uncertainty (more uncertainty means weaker
             constraint.
-        c : float, None
-            If this is specified, then it is set to a fixed value for the optimization
-            problem.
         full_output : bool, False
             If True, full result from scipy.optimize.minimize will be returned instead of
             just the function value.
-            
+        **kwargs
+
         Returns
         -------
-        float
-            Estimate of theta.
+        function
         """
         
-        avgdur, stddur = self.avg_profile(theta)
+        def theta_cost(theta, c=None):
+            """
+            Parameters
+            ----------
+            theta : float
+                Exponent to collapse a * (1-f+b)^{1+gamma} * (b+f)^-theta + c
+            weighted : bool, True
+                Normalized error bars by uncertainty (more uncertainty means weaker
+                constraint.
+            c : float, None
+                If this is specified, then it is set to a fixed value for the optimization
+                problem.
 
-        cost = self._define_cost_for_a_b_c(theta, avgdur, stddur, fix_c=c)
-        if c:
-            soln = minimize(cost, [50, -5])
-        else:
-            soln = minimize(cost, [50, -5, 10])
+            Returns
+            -------
+            float
+                Estimate of theta.
+            """
+            
+            avgdur, stddur = self.avg_profile(theta)
+            
+            cost = self._define_cost_for_a_b_c(theta, avgdur, stddur, fix_c=c, **kwargs)
+            if c:
+                soln = minimize(cost, [50, -5])
+            else:
+                soln = minimize(cost, [50, -5, 10])
 
-        if full_output:
-            return soln
-        return soln['fun']
+            if full_output:
+                return soln
+            return soln['fun']
 
-    def _define_cost_for_a_b_c(self, theta, avgdur, stddur, fix_c=None):
+        return theta_cost
+
+    def _define_cost_for_a_b_c(self, theta, avgdur, stddur,
+                               fix_c=None,
+                               exclude_first=False):
         if fix_c:
             if fix_c<0 : raise Exception
 
@@ -134,7 +152,8 @@ class ThetaFitter():
                      avgdur=avgdur,
                      stddur=stddur,
                      weighted=self.weighted,
-                     c=fix_c):
+                     c=fix_c,
+                     exclude_first=exclude_first):
                 """Cost for finding coefficient a for scaling form of density of events 
                 by scaled time.
                 """
@@ -146,10 +165,12 @@ class ThetaFitter():
                     weights = stddur[1:]
                 else:
                     weights = np.ones(avgdur.size-1)
-
-                return  np.linalg.norm( (((1 - binsx + np.exp(logb))**gammaplus1 *
-                                          (np.exp(logb) + binsx)**-theta + c) * a -
-                                         avgdur[1:])/weights ) + np.exp(logb)  # linear cost on large b
+                d = (((1 - binsx + np.exp(logb))**gammaplus1 * (np.exp(logb) + binsx)**-theta + c) * a -
+                     avgdur[1:])
+                if exclude_first:
+                    return  np.linalg.norm( d[1:] / weights[1:] ) + np.exp(logb)  # linear cost on large b
+                else:
+                    return  np.linalg.norm( d / weights ) + np.exp(logb)  # linear cost on large b
         else:
             def cost(args,
                      theta=theta,
@@ -157,7 +178,8 @@ class ThetaFitter():
                      binsx=self.binsx,
                      avgdur=avgdur,
                      stddur=stddur,
-                     weighted=self.weighted):
+                     weighted=self.weighted,
+                     exclude_first=exclude_first):
                 """Cost for finding coefficient a for scaling form of density of events 
                 by scaled time.
                 """
@@ -169,14 +191,22 @@ class ThetaFitter():
                     weights = stddur[1:]
                 else:
                     weights = np.ones(avgdur.size-1)
-
-                return  np.linalg.norm( (((1 - binsx + np.exp(logb))**gammaplus1 *
-                                          (np.exp(logb) + binsx)**-theta + c) * a -
-                                         avgdur[1:])/weights ) + np.exp(logb)  # linear cost on large b
+                d = (((1 - binsx + np.exp(logb))**gammaplus1 * (np.exp(logb) + binsx)**-theta + c) * a -
+                     avgdur[1:])
+                if exclude_first:
+                    return  np.linalg.norm( d[1:] / weights[1:] ) + np.exp(logb)  # linear cost on large b
+                else:
+                    return  np.linalg.norm( d / weights ) + np.exp(logb)  # linear cost on large b
         return cost
     
-    def solve_theta(self, c=None):
+    def solve_theta(self, c=None, **kwargs):
         """Find optimal value of theta using grid search algorithm.
+
+        Parameters
+        ----------
+        c : float, None
+        exclude_first : bool, False
+            If True, don't fit to the first point. This is a good test of sensitivity of the fit.
 
         Returns
         -------
@@ -185,13 +215,15 @@ class ThetaFitter():
         tuple
             a, logb, c
         """
-
-        self.theta = brute(self.cost_given_theta, ([.4, 1.5],), Ns=10)[0]
+        
+        self.theta = brute(self.define_cost_given_theta(**kwargs), ([.4, 1.5],), Ns=10)[0]
         if c:
-            self.a, self.logb = self.cost_given_theta(self.theta, c=c, full_output=True)['x']
+            self.a, self.logb = self.define_cost_given_theta(full_output=True, **kwargs)(self.theta,
+                                                                                         c=c)['x']
             self.c = c
         else:
-            self.a, self.logb, self.c = self.cost_given_theta(self.theta, full_output=True)['x']
+            self.a, self.logb, self.c = self.define_cost_given_theta(full_output=True,
+                                                                     **kwargs)(self.theta)['x']
         return self.theta, (self.a, self.logb, self.c)
 
 
@@ -289,7 +321,7 @@ class ThetaFitter():
         
         # plot properties
         ax.set(xlabel=r'relative starting time $g=t_0(x_i)/T$',
-               ylabel=r'$\left\langle\ \overline{%s_{x_i}(t_0/T)/T^{1-\gamma_{%s}-\theta_{%s}}}\ \right\rangle$'%(var,var,var),
+               ylabel=r'$\left\langle\ \overline{%s_{x_i}(T)/T^{1-\gamma_{%s}-\theta_{%s}}}\ \right\rangle$'%(var,var,var),
                xlim=(-.02,1.02),
                yscale='log')
         if not theta_lb is None and not theta_ub is None:
