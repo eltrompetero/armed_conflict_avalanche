@@ -191,6 +191,50 @@ def interp_clusters(clusters, x_interp, method=None):
 
     return data, traj, clusterix
 
+def interp_clusters_by_len(clusters, x_interp, method=None):
+    """Loop over conflict avalanche trajectories and interpolate their trajectories as a
+    function of length.
+
+    Parameters
+    ----------
+    clusters : list
+    x_interp : ndarray
+    method : str, None
+        Force particular method on all trajectories instead of assigning piecewise
+        interpolation to sizes and fatalities and linear interpolation on dynamics.
+        Possible values are 'piecewise' and 'linear'.
+
+    Returns
+    -------
+    dict
+        Regularized data points used to generate interpolated trajectories.
+    dict
+        Interpolated trajectories.
+    """
+    
+    data = {}
+    traj = {}
+    clusterix = {}  # indices of clusters kept for analysis and not removed because they
+                    # didn't meet the cutoff
+
+    data['S'], clusterix['S'] = regularize_sizes_by_len([c[['L','S']].values for c in clusters])
+    # bias in average fatality trajectories has to be accounted for later (on the ensemble average)
+    data['F'], clusterix['F'] = regularize_fatalities_by_len([c[['L','F']].values for c in clusters])
+                                                      #[1/c['S'].sum() for c in clusters])
+    assert len(data['S'])>0
+    
+    if method=='piecewise':
+        traj['S'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
+        traj['F'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
+    elif method=='linear':
+        traj['S'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
+        traj['F'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
+    else:
+        traj['S'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
+        traj['F'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
+
+    return data, traj, clusterix
+
 
 
 # ================ #
@@ -217,7 +261,7 @@ def regularize_sizes(listtraj, min_size=3, min_dur=4):
     keepix = []
 
     for i,xy in enumerate(listtraj):
-        if xy[-1,0]>=min_dur and xy[:,1].sum()>=min_size:
+        if xy[-1,0]>=(min_dur-1) and xy[:,1].sum()>=min_size:
             reglisttraj.append(xy.astype(int))
             reglisttraj[-1][:,1] = np.cumsum(reglisttraj[-1][:,1])
             # remove endpoint bias
@@ -255,7 +299,7 @@ def regularize_fatalities(listtraj, fraction_bias=None, min_size=3, min_dur=4):
         fraction_bias = [0]*len(listtraj)
 
     for i,(xy,fb) in enumerate(zip(listtraj,fraction_bias)):
-        if xy[-1,0]>=min_dur and xy[:,1].sum()>=min_size:
+        if xy[-1,0]>=(min_dur-1) and xy[:,1].sum()>=min_size:
             reglisttraj.append(xy.astype(float))
             reglisttraj[-1][:,1] = np.cumsum(reglisttraj[-1][:,1])
             # remove endpoint bias (avg no. of fatalities per report)
@@ -287,7 +331,7 @@ def regularize_diameters(listtraj, min_dur=4, min_diameter=1e-6, start_at_zero=F
     keepix = []
 
     for i,xy in enumerate(listtraj):
-        if xy[-1,0]>=min_dur and xy[-1,1]>=min_diameter:
+        if xy[-1,0]>=(min_dur-1) and xy[-1,1]>=min_diameter:
             if start_at_zero:
                 # start all trajectories with diameter=0
                 xy = np.insert(xy, 0, np.zeros((1,2)), axis=0)
@@ -320,13 +364,86 @@ def regularize_days(listtraj, min_size=3, min_dur=4):
     keepix = []
 
     for i,xy in enumerate(listtraj):
-        if xy[-1,0]>=min_dur and xy.shape[0]>=min_size:
+        if xy[-1,0]>=(min_dur-1) and xy.shape[0]>=min_size:
             reglisttraj.append(xy.astype(int))
             reglisttraj[-1][:,1] = np.arange(reglisttraj[-1].shape[0])
             # remove endpoint bias
             reglisttraj[-1][-1,1] -= 1
             keepix.append(i)
 
+    return reglisttraj, keepix
+
+def regularize_sizes_by_len(listtraj, min_size=3, min_len=4):
+    """Turn sizes trajectory into cumulative profile.
+
+    Parameters
+    ----------
+    listtraj : list of ndarray
+    min_size : int, 3
+    min_len : int, 4
+        Min number of unique places conflict has spread to.
+
+    Returns
+    -------
+    list of ndarray
+    list of ints
+        Indices of trajectories that were kept. These correspond to the indices of the
+        clusters.
+    """
+    
+    reglisttraj = []
+    keepix = []
+
+    for i,xy in enumerate(listtraj):
+        if np.unique(xy[:,0]).size>=min_len and xy[:,1].sum()>=min_size:
+            reglisttraj.append(xy)
+            reglisttraj[-1][:,0] -= reglisttraj[-1][0,0]
+            reglisttraj[-1][:,1] = np.cumsum(reglisttraj[-1][:,1])
+            # remove endpoint bias
+            reglisttraj[-1][:,1] -= 1
+            reglisttraj[-1][-1,1] -= 1
+            keepix.append(i)
+
+    return reglisttraj, keepix
+
+def regularize_fatalities_by_len(listtraj, fraction_bias=None, min_size=3, min_len=4):
+    """Turn fatalities trajectory into cumulative profile.
+
+    Way of regularizing involves subtracting a mean bias across all trajectories which
+    means that individual trajectories might be negative but the mean should be
+    reasonable.
+
+    Parameters
+    ----------
+    listtraj : list of ndarray
+    fraction_bias : list, None
+    min_size : int, 3
+    min_len : int, 4
+        Min number of unique places conflict has spread to.
+
+    Returns
+    -------
+    list of ndarray
+    list of ints
+        Indices of trajectories that were kept. These correspond to the indices of the
+        clusters.
+    """
+
+    reglisttraj = []
+    keepix = []
+    if fraction_bias is None:
+        fraction_bias = [0]*len(listtraj)
+
+    for i,(xy,fb) in enumerate(zip(listtraj,fraction_bias)):
+        if np.unique(xy[:,0]).size>=min_len and xy[:,1].sum()>=min_size:
+            reglisttraj.append(xy)
+            reglisttraj[-1][:,0] -= reglisttraj[-1][0,0]
+            reglisttraj[-1][:,1] = np.cumsum(reglisttraj[-1][:,1])
+            # remove endpoint bias (avg no. of fatalities per report)
+            reglisttraj[-1][:,1] -= fb * reglisttraj[-1][-1,1]
+            reglisttraj[-1][-1,1] -= fb * reglisttraj[-1][-1,1]
+            keepix.append(i)
+    
     return reglisttraj, keepix
 
 def size_endpoint_bias(clusters, clusterix):
