@@ -28,7 +28,7 @@ class ThetaFitter():
     explicitly from data, then this can be specified.
     """
     def __init__(self, trajectories, cluster_T, g,
-                 gammaplus1=0.22,
+                 gammaplus1=0.27,
                  weighted=True):
         """
         Parameters
@@ -40,7 +40,7 @@ class ThetaFitter():
             Duration of the entire cluster to which each site belongs.
         g : np.ndarray
             Normalized start time (t0/T) as in notes.
-        gammaplus : float, 0.22
+        gammaplus : float, 0.27
         weighted : bool, True
             If True, standardized errors are minimized.
         """
@@ -55,6 +55,7 @@ class ThetaFitter():
         self.bins = np.linspace(0, 1+1e-10, 10)  # cannot fit to singularities
         self.binsix = np.digitize(g, self.bins)
         self.binsx = (self.bins[:-1] + self.bins[1:]) / 2
+        self.foundbinsix = [np.where(self.binsix==i)[0] for i in np.unique(self.binsix)]
     
     def avg_profile(self, theta=None):
         """
@@ -74,14 +75,42 @@ class ThetaFitter():
         stddur = np.zeros(self.binsix.max()+1)
         d = self.gammaplus1 - theta
 
-        for i in np.unique(self.binsix):
+        for counter,i in enumerate(np.unique(self.binsix)):
             avgdur[i] = np.mean([self.trajectories[ix].sum() / self.clusterT[ix]**d
-                                 for ix in np.where(self.binsix==i)[0]])
+                                 for ix in self.foundbinsix[counter]])
+                                 #for ix in np.where(self.binsix==i)[0]])
             stddur[i] = self.std_of_mean([self.trajectories[ix].sum() / self.clusterT[ix]**d
-                                          for ix in np.where(self.binsix==i)[0]])
+                                          for ix in self.foundbinsix[counter]])
+                                          #for ix in np.where(self.binsix==i)[0]])
         avgdur[avgdur==0] = np.nan
 
         return avgdur, stddur
+
+    def solve_theta(self, **kwargs):
+        """Find optimal value of theta using grid search algorithm.
+
+        Parameters
+        ----------
+        c : float, None
+        exclude_first : bool, False
+            If True, don't fit to the first point. This is a good test of sensitivity of the fit.
+
+        Returns
+        -------
+        float
+            Theta
+        tuple
+            a, b, c
+        """
+        
+        self.theta = brute(self.define_cost_given_theta(**kwargs), ([.4, 1.5],), Ns=10)[0]
+        if 'c' in kwargs.keys():
+            self.loga, self.logb = self.define_cost_given_theta(full_output=True, **kwargs)(self.theta)['x']
+            self.c = kwargs['c']
+        else:
+            self.loga, self.logb, self.c = self.define_cost_given_theta(full_output=True,
+                                                                        **kwargs)(self.theta)['x']
+        return self.theta, (np.exp(self.loga), np.exp(self.logb), self.c)
 
     def define_cost_given_theta(self,
                                 full_output=False,
@@ -106,7 +135,7 @@ class ThetaFitter():
         function
         """
         
-        def theta_cost(theta, c=None):
+        def theta_cost(theta):
             """
             Parameters
             ----------
@@ -127,11 +156,11 @@ class ThetaFitter():
             
             avgdur, stddur = self.avg_profile(theta)
             
-            cost = self._define_cost_for_a_b_c(theta, avgdur, stddur, fix_c=c, **kwargs)
-            if c:
-                soln = minimize(cost, [50, -5])
+            cost = self._define_cost_for_a_b_c(theta, avgdur, stddur, **kwargs)
+            if 'c' in kwargs.keys():
+                soln = minimize(cost, [3, -5], bounds=[(-np.inf,10),(-np.inf,10)])
             else:
-                soln = minimize(cost, [50, -5, 10])
+                soln = minimize(cost, [3, -5, 10], bounds=[(-np.inf,10),(-np.inf,10),(0,np.inf)])
 
             if full_output:
                 return soln
@@ -140,10 +169,10 @@ class ThetaFitter():
         return theta_cost
 
     def _define_cost_for_a_b_c(self, theta, avgdur, stddur,
-                               fix_c=None,
+                               c=None,
                                exclude_first=False):
-        if fix_c:
-            if fix_c<0 : raise Exception
+        if not c is None:
+            if c<0 : raise Exception
 
             def cost(args,
                      theta=theta,
@@ -152,24 +181,25 @@ class ThetaFitter():
                      avgdur=avgdur,
                      stddur=stddur,
                      weighted=self.weighted,
-                     c=fix_c,
+                     c=c,
                      exclude_first=exclude_first):
                 """Cost for finding coefficient a for scaling form of density of events 
                 by scaled time.
                 """
                 
-                a, logb = args
-                if a<=0 or logb>10 or theta<0 : return 1e30
+                loga, logb = args
+                if loga>10 or logb>10 or theta<0 : return 1e30
 
                 if weighted:
                     weights = stddur[1:]
                 else:
                     weights = np.ones(avgdur.size-1)
-                d = (((1 - binsx + np.exp(logb))**gammaplus1 * (np.exp(logb) + binsx)**-theta + c) * a -
+                d = (((1 - binsx + np.exp(logb))**gammaplus1 * (np.exp(logb) + binsx)**-theta + c) * np.exp(loga) -
                      avgdur[1:])
                 if exclude_first:
                     return  np.linalg.norm( d[1:] / weights[1:] ) + np.exp(logb)  # linear cost on large b
                 else:
+                    #return  np.linalg.norm( d / np.exp(loga) ) + np.exp(logb)  # linear cost on large b
                     return  np.linalg.norm( d / weights ) + np.exp(logb)  # linear cost on large b
         else:
             def cost(args,
@@ -184,14 +214,14 @@ class ThetaFitter():
                 by scaled time.
                 """
                 
-                a, logb, c = args
-                if a<=0 or logb>10 or c<0 or theta<0 : return 1e30
+                loga, logb, c = args
+                if loga>10 or logb>10 or c<0 or theta<0 : return 1e30
 
                 if weighted:
                     weights = stddur[1:]
                 else:
                     weights = np.ones(avgdur.size-1)
-                d = (((1 - binsx + np.exp(logb))**gammaplus1 * (np.exp(logb) + binsx)**-theta + c) * a -
+                d = (((1 - binsx + np.exp(logb))**gammaplus1 * (np.exp(logb) + binsx)**-theta + c) * np.exp(loga) -
                      avgdur[1:])
                 if exclude_first:
                     return  np.linalg.norm( d[1:] / weights[1:] ) + np.exp(logb)  # linear cost on large b
@@ -199,34 +229,6 @@ class ThetaFitter():
                     return  np.linalg.norm( d / weights ) + np.exp(logb)  # linear cost on large b
         return cost
     
-    def solve_theta(self, c=None, **kwargs):
-        """Find optimal value of theta using grid search algorithm.
-
-        Parameters
-        ----------
-        c : float, None
-        exclude_first : bool, False
-            If True, don't fit to the first point. This is a good test of sensitivity of the fit.
-
-        Returns
-        -------
-        float
-            Theta
-        tuple
-            a, logb, c
-        """
-        
-        self.theta = brute(self.define_cost_given_theta(**kwargs), ([.4, 1.5],), Ns=10)[0]
-        if c:
-            self.a, self.logb = self.define_cost_given_theta(full_output=True, **kwargs)(self.theta,
-                                                                                         c=c)['x']
-            self.c = c
-        else:
-            self.a, self.logb, self.c = self.define_cost_given_theta(full_output=True,
-                                                                      **kwargs)(self.theta)['x']
-        return self.theta, (self.a, self.logb, self.c)
-
-
     def boot_error_bars(self, n_sample):
         """Use bootstrap sampling to generate error bars on average profile.
 
@@ -270,7 +272,7 @@ class ThetaFitter():
          
         gammaplus1 = self.gammaplus1 if gammaplus1 is None else gammaplus1
         theta = self.theta if theta is None else theta
-        a = self.a if a is None else a
+        a = np.exp(self.loga) if a is None else a
         b = np.exp(self.logb) if b is None else b
         c = self.c if c is None else c
 
@@ -411,37 +413,55 @@ class ThetaFitterRBAC():
         self.rx = rx
         self.x = (bins[:-1] + bins[1:]) / 2
 
-    def define_cost_a_b(self, theta, y, exclude_first=False):
-        def cost_a_b(args, theta=theta, y=y):
-            a, logb = args
-            d = (a * (1 - self.x + np.exp(logb))**(1-self.gamma) *
-                 (self.x + np.exp(logb))**-theta - y) / a + np.exp(logb)
+    def define_cost_a_b(self, theta, y, ystd,
+                        exclude_first=False,
+                        normalize_by_a=True):
+        def cost_a_b(args, theta=theta, y=y, ystd=ystd):
+            loga, logb = args
+            
+            if normalize_by_a:
+                d = (np.exp(loga) * (1 - self.x + np.exp(logb))**(1-self.gamma) *
+                     (self.x + np.exp(logb))**-theta - y) / np.exp(loga)
+            else:
+                d = (np.exp(loga) * (1 - self.x + np.exp(logb))**(1-self.gamma) *
+                     (self.x + np.exp(logb))**-theta - y) / ystd
+
             if exclude_first:
-                return np.linalg.norm(d[1:])
-            return np.linalg.norm(d)
+                return np.linalg.norm(d[1:]) + np.exp(logb)
+            return np.linalg.norm(d) + np.exp(logb)
         return cost_a_b
     
     def define_cost(self, **kwargs):
         def cost(theta):
             rxNormalized = self.rx / self.t**(1 - self.gamma - theta)
             y = np.array([rxNormalized[i==self.binIx].mean() for i in range(self.x.size)])
-            cost_a_b = self.define_cost_a_b(theta, y, **kwargs)
-            return minimize(cost_a_b, [y.mean(), -3],
-                            bounds=[(1e-6,np.inf),(-np.inf,np.inf)])['fun']
+            ystd = np.array([rxNormalized[i==self.binIx].std()/np.sqrt((i==self.binIx).sum()) for i in range(self.x.size)])
+            cost_a_b = self.define_cost_a_b(theta, y, ystd, **kwargs)
+            return minimize(cost_a_b, [np.log(y.mean()), -3])['fun']
         return cost
 
     def solve_theta(self, **kwargs):
+        """
+        Parameters
+        ----------
+        exclude_first : bool, False
+        """
+
         # find theta
-        fmin = lambda x, y, **kwargs: minimize(x, y, bounds=[(0,2)], **kwargs)
-        thetafit = brute(self.define_cost(**kwargs), [(.4,1)], Ns=7, finish=fmin)[0]
+        fmin = lambda x, y, **kwargs: minimize(x, y, bounds=[(0,1.7)], **kwargs)
+        thetafit = brute(self.define_cost(**kwargs), [(.4,1.5)], Ns=10, finish=fmin)[0]
         
-        # corresponding a and logb
+        # solve for corresponding a and logb given theta
         rxNormalized = self.rx / self.t**(1 - self.gamma - thetafit)
         y = np.array([rxNormalized[i==self.binIx].mean() for i in range(self.x.size)])
-        cost_a_b = self.define_cost_a_b(thetafit, y, **kwargs)
-        afit, logbfit = minimize(cost_a_b, [thetafit, self.gamma])['x']
+        ystd = np.array([rxNormalized[i==self.binIx].std()/np.sqrt((i==self.binIx).sum()) for i in range(self.x.size)])
+        cost_a_b = self.define_cost_a_b(thetafit, y, ystd, **kwargs)
+        logafit, logbfit = minimize(cost_a_b, [thetafit, self.gamma])['x']
 
-        return thetafit, afit, logbfit
+        return thetafit, np.exp(logafit), np.exp(logbfit)
+#end ThetaFitterRBAC
+
+
 
 class SiteExtractor():
     """Identify conflict pixels.

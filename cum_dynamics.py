@@ -170,22 +170,27 @@ def interp_clusters(clusters, x_interp, method=None):
     # according to old dynamics code, you should subtract the average fraction across all avalanches
                                       #[np.mean([1/c['S'].sum() for c in clusters if c['S'].sum()>2])]*len(clusters))
     data['L'], clusterix['L'] = regularize_diameters([c[['T','L']].values for c in clusters])
+    data['T'], clusterix['T'] = regularize_days([c[['T','T']].values for c in clusters])
     assert len(data['S'])>0
     
     if method=='piecewise':
         traj['S'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
         traj['F'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
         traj['L'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['L']])
+        traj['T'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['T']])
     elif method=='linear':
         traj['S'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
         traj['F'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
         traj['L'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['L']])
+        traj['T'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['T']])
     else:
         traj['S'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['S']])
         traj['F'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['F']])
         traj['L'] = np.vstack([interp(xy[:,0], xy[:,1], x_interp) for xy in data['L']])
+        traj['T'] = np.vstack([piecewise_interp(xy[:,0], xy[:,1], x_interp) for xy in data['T']])
 
     return data, traj, clusterix
+
 
 
 # ================ #
@@ -290,6 +295,36 @@ def regularize_diameters(listtraj, min_dur=4, min_diameter=1e-6, start_at_zero=F
                 xy[1:,0] += 1
             
             reglisttraj.append(xy)
+            keepix.append(i)
+
+    return reglisttraj, keepix
+
+def regularize_days(listtraj, min_size=3, min_dur=4):
+    """Turn unique days trajectory into cumulative profile.
+
+    Parameters
+    ----------
+    listtraj : list of ndarray
+    min_size : int, 3
+    min_dur : int, 4
+
+    Returns
+    -------
+    list of ndarray
+    list of ints
+        Indices of trajectories that were kept. These correspond to the indices of the
+        clusters.
+    """
+    
+    reglisttraj = []
+    keepix = []
+
+    for i,xy in enumerate(listtraj):
+        if xy[-1,0]>=min_dur and xy.shape[0]>=min_size:
+            reglisttraj.append(xy.astype(int))
+            reglisttraj[-1][:,1] = np.arange(reglisttraj[-1].shape[0])
+            # remove endpoint bias
+            reglisttraj[-1][-1,1] -= 1
             keepix.append(i)
 
     return reglisttraj, keepix
