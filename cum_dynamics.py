@@ -7,6 +7,7 @@ import multiprocess as mp
 import numpy as np
 import pickle
 import pandas as pd
+from scipy.optimize import minimize
 
 
 def extract_from_df(subdf, clustersix,
@@ -538,3 +539,69 @@ def piecewise_interp(x, y, xinterp, **kwargs):
     #x = np.append(x, 1)
     #y = np.append(y, 1)
     return interp1d(x, y, assume_sorted=True, **kwargs)(xinterp)
+
+def trajectory_exponent_fit(samp, x, n_sample,
+                            cost_type='log',
+                            xmn=.1,
+                            exp_guess=.8,
+                            apply_to_mean=lambda y, randix:y,
+                            iprint=False):
+    """Fit scailng exponent for trajectories using intercept as the offset measured in the
+    data.
+
+    Parameters
+    ----------
+    samp : ndarray
+        (n_samples, time)
+    x : ndarray
+    n_sample : int
+        Number of bootstrap samples to take.
+    cost_type : str, 'log'
+    xmn : float, .1
+        Lower cutoff on x-axis to use for fitting.
+    exp_guess : float, .8
+        Initial guess to use for fitting procedure.
+    apply_to_mean : fun, lambda y, randix:y
+        Useful for fatalities profiles.
+    iprint : bool, False
+
+    Returns
+    -------
+    float
+        Best fit exponent
+    tuple
+        5th and 95th percentile from bootstrap fit
+    float
+        Std over bootstrap sample.
+    """
+
+    xix = x>=xmn
+
+    def one_fit(rand=True):
+        if rand:
+            randix = np.random.randint(len(samp), size=len(samp))
+        else:
+            randix = list(range(len(samp)))
+        y = samp[randix].mean(0)
+
+        # custom function for manipulating mean
+        # useful for fatalities profile where average events have to subtracted from endpts
+        y = apply_to_mean(y, randix)
+        
+        if cost_type=='log':
+            def cost(a):
+                return np.linalg.norm(np.log((y[0] + x[xix]**a) / (1+y[0])) - np.log(y[xix]))
+        else:
+            def cost(a):
+                 return np.linalg.norm((y[0] + x[xix]**a) / (1+y[0]) - y[xix])
+
+        return minimize(cost, exp_guess, bounds=[(.1,2)])['x'][0]
+
+    expboot = np.array([one_fit() for i in range(n_sample)])
+    output = one_fit(False), (np.percentile(expboot, 5), np.percentile(expboot, 95)), expboot.std()
+
+    if iprint:
+        print("Measured exponent = %1.2f"%output[0])
+        print("Percentile (5, 95): (%1.2f, %1.2f)"%output[1])
+        print("Std = %1.2f"%output[2])
+    return output
