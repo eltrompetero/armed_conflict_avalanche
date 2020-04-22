@@ -399,7 +399,7 @@ class NTD():
 
 class ConflictReportsTrajectory(NTD):
     def __init__(self, r, b, gamma_r, theta_r, gamma_f, theta_f,
-                 alpha=3.1,
+                 alpha=3,
                  rng=None):
         """Growing conflict trees on NTDs. Basically, NTDs but with site dynamics to count
         fatalities and reports.
@@ -416,7 +416,7 @@ class ConflictReportsTrajectory(NTD):
         gamma_f : float
             Growth exponent for fatalities.
         theta_f : float
-        alpha : float, 2.44
+        alpha : float, 3.0
             Exponent for distribution of virulence.
         rng : np.random.RandomState, None
         """
@@ -608,7 +608,7 @@ class ConflictReportsTrajectory(NTD):
         def loop_wrapper(args, self=self):
             i, v_r = args
             self.rng = np.random.RandomState()
-            v_f = (v_r / v_r0)**1.74  # this relationship is from relating virulence V_r with V_f
+            v_f = (v_r / v_r0)**1.78  # this relationship is from relating virulence V_r with V_f
             
             # must be in the limit of single events per site in periphery
             # cutoff scales with expected duration
