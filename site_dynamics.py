@@ -415,13 +415,18 @@ class ThetaFitterRBAC():
 
     def define_cost_a_b(self, theta, y, ystd,
                         exclude_k=0,
-                        normalize_by_a=True):
+                        normalize_by_a=True,
+                        log_cost=False):
         def cost_a_b(args, theta=theta, y=y, ystd=ystd):
             loga, logb = args
             
             if normalize_by_a:
-                d = (np.exp(loga) * (1 - self.x + np.exp(logb))**(1-self.gamma) *
-                     (self.x + np.exp(logb))**-theta - y) / np.exp(loga)
+                if log_cost:
+                    d = (np.log(np.exp(loga) * (1 - self.x + np.exp(logb))**(1-self.gamma) *
+                                (self.x + np.exp(logb))**-theta) - np.log(y)) / np.exp(loga)
+                else:
+                    d = (np.exp(loga) * (1 - self.x + np.exp(logb))**(1-self.gamma) *
+                         (self.x + np.exp(logb))**-theta - y) / np.exp(loga)
             else:
                 d = (np.exp(loga) * (1 - self.x + np.exp(logb))**(1-self.gamma) *
                      (self.x + np.exp(logb))**-theta - y) / ystd
@@ -430,13 +435,15 @@ class ThetaFitterRBAC():
             return np.linalg.norm(d[exclude_k:]) + np.exp(logb)
         return cost_a_b
     
-    def define_cost(self, **kwargs):
-        def cost(theta):
+    def define_cost(self, full_output=False, **kwargs):
+        def cost(theta, full_output=full_output):
             rxNormalized = self.rx / self.t**(1 - self.gamma - theta)
             y = np.array([rxNormalized[i==self.binIx].mean() for i in range(self.x.size)])
             ystd = np.array([rxNormalized[i==self.binIx].std()/np.sqrt((i==self.binIx).sum())
                              for i in range(self.x.size)])
             cost_a_b = self.define_cost_a_b(theta, y, ystd, **kwargs)
+            if full_output:
+                return minimize(cost_a_b, [np.log(y.mean()), -3])
             return minimize(cost_a_b, [np.log(y.mean()), -3])['fun']
         return cost
 
@@ -453,13 +460,15 @@ class ThetaFitterRBAC():
         thetafit = brute(self.define_cost(**kwargs), [(.2,1.3)], Ns=10, finish=fmin)[0]
         
         # solve for corresponding a and logb given theta
-        rxNormalized = self.rx / self.t**(1 - self.gamma - thetafit)
-        y = np.array([rxNormalized[i==self.binIx].mean() for i in range(self.x.size)])
-        ystd = np.array([rxNormalized[i==self.binIx].std()/np.sqrt((i==self.binIx).sum())
-                         for i in range(self.x.size)])
-        cost_a_b = self.define_cost_a_b(thetafit, y, ystd, **kwargs)
-        soln = minimize(cost_a_b, [thetafit, self.gamma])
-        logafit, logbfit = soln['x']
+        #rxNormalized = self.rx / self.t**(1 - self.gamma - thetafit)
+        #y = np.array([rxNormalized[i==self.binIx].mean() for i in range(self.x.size)])
+        #ystd = np.array([rxNormalized[i==self.binIx].std()/np.sqrt((i==self.binIx).sum())
+        #                 for i in range(self.x.size)])
+        #cost_a_b = self.define_cost_a_b(thetafit, y, ystd, **kwargs)
+        #soln = minimize(cost_a_b, [thetafit, self.gamma])
+        #logafit, logbfit = soln['x']
+        cost = self.define_cost(full_output=True, **kwargs)
+        logafit, logbfit = cost(thetafit)['x']
         
         if full_output:
             thetafit, np.exp(logafit), np.exp(logbfit), soln

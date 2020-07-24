@@ -174,7 +174,7 @@ class NTD():
         """
         
         return 1 + np.log(self.r)/np.log(self.b)
-        
+
     def plot(self, fig=None, ax=None,
              angle_index_offset=-1,
              unit=1,
@@ -220,31 +220,32 @@ class NTD():
         gencount = 1
         while gencount<(len(branchidsbygen)):
             radius = self.b**gencount
+            # shrinking angle to prevent collision of branches
             angle = 2 * np.pi / self.r**gencount
 
-            for i,bid in enumerate(branchidsbygen[gencount-1]):
+            for i, bid in enumerate(branchidsbygen[gencount-1]):
                 bran = branches[branchids.index(bid)]
                 if gencount==1:
                     rt0 = bran.pos, i*angle
                 else:
                     # branching angle is offset from parent branch
-                    rt0 = (bran.ancestralLen + bran.pos, plotAngle[bran.label[:-1]] +
+                    rt0 = (bran.ancestrallen + bran.pos, plotangle[bran.label[:-1]] +
                                                          angle*(int(bran.label[-1]) + angle_index_offset))
-                plotAngle[bid] = rt0[1]
+                plotangle[bid] = rt0[1]
 
                 # find all its children and connect to them
                 for j in range(self.r):
                     if bran.label+str(j) in branchids:
                         childbran = branches[branchids.index(bran.label+str(j))]
                         #if gencount==(len(branchidsbygen)-1):
-                        rt.append((rt0,(childbran.ancestralLen + childbran.pos,
-                                        plotAngle[childbran.label[:-1]] +
+                        rt.append((rt0,(childbran.ancestrallen + childbran.pos,
+                                        plotangle[childbran.label[:-1]] +
                                         angle/self.r*(int(childbran.label[-1]) + angle_index_offset))))
             gencount += 1
 
         xy = rt2xy(rt)
 
-        lineColl = []
+        linecoll = []
         for p1,p2 in xy:
             el = np.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
             nsegments = int(el//unit)
@@ -253,7 +254,7 @@ class NTD():
             y = np.linspace(p1[1], p2[1], nsegments)
 
             # taken from stackoverflow
-            pts = np.vstack((x,y)).T.reshape(-1,1,2)
+            pts = np.vstack((x,y)).t.reshape(-1,1,2)
             segments = np.concatenate((pts[:-1], pts[1:]), axis=1)
 
             # vary line thickness
@@ -261,7 +262,7 @@ class NTD():
                              origin_line_width/(np.linalg.norm(p2)+1),
                              nsegments)
             lw = lw**lw_decay_exponent / origin_line_width**lw_decay_exponent * origin_line_width
-            lineColl.append(LineCollection(segments, linewidth=lw))
+            linecoll.append(linecollection(segments, linewidth=lw))
         
         # plotting limits
         xy = np.vstack(xy)
@@ -663,10 +664,10 @@ def rt2xy(rt):
     """
     rt = np.vstack(rt).reshape(len(rt), 4)
     xy = np.zeros_like(rt)
-    xy[:,0] = rt[:,0]*np.cos(rt[:,1])
-    xy[:,1] = rt[:,0]*np.sin(rt[:,1])
-    xy[:,2] = rt[:,2]*np.cos(rt[:,3])
-    xy[:,3] = rt[:,2]*np.sin(rt[:,3])
+    xy[:,0] = rt[:,0] * np.cos(rt[:,1])
+    xy[:,1] = rt[:,0] * np.sin(rt[:,1])
+    xy[:,2] = rt[:,2] * np.cos(rt[:,3])
+    xy[:,3] = rt[:,2] * np.sin(rt[:,3])
     xy = [((row[0],row[1]),(row[2],row[3])) for row in xy]
 
     return xy
@@ -761,3 +762,4 @@ class Site():
             assert (t>=self.t0).all()
         else:
             assert t>=self.t0, (t, self.t0)
+#end Site
