@@ -8,7 +8,6 @@ from scipy.spatial.distance import pdist
 import pandas as pd
 import os
 from datetime import datetime
-from geopy.distance import vincenty, great_circle
 from itertools import combinations, chain
 from scipy.spatial.distance import squareform
 from misc.plot import colorcycle
