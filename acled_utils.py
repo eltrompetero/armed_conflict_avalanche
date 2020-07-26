@@ -22,6 +22,37 @@ DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
 
 
 
+def grid_split2cluster_ix(gridsplit, dfix):
+    """Convert grid split (which indicates the cluster to which each event from the
+    DataFrame belongs) into a column Series that can be added to the DataFrame.
+
+    This facilitates use of native pandas functions for event analysis.
+    
+    Parameters
+    ----------
+    gridsplit : list of lists
+        Each internal list is a conflict avalanche listing the DataFrame index of the
+        events that belong to it. Note that this is not necessarily the order in which
+        events are listed in the DataFrame.
+    dfix : pd.Index
+        Index of the DataFrame.
+
+    Returns
+    -------
+    pd.Series
+    """
+    
+    # indicates conflict avalanche to which each conflict event belongs
+    clusterix = np.zeros(dfix.size, dtype=int)
+    
+    for avalancheix, split in enumerate(gridsplit):
+        for splitix in split:
+            # find the conflict event in df that corresponds to index in gridsplit assign
+            # to it the conflict avalanche index "avalancheix"
+            clusterix[np.where(dfix==splitix)[0][0]] = avalancheix
+
+    return pd.Series(clusterix, index=dfix)
+
 def track_max_pair_dist(lonlat, as_delta=True, use_pdist=False):
     """Keep track of spatial extent of cluster. By default, returns delta growth.
     
