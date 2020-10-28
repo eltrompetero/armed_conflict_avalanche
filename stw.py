@@ -16,16 +16,31 @@ class STW1D():
     """
     def __init__(self, L, alpha,
                  rng=None):
+        """
+        Parameters
+        ----------
+        L : int
+        alpha : float, exponent for rep
+        rng : np.random.RandomState
+        """
+
         self.L = L
         self.alpha = alpha
         self.rng = rng or np.random.RandomState()
         
-    def run(self, T, recordEvery=10):
+    def run(self, T, record_every=10):
+        """
+        Parameters
+        ----------
+        T : int
+        record_every : int, 10
+        """
+
         x = self.L//2  # position of walker on lattice
         r = np.ones(self.L)  # number of repeats on sites
         
-        el = np.zeros(T//recordEvery, dtype=int)
-        total = np.zeros(T//recordEvery)
+        el = np.zeros(T//record_every, dtype=int)
+        total = np.zeros(T//record_every)
 
         counter = 0
         while counter < T:
@@ -42,8 +57,8 @@ class STW1D():
                     x += 1
                 x %= self.L
 
-            el[counter//recordEvery] = x
-            total[counter//recordEvery] = r.sum() - self.L
+            el[counter//record_every] = x
+            total[counter//record_every] = r.sum() - self.L
 
             counter += 1
 
@@ -54,6 +69,12 @@ class STW1D():
     def sample(self, n_sample, T,
                **run_kw):
         """Generate n_sample trajectories of duration T.
+
+        Parameters
+        ----------
+        n_sample : int
+        T : int
+        **run_kw
         """
         
         def wrapper(i):
@@ -67,7 +88,14 @@ class STW1D():
     
     def sample_df(self, n_sample, T,
                   **run_kw):
-        """Sample to estimate fractal dimension."""
+        """Sample to estimate fractal dimension.
+
+        Parameters
+        ----------
+        n_sample : int
+        T : int
+        **run_kw
+        """
         
         el, total = self.sample(n_sample, T)[:-1]
         el = np.array([i[-1] for i in el])

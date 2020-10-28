@@ -3,22 +3,21 @@
 # Author: Eddie Lee, edlee@santafe.edu
 # ====================================================================================== #
 import numpy as np
-from sklearn.cluster import MeanShift
 from scipy.spatial.distance import pdist
 import pandas as pd
-import os
 from datetime import datetime
 from itertools import combinations, chain
 from scipy.spatial.distance import squareform
 from misc.plot import colorcycle
-from misc.utils import ortho_plane, max_dist_pair2D
 import scipy.stats as stats
-from scipy.optimize import minimize
 from warnings import warn
 from misc.globe import SphereCoordinate, PoissonDiscSphere, haversine, jithaversine
 from numba import jit, njit
-import pickle
-DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict/data/'
+import dill as pickle
+import multiprocess as mp
+from statsmodels.distributions import ECDF
+import os
+DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
 
@@ -53,7 +52,9 @@ def grid_split2cluster_ix(gridsplit, dfix):
 
     return pd.Series(clusterix, index=dfix)
 
-def track_max_pair_dist(lonlat, as_delta=True, use_pdist=False):
+def track_max_pair_dist(lonlat,
+                        as_delta=True,
+                        use_pdist=False):
     """Keep track of spatial extent of cluster. By default, returns delta growth.
     
     Parameters
@@ -116,9 +117,8 @@ def _max_pair_dist(lonlat):
     return jithaversine(phitheta[maxdistix[0]], phitheta[maxdistix[1]])
 
 def check_relation(alphaBds, upsBds, dfBds):
-    """
-    Checks the basic relation between the time scales exponent alpha with another scaling
-    variable like fatalities. The relation checked for this case would be
+    """Checks the basic relation between the time scales exponent alpha with another
+    scaling variable like fatalities. The relation checked for this case would be
         $\\alpha - 1 = (\\upsilon-1) d_{\\rm f}$
 
     Parameters
@@ -139,10 +139,14 @@ def check_relation(alphaBds, upsBds, dfBds):
 
     if not (hasattr(alphaBds,'__len__') and hasattr(upsBds,'__len__')):
         return False
-    if ( (((alphaBds[0]-1)>(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[0]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
-         (((alphaBds[1]-1)>(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[1]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
-         (((alphaBds[0]-1)<(dfBds[:,0]*(upsBds[0]-1))) & ((alphaBds[1]-1)>(dfBds[:,0]*(upsBds[0]-1)))).any() or
-         (((alphaBds[0]-1)<(dfBds[:,1]*(upsBds[1]-1))) & ((alphaBds[1]-1)>(dfBds[:,1]*(upsBds[1]-1)))).any() ):
+    if ( (((alphaBds[0]-1)>(dfBds[:,0]*(upsBds[0]-1))) &
+          ((alphaBds[0]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
+         (((alphaBds[1]-1)>(dfBds[:,0]*(upsBds[0]-1))) &
+          ((alphaBds[1]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
+         (((alphaBds[0]-1)<(dfBds[:,0]*(upsBds[0]-1))) &
+          ((alphaBds[1]-1)>(dfBds[:,0]*(upsBds[0]-1)))).any() or
+         (((alphaBds[0]-1)<(dfBds[:,1]*(upsBds[1]-1))) &
+          ((alphaBds[1]-1)>(dfBds[:,1]*(upsBds[1]-1)))).any() ):
         return True
     return False
 
@@ -285,6 +289,11 @@ def voronoi_pix_diameter(spaceThreshold, n_samp=10):
         Ranges from 1280 to 5 in factors of 2.
     n_samp : int, 10
         Number of random pairs to take average of.
+
+    Returns
+    -------
+    ndarray
+        Pixel diameters for each space threshold given.
     """
 
     pixDiameter = np.zeros(len(spaceThreshold))
@@ -323,101 +332,6 @@ def _sample_lattice_spacing(dx, sample_size):
 
     return d.mean() * 6370
 
-def loglog_fit_err_bars(x, y, fit_params, show_plot=False):
-    """Calculate posterior probability of exponent parameter.
-
-    Parameters
-    ----------
-    x : ndarray
-    y : ndarray
-    fit_params : twople
-    posterior : bool, False
-    show_plot : bool, False
-
-    Returns
-    -------
-    twople
-        95% confidence intervals on exponent parameter assuming fixed offset.
-    """
-
-    from numpy import log
-    from misc.stats import loglog_fit
-
-    # posterior probability estimation of error bars
-    fit_params=loglog_fit(x, y)
-
-    resx=log(y) - np.polyval(fit_params, log(x))
-    resy=(log(y) - fit_params[1])/fit_params[0] - log(x)
-    varerr=np.concatenate((resx, resy)).var(ddof=1)
-
-    def f(s, t=fit_params[1], x=x, y=y):
-        """Function for calculating log likelihood."""
-        return -1/2/varerr * ( ((log(y) - s*log(x) - t)**2 + ((log(y)-t)/s - log(x))**2).mean() )
-    f=np.vectorize(f)
-
-    # find bounding interval corresponding to a drop of exp(10) in probability
-    dx=1e-2  # amount to increase bounds by per iteration
-    bds=[fit_params[0], fit_params[0]]
-    peak=f(fit_params[0])
-
-    while (peak-f(bds[0]))<10:
-        bds[0]-=dx
-        
-    while (peak-f(bds[1]))<10:
-        bds[1]+=dx
-    
-    # construct discrete approximation to probability distribution
-    x=np.linspace(*bds, 10_000)
-    y=f(x)
-    y-=y.max()
-    p=np.exp(y)
-    p/=p.sum()
-
-    if show_plot:
-        import matplotlib.pyplot as plt
-        fig,ax=plt.subplots()
-        ax.plot(x, p)
-        ax.vlines(fit_params[0], 0, p.max())
-        ax.set(xlabel=r'$x$')
-        ax.legend((r'$p(x)$', r'$s^*$'))
-
-    # sample for confidence intervals
-    r=np.random.choice(x, p=p, size=1_000_000)
-
-    if show_plot:
-        return (np.percentile(r,2.5), np.percentile(r,97.5)), (fig,ax)
-    return np.percentile(r,2.5), np.percentile(r,97.5)
-
-def split_by_nan(v):
-    """Split a vector into non-nan segments that are separated by nans.
-    
-    Parameters
-    ----------
-    v : ndarray
-    
-    Returns
-    -------
-    v_separated : list
-        Each element is a vector of a contiguous sequence of non-nan numbers.
-    ix : list
-        Each element is the index of the elements that correspond to the given elements in
-        the first variable.
-    """
-
-    assert len(v)>1
-    
-    if np.isnan(v).all():
-        return [],[]
-    if (np.isnan(v)==0).all():
-        return [v],[np.arange(len(v))]
-    
-    ix=np.arange(len(v),dtype=float)
-    ix[np.isnan(v)]=np.nan
-    
-    b=[i for i in np.split(ix,np.where(np.isnan(ix))[0]) if len(i)>1 or (len(i)==1 and np.isnan(i[0])==0)]
-    b=[i.astype(int) if np.isnan(i[0])==0 else i[1:].astype(int) for i in b]
-    return [v[i] for i in b],b
-
 def fast_cluster_diameter(lonlat, n_top=3):
     """Return largest distance (km) between all pairs of lonlat coordinates.
     
@@ -451,23 +365,18 @@ def fast_cluster_diameter(lonlat, n_top=3):
         return d.max()
     return 0.
 
-def split_by_index(ix,X):
-    """Split given dataframe at specified indices.
+def merge(sets):
+    """Merge a list of sets such that any two sets with any intersection are merged.
+
+    Parameters
+    ----------
+    list of sets
+
+    Returns
+    -------
+    list of sets
     """
 
-    split = []
-    if ix[0]>0:
-        split.append(X.iloc[:ix[0]])
-    for i in range(1,len(ix)-1):
-        split.append(X.iloc[ix[i]:ix[i+1]])
-    if ix[-1]<(len(X)-1):
-        split.append(X.iloc[ix[-1]:])
-    else:
-        split.append(X.iloc[-1:])
-    return split
-
-def merge(sets):
-    """Merge a list of sets such that any two sets with any intersection are merged."""
     merged = 1  # has a merge occurred?
     while merged:
         merged = 0
@@ -485,72 +394,3 @@ def merge(sets):
         sets = results
     return sets
 
-def get_latlon(df):
-    return np.vstack((df['latitude'], df['longitude'])).T
-
-def intra_event_dt(splitdf,pairwise=False):
-    """
-    The number of days between sequential events of the sequence of events given or all pairs of events.
-    
-    Params:
-    -------
-    splitdf (list of DataFrames)
-    pairwise (bool=False)
-        If True, find the absolute value of the time differences between all pairs of events.
-
-    Returns:
-    --------
-    intraEventdt (ndarray)
-    """
-    intraEventdt = []
-    if pairwise:
-        d = lambda u,v: (v[3]-u[3])/np.timedelta64(1,'D')
-        for s in splitdf:
-            intraEventdt.append( pdist(s,d) )
-    else:
-        # Assuming the sequence has been ordered.
-        for s in splitdf:
-            intraEventdt.append( np.diff(s['event_date'])/np.timedelta64(1,'D') )
-
-    intraEventdt = np.concatenate(intraEventdt).astype(int)
-    intraEventdt[intraEventdt<0] *= -1
-    return intraEventdt
-
-def intra_event_dx(splitdf):
-    """The geographic distance between each pair of the sequence of events given.
-    
-    Params:
-    -------
-    splitdf (list of DataFrames)
-
-    Returns:
-    --------
-    intraEventdx (ndarray)
-    """
-
-    intraEventdx = []
-    for s in splitdf:
-        latlon = get_latlon(s)
-        intraEventdx.append( pdist(latlon,euclid_dist) )
-    intraEventdx = np.concatenate(intraEventdx)
-    return intraEventdx
-
-def gauss_smooth(x,width,windowlen):
-    """
-    Convolve with Gaussian for moving mean smoothing.
-    
-    Params:
-    -------
-    x (ndarray)
-    width (ndarray)
-    windowlen (int)
-
-    Returns:
-    --------
-    xfilt (ndarray)
-    """
-
-    from scipy.signal import get_window, fftconvolve
-    window = get_window(('gauss',width), windowlen)
-    window /= window.sum()
-    return fftconvolve(x, window, mode='same')

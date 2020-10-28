@@ -1,11 +1,10 @@
 # ====================================================================================== #
 # Module for analyzing ACLED data.
-# Author: Eddie Lee, edlee@alumni.princeton.edu
+# Author: Eddie Lee, edlee@santafe.edu
 # ====================================================================================== #
 from scipy.interpolate import interp1d
-import multiprocess as mp
-import numpy as np
-import pickle
+from .utils import *
+
 
 
 def count_up_unique_actors(x):

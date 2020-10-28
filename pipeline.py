@@ -1,66 +1,11 @@
 # ====================================================================================== #
 # Module for pipelining revised analysis.
-# Author: Eddie Lee, edlee@alumni.princeton.edu
+# Author: Eddie Lee, edlee@santafe.edu
 # ====================================================================================== #
-import pickle
-import numpy as np
-import pandas as pd
+from .utils import *
+DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
-# ================= #
-# Helper functions. #
-# ================= #
-def default_dr(event_type='battle'):
-    """Return default directory for event type.
-
-    Parameters
-    ----------
-    event_type : str, 'battle'
-
-    Returns
-    -------
-    str
-    """
-    
-    if event_type=='battle':
-        return 'geosplits/africa/battle/full_data_set/bin_agg'
-    elif event_type=='civ_violence':
-        return 'geosplits/africa/civ_violence/full_data_set/bin_agg'
-    elif event_type=='riots':
-        return 'geosplits/africa/riots/full_data_set/bin_agg'
-    else: raise Exception("Unrecognized event type.")
-
-def load_default_pickles(event_type='battle', gridno=0):
-    """For shortening the preamble on most Jupyter notebooks.
-    
-    Parameters
-    ----------
-    event_type : str, 'battle'
-        'battle', 'civ_violence', 'riots'
-
-    Returns
-    -------
-    pd.DataFrame
-        subdf
-    dict of lists
-        gridOfSplits
-    """
-
-    # voronoi binary aggregation
-    region = 'africa'
-    prefix = 'voronoi_noactor_'
-    method = 'voronoi'
-    folder = 'geosplits/%s/%s/full_data_set/bin_agg'%(region,event_type)
-
-    # Load data
-    subdf = pickle.load(open('%s/%sdf.p'%(folder, prefix),'rb'))['subdf']
-    L = 9
-    T = 11
-
-    fname = '%s/%s%s'%(folder,prefix,'grid%s.p'%str(gridno).zfill(2))
-    gridOfSplits = pickle.load(open(fname,'rb'))['gridOfSplits']
-    
-    return subdf, gridOfSplits
 
 def rate_dynamics(dxdt=((160,16), (160,32), (160,64), (160,128), (160,256))):
     """Extract exponents from rate dynamical profiles.
@@ -104,8 +49,8 @@ def rate_dynamics(dxdt=((160,16), (160,32), (160,64), (160,128), (160,256))):
                                            # duration <a days)
 
         # use variance in log space
-        # these aren't weighted by number of data points because that returns something similar and is more
-        # complicated
+        # these aren't weighted by number of data points because that returns something
+        # similar and is more complicated
         def cost(a):
             if a<=0 or a>5: return 1e30
             
@@ -144,3 +89,70 @@ def rate_dynamics(dxdt=((160,16), (160,32), (160,64), (160,128), (160,256))):
         print()
     
     return dsz, dfz, invz
+
+def loglog_fit_err_bars(x, y, fit_params, show_plot=False):
+    """Calculate posterior probability of exponent parameter.
+
+    Parameters
+    ----------
+    x : ndarray
+    y : ndarray
+    fit_params : twople
+    posterior : bool, False
+    show_plot : bool, False
+
+    Returns
+    -------
+    twople
+        95% confidence intervals on exponent parameter assuming fixed offset.
+    """
+
+    from numpy import log
+    from misc.stats import loglog_fit
+
+    # posterior probability estimation of error bars
+    fit_params=loglog_fit(x, y)
+
+    resx=log(y) - np.polyval(fit_params, log(x))
+    resy=(log(y) - fit_params[1])/fit_params[0] - log(x)
+    varerr=np.concatenate((resx, resy)).var(ddof=1)
+
+    def f(s, t=fit_params[1], x=x, y=y):
+        """Function for calculating log likelihood."""
+        return -1/2/varerr * ( ((log(y) - s*log(x) - t)**2 + ((log(y)-t)/s - log(x))**2).mean() )
+    f=np.vectorize(f)
+
+    # find bounding interval corresponding to a drop of exp(10) in probability
+    dx=1e-2  # amount to increase bounds by per iteration
+    bds=[fit_params[0], fit_params[0]]
+    peak=f(fit_params[0])
+
+    while (peak-f(bds[0]))<10:
+        bds[0]-=dx
+        
+    while (peak-f(bds[1]))<10:
+        bds[1]+=dx
+    
+    # construct discrete approximation to probability distribution
+    x=np.linspace(*bds, 10_000)
+    y=f(x)
+    y-=y.max()
+    p=np.exp(y)
+    p/=p.sum()
+
+    if show_plot:
+        import matplotlib.pyplot as plt
+        fig,ax=plt.subplots()
+        ax.plot(x, p)
+        ax.vlines(fit_params[0], 0, p.max())
+        ax.set(xlabel=r'$x$')
+        ax.legend((r'$p(x)$', r'$s^*$'))
+
+    # sample for confidence intervals
+    r=np.random.choice(x, p=p, size=1_000_000)
+
+    if show_plot:
+        return (np.percentile(r,2.5), np.percentile(r,97.5)), (fig,ax)
+    return np.percentile(r,2.5), np.percentile(r,97.5)
+
+
