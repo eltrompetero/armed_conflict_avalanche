@@ -7,6 +7,42 @@ DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
 
+def polygonize_voronoi():
+    """Create polygons denoting boundaries of Voronoi grid."""
+
+    from numpy import pi
+    import geopandas as gpd
+    from itertools import product
+    from .voronoi import unwrap_lon, create_polygon
+
+    def loop_wrapper(args):
+        dx, gridix = args
+        poissd = pickle.load(open(f'voronoi_grids/{dx}/{str(gridix).zfill(2)}.p', 'rb'))['poissd']
+
+        # identify polygons that are within interesting boundaries
+        lonlat = poissd.samples.copy()
+        for i in range(len(lonlat)):
+            lonlat[i] = unwrap_lon((lonlat[i,0]/pi*180 + 330)%360), lonlat[i,1]/pi*180
+        selectix = np.where((lonlat[:,0]>-18.7) & (lonlat[:,0]<52) & (lonlat[:,1]>-36) & (lonlat[:,1]<40))[0]
+
+        polygons = [create_polygon(poissd, i) for i in selectix]
+        polygons = gpd.GeoDataFrame({'index':list(range(len(polygons)))},
+                                    geometry=polygons,
+                                    crs='EPSG:4087')
+
+        # identify all neighbors of each polygon
+        neighbors = []
+        for i, p in polygons.iterrows():
+            # must save list as string for compatibility with Fiona pickling
+            neighbors.append(str(np.sort(np.where(~polygons.disjoint(p.geometry))[0]).tolist())[1:-1])
+        polygons['neighbors'] = neighbors
+
+        # save
+        polygons.to_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
+        
+    with mp.Pool(mp.cpu_count()-1) as pool:
+        pool.map(loop_wrapper, product([80, 160, 320, 640, 1280], range(10)))
+
 def rate_dynamics(dxdt=((160,16), (160,32), (160,64), (160,128), (160,256))):
     """Extract exponents from rate dynamical profiles.
 

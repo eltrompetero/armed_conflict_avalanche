@@ -5,6 +5,7 @@
 import numpy as np
 from scipy.spatial.distance import pdist
 import pandas as pd
+import geopandas as gpd
 from datetime import datetime
 from itertools import combinations, chain
 from scipy.spatial.distance import squareform
@@ -17,6 +18,8 @@ import dill as pickle
 import multiprocess as mp
 from statsmodels.distributions import ECDF
 import os
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
@@ -393,4 +396,3 @@ def merge(sets):
             results.append(common)
         sets = results
     return sets
-
