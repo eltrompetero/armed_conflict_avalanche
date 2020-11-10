@@ -7,7 +7,7 @@ DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
 
-def polygonize_voronoi():
+def polygonize_voronoi(iter_pairs=None):
     """Create polygons denoting boundaries of Voronoi grid."""
 
     from numpy import pi
@@ -23,7 +23,8 @@ def polygonize_voronoi():
         lonlat = poissd.samples.copy()
         for i in range(len(lonlat)):
             lonlat[i] = unwrap_lon((lonlat[i,0]/pi*180 + 330)%360), lonlat[i,1]/pi*180
-        selectix = np.where((lonlat[:,0]>-18.7) & (lonlat[:,0]<52) & (lonlat[:,1]>-36) & (lonlat[:,1]<40))[0]
+        selectix = np.where((lonlat[:,0]>-18.7) & (lonlat[:,0]<52) &
+                            (lonlat[:,1]>-36) & (lonlat[:,1]<40))[0]
 
         polygons = [create_polygon(poissd, i) for i in selectix]
         polygons = gpd.GeoDataFrame({'index':list(range(len(polygons)))},
@@ -33,15 +34,21 @@ def polygonize_voronoi():
         # identify all neighbors of each polygon
         neighbors = []
         for i, p in polygons.iterrows():
+            neighborix = np.where(~polygons.disjoint(p.geometry))[0].tolist()
+            # remove self
+            neighborix.pop(neighborix.index(i))
             # must save list as string for compatibility with Fiona pickling
-            neighbors.append(str(np.sort(np.where(~polygons.disjoint(p.geometry))[0]).tolist())[1:-1])
+            neighbors.append(str(sorted(neighborix))[1:-1])
         polygons['neighbors'] = neighbors
 
         # save
         polygons.to_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
         
+    if iter_pairs is None:
+        iter_pairs = product([80, 160, 320, 640, 1280], range(10))
+
     with mp.Pool(mp.cpu_count()-1) as pool:
-        pool.map(loop_wrapper, product([80, 160, 320, 640, 1280], range(10)))
+        pool.map(loop_wrapper, iter_pairs)
 
 def rate_dynamics(dxdt=((160,16), (160,32), (160,64), (160,128), (160,256))):
     """Extract exponents from rate dynamical profiles.
@@ -190,5 +197,3 @@ def loglog_fit_err_bars(x, y, fit_params, show_plot=False):
     if show_plot:
         return (np.percentile(r,2.5), np.percentile(r,97.5)), (fig,ax)
     return np.percentile(r,2.5), np.percentile(r,97.5)
-
-

@@ -3,8 +3,59 @@
 # Author: Eddie Lee, edlee@santafe.edu
 # ====================================================================================== #
 from .utils import *
+from itertools import product
 
 
+
+def load_battlesgdf(dx, ix=0):
+    """Load specified GDF. This includes mapping to appropriate Voronoi cells in the
+    'pixel' column.
+
+    Parameters
+    ----------
+    dx : int
+    ix : int, 0
+
+    Returns
+    -------
+    GeoDataFrame
+    """
+    
+    return gpd.read_file(f'voronoi_grids/{dx}/battlesgdf{str(ix).zfill(2)}.p')
+
+def setup_battlesgdf():
+    """Modify battles DataFrame for use with GeoDataFrame. This will add pixel column to
+    the dataframe.
+    """
+    
+    from data_sets.acled import ACLED2020
+
+    def loop_wrapper(args):
+        dx, ix = args
+        cellfile = f'voronoi_grids/{dx}/borders{str(ix).zfill(2)}.shp'
+        polygons = gpd.read_file(cellfile)
+
+        # data
+        battlesdf = ACLED2020.battles_df()
+        battlesgdf = gpd.GeoDataFrame(battlesdf,
+                                      geometry=gpd.points_from_xy(battlesdf.longitude,
+                                                                  battlesdf.latitude))
+
+        # assign each event to a cell/pixel
+        pixel = np.zeros(len(battlesgdf), dtype=int)
+
+        for i, p in polygons.iterrows():
+            ix = battlesgdf.geometry.within(p.geometry)
+            pixel[ix] = i    
+
+        battlesgdf['pixel'] = pixel
+        with open(f'voronoi_grids/{dx}/battlesgdf{str(ix).zfill(2)}.p', 'wb') as f:
+            pickle.dump({'battlesgdf':battlesgdf}, f)
+
+    pairs = product([80,160,320,640,1280], range(10))
+    pairs = product([80,160], range(10))
+    with mp.Pool(mp.cpu_count()-1) as pool:
+        pool.map(loop_wrapper, pairs)
 
 def default_dr(event_type='battle'):
     """Return default directory for event type.
