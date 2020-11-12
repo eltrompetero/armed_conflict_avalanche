@@ -24,6 +24,67 @@ DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
 
+def cluster_avalanche(gdf, A, cellneighbors, counter_mx=np.inf):
+    """Cluster events into avalanches.
+    
+    Parameters
+    ----------
+    gdf : GeoDataFrame
+    A : int
+        Separation time scale
+    cellneighbors : dict
+        Key indicates which pixel and values indicate all neighboring pixels.
+    counter_mx : int, np.inf
+        If specified, only construct this number of avalanches.
+       
+    Returns
+    -------
+    list of list of ints
+        Each list indicates the indices of points that belong to one avalanche or another.
+    """
+
+    remaining = list(range(len(gdf)))  # unclustered event ix
+    clustered = []  # clustered event ix
+    avalanches = []  # groups of conflict avalanches of event ix
+
+    counter = 0
+    while remaining and counter<counter_mx:
+        thisCluster = []
+        toConsider = []  # events whose neighbors remain to be explored
+
+        # initialize a cluster
+        toConsider.append(remaining[0])
+
+        while toConsider:
+            # add this event to the cluster
+            thisEvent = toConsider.pop(0)
+            remaining.pop(remaining.index(thisEvent))
+            thisCluster.append(thisEvent)
+            clustered.append(thisEvent)
+            thisPix = gdf['pixel'].iloc[thisEvent]
+
+            # find all the neighbors of this point
+            # first select all points within time dt
+            selectix = np.zeros(len(gdf), dtype=bool)
+            selectix[remaining] = np.abs(gdf['event_date'].iloc[remaining] -
+                                         gdf['event_date'].iloc[thisEvent])<=np.timedelta64(A, 'D')
+
+            # now select other events by cell adjacency
+            for i in np.where(selectix)[0]:
+                if (gdf['pixel'].iloc[i] in cellneighbors[thisPix] and
+                    not i in thisCluster and
+                    not i in toConsider):
+                    toConsider.append(i)
+
+        avalanches.append(thisCluster)
+        counter += 1
+
+    # check that each event only appears once
+    allix = np.concatenate(avalanches)
+    assert allix.size==np.unique(allix).size, "Some events appear in more than once."
+    
+    return avalanches
+
 def grid_split2cluster_ix(gridsplit, dfix):
     """Convert grid split (which indicates the cluster to which each event from the
     DataFrame belongs) into a column Series that can be added to the DataFrame.

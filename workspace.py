@@ -21,9 +21,9 @@ def load_battlesgdf(dx, ix=0):
     GeoDataFrame
     """
     
-    return gpd.read_file(f'voronoi_grids/{dx}/battlesgdf{str(ix).zfill(2)}.p')
+    return pickle.load(open(f'voronoi_grids/{dx}/battlesgdf{str(ix).zfill(2)}.p', 'rb'))['battlesgdf']
 
-def setup_battlesgdf():
+def setup_battlesgdf(iprint=False):
     """Modify battles DataFrame for use with GeoDataFrame. This will add pixel column to
     the dataframe.
     """
@@ -31,8 +31,8 @@ def setup_battlesgdf():
     from data_sets.acled import ACLED2020
 
     def loop_wrapper(args):
-        dx, ix = args
-        cellfile = f'voronoi_grids/{dx}/borders{str(ix).zfill(2)}.shp'
+        dx, gridix = args
+        cellfile = f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp'
         polygons = gpd.read_file(cellfile)
 
         # data
@@ -47,13 +47,13 @@ def setup_battlesgdf():
         for i, p in polygons.iterrows():
             ix = battlesgdf.geometry.within(p.geometry)
             pixel[ix] = i    
-
         battlesgdf['pixel'] = pixel
-        with open(f'voronoi_grids/{dx}/battlesgdf{str(ix).zfill(2)}.p', 'wb') as f:
+
+        with open(f'voronoi_grids/{dx}/battlesgdf{str(gridix).zfill(2)}.p', 'wb') as f:
             pickle.dump({'battlesgdf':battlesgdf}, f)
+        if iprint: print(f'Done with battlesgdf{str(gridix).zfill(2)}.p')
 
     pairs = product([80,160,320,640,1280], range(10))
-    pairs = product([80,160], range(10))
     with mp.Pool(mp.cpu_count()-1) as pool:
         pool.map(loop_wrapper, pairs)
 

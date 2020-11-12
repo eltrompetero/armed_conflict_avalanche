@@ -3,16 +3,56 @@
 # Author: Eddie Lee, edlee@santafe.edu
 # ====================================================================================== #
 from .utils import *
+from itertools import product
+from functools import partial
+import geopandas as gpd
 DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
+
+def cluster_battles(iprint=True):
+    """Generate conflict clusters across separation scales."""
+
+    from .workspace import load_battlesgdf
+
+    def loop_wrapper(args, gridix=0):
+        dx, dt = args
+        
+        battlesgdf = load_battlesgdf(dx, gridix)
+        cellfile = f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp'
+        polygons = gpd.read_file(cellfile)
+
+        cellneighbors = {}
+        for i, p in polygons.iterrows():
+            # neighbors including self
+            cellneighbors[i] = [int(i) for i in p['neighbors'].split(', ')] + [i]
+        
+        avalanches = cluster_avalanche(battlesgdf, dt, cellneighbors)
+        return avalanches
+    
+    # Iterate thru combinations of separation scales and times
+    # Separation scales are denoted by the inverse angle ratio used to to generate centers
+    dxRange = [80, 160, 320, 640, 1280]
+    dtRange = [2, 4, 8, 16, 32, 64, 128, 512, 1024]
+
+    with mp.Pool(mp.cpu_count()-1) as pool:
+        for gridix in range(10):
+            # first find all clusters of avalanches
+            avalanches_ = pool.map(partial(loop_wrapper, gridix=gridix), product(dxRange, dtRange))
+            
+            # then collate results into dict indexed as (dx, dt)
+            avalanches = {}
+            for i, (dx, dt) in enumerate(product(dxRange, dtRange)):
+                avalanches[(dx, dt)] = avalanches_[i]
+            with open(f'cache/africa/battles_avalanche{str(gridix).zfill(2)}.p', 'wb') as f:
+                pickle.dump({'avalanches':avalanches}, f)
+                
+            if iprint: print(f'Done with {gridix=}.')
 
 def polygonize_voronoi(iter_pairs=None):
     """Create polygons denoting boundaries of Voronoi grid."""
 
     from numpy import pi
-    import geopandas as gpd
-    from itertools import product
     from .voronoi import unwrap_lon, create_polygon
 
     def loop_wrapper(args):
