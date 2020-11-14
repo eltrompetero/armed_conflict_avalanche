@@ -6,7 +6,6 @@ from .utils import *
 from itertools import product
 from functools import partial
 import geopandas as gpd
-DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
 
@@ -50,7 +49,13 @@ def cluster_battles(iprint=True):
             if iprint: print(f'Done with {gridix=}.')
 
 def polygonize_voronoi(iter_pairs=None):
-    """Create polygons denoting boundaries of Voronoi grid."""
+    """Create polygons denoting boundaries of Voronoi grid.
+
+    Parameters
+    ----------
+    iter_pairs : list of twoples, None
+        Can be specified to direct polygonization for particular combinations of dx and grids.
+    """
 
     from numpy import pi
     from .voronoi import unwrap_lon, create_polygon
@@ -73,10 +78,17 @@ def polygonize_voronoi(iter_pairs=None):
 
         # identify all neighbors of each polygon
         neighbors = []
+        sindex = polygons.sindex
         for i, p in polygons.iterrows():
-            neighborix = np.where(~polygons.disjoint(p.geometry))[0].tolist()
+            # scale polygons by a small factor to account for precision error in determining
+            # neighboring polygons; especially important once dx becomes large, say 320
+            pseries = gpd.GeoSeries(p.geometry, crs=polygons.crs).scale(1.01)
+            neighborix = sindex.query_bulk(pseries)[1].tolist()
+
             # remove self
             neighborix.pop(neighborix.index(i))
+            assert len(neighborix)
+
             # must save list as string for compatibility with Fiona pickling
             neighbors.append(str(sorted(neighborix))[1:-1])
         polygons['neighbors'] = neighbors

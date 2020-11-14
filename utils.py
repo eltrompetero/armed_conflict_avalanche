@@ -20,6 +20,8 @@ from statsmodels.distributions import ECDF
 import os
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+from rasterstats import zonal_stats, gen_zonal_stats
+
 DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
