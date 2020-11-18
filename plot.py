@@ -9,6 +9,13 @@ import matplotlib.pyplot as plt
 
 
 
+def default_extent(degrees=True):
+    if degrees:
+        return np.array([0.05235987755982988+330/180*np.pi, 1.6406094968746698+330/180*np.pi,
+                         -0.5853981633974483, 0.6203047484373349])*180/np.pi
+    return np.array([0.05235987755982988+330/180*np.pi, 1.6406094968746698+330/180*np.pi,
+                     -0.5853981633974483, 0.6203047484373349])
+
 def cdf(Y, ax, discrete=True, mn=1):
     """Shortcut for plotting CDF.
 

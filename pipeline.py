@@ -31,8 +31,8 @@ def cluster_battles(iprint=True):
     
     # Iterate thru combinations of separation scales and times
     # Separation scales are denoted by the inverse angle ratio used to to generate centers
-    dxRange = [80, 160, 320, 640, 1280]
-    dtRange = [2, 4, 8, 16, 32, 64, 128, 512, 1024]
+    dxRange = [40, 80, 160, 320, 640, 1280]
+    dtRange = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 
     with mp.Pool(mp.cpu_count()-1) as pool:
         for gridix in range(10):
@@ -68,8 +68,12 @@ def polygonize_voronoi(iter_pairs=None):
         lonlat = poissd.samples.copy()
         for i in range(len(lonlat)):
             lonlat[i] = unwrap_lon((lonlat[i,0]/pi*180 + 330)%360), lonlat[i,1]/pi*180
-        selectix = np.where((lonlat[:,0]>-18.7) & (lonlat[:,0]<52) &
-                            (lonlat[:,1]>-36) & (lonlat[:,1]<40))[0]
+        if dx<=40:
+            selectix = np.where((lonlat[:,0]>-20.2) & (lonlat[:,0]<53.5) &
+                                (lonlat[:,1]>-39) & (lonlat[:,1]<42))[0]
+        else:
+            selectix = np.where((lonlat[:,0]>-18.7) & (lonlat[:,0]<52) &
+                                (lonlat[:,1]>-36) & (lonlat[:,1]<40))[0]
 
         polygons = [create_polygon(poissd, i) for i in selectix]
         polygons = gpd.GeoDataFrame({'index':list(range(len(polygons)))},
