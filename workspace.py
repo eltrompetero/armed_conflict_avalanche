@@ -53,7 +53,8 @@ def setup_battlesgdf(iprint=False):
             pickle.dump({'battlesgdf':battlesgdf}, f)
         if iprint: print(f'Done with battlesgdf{str(gridix).zfill(2)}.p')
 
-    pairs = product([80,160,320,640,1280], range(10))
+    #pairs = product([40,80,160,320,640,1280], range(10))
+    pairs = product([40], range(10))
     with mp.Pool(mp.cpu_count()-1) as pool:
         pool.map(loop_wrapper, pairs)
 

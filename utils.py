@@ -26,6 +26,35 @@ DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
 
+def pixels_in_africa(polygons, countries_to_exclude=[]):
+    """Select Voronoi cells that are in Africa.
+
+    Parameters
+    ----------
+    polygons : geopandas.GeoDataFrame
+    countries_to_exclue : list of str, []
+    
+    Returns
+    -------
+    geopandas.GeoDataFrame
+    """
+    
+    # load countries and grab those in Africa
+    countrygdf = gpd.read_file('../data/countries/ne_10m_admin_0_countries.shp')
+    countrygdf = countrygdf.iloc[(countrygdf.CONTINENT=='Africa').values]
+    
+    # exclude countries should not be counted
+    for c in countries_to_exclude:
+        assert c in countrygdf.SOVEREIGNT.values, f"Country to exclude {c} not found."
+        countrygdf.drop(countrygdf.index[np.where(countrygdf.SOVEREIGNT==c)[0][0]], inplace=True)
+
+    # select polygons that intersect with specified countries
+    selectix = np.zeros(len(polygons), dtype=bool)
+    for i, p in polygons.iterrows():
+        selectix[i] = countrygdf.intersects(p.geometry).any()
+
+    return polygons.iloc[selectix]
+
 def cluster_avalanche(gdf, A, cellneighbors, counter_mx=np.inf):
     """Cluster events into avalanches.
     
