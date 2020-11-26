@@ -21,10 +21,69 @@ import os
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from rasterstats import zonal_stats, gen_zonal_stats
+import rasterio
 
 DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
+
+def cluster_cells(cells, active):
+    """Cluster voronoi cells by contiguity. This is basically the routine in
+    .cluster_avalanche() except not accounting for time.
+    
+    Parameters
+    ----------
+    cells: GeoDataFrame
+    active: ndarray
+        Indices of cells that should be clustered by proximity.
+       
+    Returns
+    -------
+    list of list of ints
+        Each list indicates the indices of points that belong to one avalanche or another.
+        Since we are given a dataframe, the indices of the data rows will be given.
+    """
+    
+    assert len(active)
+
+    if isinstance(active, np.ndarray):
+        remaining = active.tolist()  # unclustered event ix
+    else:
+        remaining = active[:]
+    clustered = []  # clustered event ix
+    avalanches = []  # groups of conflict avalanches of event ix
+
+    counter = 0
+    while remaining:
+        thisCluster = []
+        toConsider = []  # events whose neighbors remain to be explored
+
+        # initialize a cluster
+        toConsider.append(remaining[0])
+
+        while toConsider:
+            # add this event to the cluster
+            thisEvent = toConsider.pop(0)
+            remaining.pop(remaining.index(thisEvent))
+            thisCluster.append(thisEvent)
+            clustered.append(thisEvent)
+            thisPix = cells.loc[thisEvent]
+
+            # find all the neighbors of this point
+            for i in thisPix.neighbors:
+                if (i in remaining and
+                    not i in thisCluster and
+                    not i in toConsider):
+                    toConsider.append(i)
+
+        avalanches.append(thisCluster)
+        counter += 1
+
+    # check that each event only appears once
+    allix = np.concatenate(avalanches)
+    assert allix.size==np.unique(allix).size, "Some events appear in more than once."
+    
+    return avalanches
 
 def pixels_in_africa(polygons, countries_to_exclude=[]):
     """Select Voronoi cells that are in Africa.
