@@ -9,6 +9,49 @@ import geopandas as gpd
 
 
 
+
+def extend_poissd_coarse_grid(dx):
+    """Redefine PoissonDiscSphere to consider an extended number of coarse grid neighbors
+    to avoid boundary artifacts (that though uncommon) would manifest from not considering
+    neighbors because of thin bounds on polygons.
+
+    This increases the default number of coarse neighbors 9 used in PoissonDiscSphere to
+    15.
+
+    Parameters
+    ----------
+    dx : int
+    """
+    
+    for i in range(10):
+        with open(f'voronoi_grids/{dx}/{str(i).zfill(2)}.p','rb') as f:
+            poissd = pickle.load(f)['poissd']
+            poissd = _extend_poissd_coarse_grid(poissd)
+            pickle.dump({'poissd':poissd}, open(f'voronoi_grids/{dx}/{str(i).zfill(2)}.p.new','wb'))
+
+def _extend_poissd_coarse_grid(poissd):
+    """
+    Parameters
+    ----------
+    poissd : PoissonDiscSphere
+
+    Returns
+    -------
+    PoissonDiscSphere
+    """
+
+    newpoissd = PoissonDiscSphere(poissd.r,
+                                  width_bds=poissd.width,
+                                  height_bds=poissd.height,
+                                  coarse_grid=poissd.coarseGrid,
+                                  k_coarse=15)
+    newpoissd.samples = poissd.samples
+
+    for i, s in enumerate(poissd.samples):
+        newpoissd.samplesByGrid[poissd.assign_grid_point(s)].append(i)
+
+    return newpoissd
+
 def cluster_battles(iprint=True):
     """Generate conflict clusters across separation scales."""
 

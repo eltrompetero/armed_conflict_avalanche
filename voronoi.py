@@ -57,9 +57,11 @@ def unwrap_lon(x):
     return x
 
 def create_polygon(poissd, centerix):
-    """
+    """Construct polygon about specified point in PoissonDiscSphere.
+
     Parameters
     ----------
+    poissd : PoissonDiscSphere
     centerix : int
         Construct polygon about specified point in PoissonDiscSphere.
     """

@@ -27,6 +27,26 @@ DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 
 
 
+
+def wrap_lon(x):
+    """Wrap longitude from [0,360] to interval [-180,180] while mapping 0 to 0.
+
+    Parameters
+    ----------
+    x : ndarray
+
+    Returns
+    -------
+    ndarray
+    """
+    
+    assert (x>=0).all()
+
+    x = x.copy()
+    while (x>180).any():
+        x[x>180] = x[x>180] - 360
+    return x
+
 def cluster_cells(cells, active):
     """Cluster voronoi cells by contiguity. This is basically the routine in
     .cluster_avalanche() except not accounting for time.

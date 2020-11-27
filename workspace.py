@@ -26,7 +26,8 @@ def grid_of(var, gridix=0, use_cache=True):
     if os.path.isfile(f'cache/africa/grid{var}.p'):
         return pickle.load(open(f'cache/africa/grid{var}.p','rb'))[var]
 
-    avalanches = pickle.load(open(f'cache/africa/battles_avalanche{str(gridix).zfill(2)}.p','rb'))['avalanches']
+    avalanches = pickle.load(open(f'cache/africa/battles_avalanche{str(gridix).zfill(2)}.p',
+                                  'rb'))['avalanches']
     if var=='R':
         R = {}
         for k, a in avalanches.items():
