@@ -9,8 +9,8 @@ from itertools import product
 
 def grid_of(var, gridix=0, use_cache=True):
     """Extract "scaling variables" from conflict avalanches. These include R (reports), F
-    (fatalities), T (duration), N (sites), A (road area). Results are cached because they
-    are slow to load.
+    (fatalities), T (duration), N (sites), A (road area), H (population). Results are
+    cached because they are slow to load.
     
     Parameters
     ----------
@@ -59,13 +59,13 @@ def grid_of(var, gridix=0, use_cache=True):
             return T
         elif var=='A':
             A = {}
-            raster = rasterio.open('africa_roads/combined_.01.tif', )
+            raster = rasterio.open(f'{DATADR}/africa_roads/combined_.01.tif', )
             for k, a in avalanches.items():
                 battlesgdf = load_battlesgdf(k[0], gridix)
                 cellfile = f'voronoi_grids/{k[0]}/borders{str(gridix).zfill(2)}.shp'
                 # take the mean over the area first to normalize by pixel area
                 rdensity = np.array([i['mean'] if i['mean'] else 0 for i in 
-                                     zonal_stats(cellfile, 'africa_roads/combined_.01.tif',
+                                     zonal_stats(cellfile, f'{DATADR}/africa_roads/combined_.01.tif',
                                                  band=1,
                                                  stats=['mean'])])
                 # total road "area" in all pixels entered
@@ -73,6 +73,23 @@ def grid_of(var, gridix=0, use_cache=True):
                                  for ix in a])
             pickle.dump({'A':A}, open('cache/africa/gridA.p','wb'))
             return A
+        elif var=='H':
+            H = {}
+            raster = rasterio.open(f'{DATADR}/population_af/combined_.01.tif', )
+            for k, a in avalanches.items():
+                battlesgdf = load_battlesgdf(k[0], gridix)
+                cellfile = f'voronoi_grids/{k[0]}/borders{str(gridix).zfill(2)}.shp'
+                # take the mean over the area first to normalize by pixel area
+                hdensity = np.array([i['mean'] if i['mean'] else 0 for i in 
+                                     zonal_stats(cellfile, f'{DATADR}/africa_roads/combined_.01.tif',
+                                                 band=1,
+                                                 stats=['mean'])])
+                # total road "area" in all pixels entered
+                H[k] = np.array([hdensity[np.unique(battlesgdf.iloc[ix].pixel)].sum()
+                                 for ix in a])
+            pickle.dump({'H':H}, open('cache/africa/gridH.p','wb'))
+            return H
+
     raise NotImplementedError
 
 def load_battlesgdf(dx, ix=0):
@@ -93,7 +110,7 @@ def load_battlesgdf(dx, ix=0):
 
 def setup_battlesgdf(iprint=False):
     """Modify battles DataFrame for use with GeoDataFrame. This will add pixel column to
-    the dataframe.
+    the dataframe, so you will need Voronoi cell polygons file to do this.
     """
     
     from data_sets.acled import ACLED2020
@@ -121,8 +138,7 @@ def setup_battlesgdf(iprint=False):
             pickle.dump({'battlesgdf':battlesgdf}, f)
         if iprint: print(f'Done with battlesgdf{str(gridix).zfill(2)}.p')
 
-    #pairs = product([40,80,160,320,640,1280], range(10))
-    pairs = product([80], range(10))
+    pairs = product([40,80,160,320,640,1280], range(10))
     with mp.Pool(mp.cpu_count()-1) as pool:
         pool.map(loop_wrapper, pairs)
 
