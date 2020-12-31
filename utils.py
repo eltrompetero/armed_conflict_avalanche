@@ -55,6 +55,7 @@ def cluster_cells(cells, active):
     Parameters
     ----------
     cells: GeoDataFrame
+        Polygons that constitute Voronoi tessellation of map.
     active: ndarray
         Indices of cells that should be clustered by proximity.
        

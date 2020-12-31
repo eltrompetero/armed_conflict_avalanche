@@ -1,5 +1,6 @@
 # ====================================================================================== #
-# For setting up a workspace for analyzing ACLED data.
+# For setting up a workspace for analyzing ACLED data. This connects/sets up cached
+# pickles for analysis.
 # Author: Eddie Lee, edlee@santafe.edu
 # ====================================================================================== #
 from .utils import *
@@ -110,7 +111,12 @@ def load_battlesgdf(dx, ix=0):
 
 def setup_battlesgdf(iprint=False):
     """Modify battles DataFrame for use with GeoDataFrame. This will add pixel column to
-    the dataframe, so you will need Voronoi cell polygons file to do this.
+    the dataframe, so you will need Voronoi cell polygons file already computed to do
+    this.
+
+    Parameters
+    ----------
+    iprint : bool, False
     """
     
     from data_sets.acled import ACLED2020

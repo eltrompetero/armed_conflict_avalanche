@@ -30,7 +30,8 @@ def extend_poissd_coarse_grid(dx):
             pickle.dump({'poissd':poissd}, open(f'voronoi_grids/{dx}/{str(i).zfill(2)}.p.new','wb'))
 
 def _extend_poissd_coarse_grid(poissd):
-    """
+    """Main part of .extend_poissd_coarse_grid()
+
     Parameters
     ----------
     poissd : PoissonDiscSphere
