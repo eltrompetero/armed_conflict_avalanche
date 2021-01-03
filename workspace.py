@@ -95,7 +95,7 @@ def grid_of(var, gridix=0, use_cache=True):
 
 def load_battlesgdf(dx, ix=0):
     """Load specified GDF. This includes mapping to appropriate Voronoi cells in the
-    'pixel' column.
+    'pixel' column. See .setup_battlesgdf().
 
     Parameters
     ----------
