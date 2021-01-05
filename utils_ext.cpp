@@ -21,6 +21,38 @@ using namespace boost::python;
 namespace np = boost::python::numpy;
 
 
+std::vector<int>::iterator index(std::vector<int> &v, int val) {
+    /* Find the index of an element.
+     */
+
+    std::vector<int>::iterator it;
+
+    for (it=v.begin(); it!=v.end(); ++it) {
+        if (*it==val) {
+            break;
+        }
+    }
+    
+    if (it!=v.end()) {
+        return it;
+    }
+    throw;
+}
+
+int count(std::vector<int> &v, int val) {
+    /* Count the number of times val appears in vector.
+     */
+    
+    int counter = 0;
+
+    for (std::vector<int>::iterator it=v.begin(); it!=v.end(); ++it) {
+        if (*it==val) {
+            counter++;
+        }
+    }
+    return counter;    
+}
+
 list cluster_avalanche(np::ndarray &day,
                        np::ndarray &pixel,
                        int A,
@@ -48,38 +80,40 @@ list cluster_avalanche(np::ndarray &day,
         Each list indicates the indices of points that belong to one avalanche or another.
     */
     
-    list remaining = list();  // unclustered event ix
-    list clustered = list();  // clustered event ix
+    std::vector<int> remaining;  // unclustered event ix
+    std::vector<int> toConsider;
     list avalanches = list();  // groups of conflict avalanches of event ix
-    list thisCluster, toConsider, thisNeighbors;
+    list thisCluster, thisNeighbors;
     std::vector<bool> selectix (len(day), false);
     int thisEvent, thisPix, ix;
     int counter = 0;
+    std::vector<int>::iterator it;
 
     //initialize vars
     for (int i=0; i<day.shape(0); i++) {
-        remaining.append(i);
+        remaining.push_back(i);
     }
 
-    while (len(remaining)>0 && counter<counter_mx) {
+    while (remaining.size()>0 && counter<counter_mx) {
         thisCluster = list();
-        toConsider = list();  // events whose neighbors remain to be explored
+        toConsider.clear();  // events whose neighbors remain to be explored
 
         //initialize a cluster
-        toConsider.append(remaining[0]);
+        toConsider.push_back(remaining[0]);
 
-        while (len(toConsider)>0) {
+        while (toConsider.size()) {
             //add this event to the cluster
-            thisEvent = extract<int>(toConsider.pop(0));
-            remaining.pop(remaining.index(thisEvent));
+            thisEvent = toConsider[0];
+            toConsider.erase(toConsider.begin());
+            it = index(remaining, thisEvent);
+            remaining.erase(it);
             thisCluster.append(thisEvent);
-            clustered.append(thisEvent);
             thisPix = extract<int64_t>(pixel[thisEvent]);
             thisNeighbors = extract<list>(cellneighbors[thisPix]);
 
             //find all the neighbors of this point amongst the remaining points
-            for (int i=0; i<len(remaining); i++) {
-                ix = extract<int>(remaining[i]);
+            for (int i=0; i<remaining.size(); i++) {
+                ix = remaining[i];
                 //first filter all other events not within time dt
                 if (abs(int(extract<int64_t>(day[ix]) -
                             extract<int64_t>(day[thisEvent])))<=A) {
@@ -90,8 +124,8 @@ list cluster_avalanche(np::ndarray &day,
                     //now filter by cell adjacency
                     if (thisNeighbors.count(int(extract<int64_t>(pixel[ix])))!=0 &&
                         thisCluster.count(ix)==0 &&
-                        toConsider.count(ix)==0) {
-                        toConsider.append(ix);
+                        count(toConsider, ix)==0) {
+                        toConsider.push_back(ix);
                     }
                 }//end if
             }//end for
