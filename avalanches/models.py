@@ -61,7 +61,8 @@ class LocalMaxent1():
         """Advance simulation by one time step.
         
         Iterate thru all sites and consider the probability that they should be activated
-        at the next time step.
+        at the next time step, which is determined by conditioning on the state of the
+        neighbors and calculating the relatively probability that the pixel is active.
         
         Parameters
         ----------
@@ -76,6 +77,7 @@ class LocalMaxent1():
         newActiveSites = []
         
         for pix, (n, pall) in self.stateprobs.items():
+            # when this pixel was not active in previous time step
             if not pix in self.activeSites:
                 # fetch config of neighboring cells
                 neighState = np.zeros((1, n), dtype=int)
@@ -89,7 +91,8 @@ class LocalMaxent1():
                 neighState[0,0] = 1
                 pa += pall[(neighState==self.states[n]).all(1)]
                 pa = pall[(neighState==self.states[n]).all(1)] / pa
-                
+
+            # when this pixel was active in previous time step
             else:
                 # fetch config of neighboring cells
                 neighState = np.zeros((1, n), dtype=int)
