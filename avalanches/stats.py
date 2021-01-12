@@ -83,8 +83,8 @@ def _pair_probs(x, y):
             ((x==1)&(y==0)).mean(),
             ((x==1)&(y==1)).mean()]
 
-def sisj(eventsx, eventsy, T):
-    """Between events listed in x and y DataFrames for x_t and y_{t-1} (i.e. x in the
+def sisj(eventsx, eventsy, T, dt=1):
+    """Between events listed in x and y DataFrames for x_t and y_{t-dt} (i.e. x in the
     future and y in the past). Events are only counted if they occurred within adjacent
     time periods and assumed to take values -1 (no activity) and 1 (activity).
     
@@ -93,23 +93,74 @@ def sisj(eventsx, eventsy, T):
     eventsx : DataFrame
     eventsy : DataFrame
     T : int
-        Length of time series.
+        Length of time series, i.e. value of time at last event where counting starts with
+        0.
+    dt : int, 1
     
     Returns
     -------
-    ndarray
-        Probability for variable pairs (x_{t-1}, y_t), (x_t, y_t), (x_t, y_{t-1}).
-        Each row considers all possible pairs of activation in order of (00, 01, 10, 11).
+    float
     """
     
+    assert isinstance(dt, int) and dt>=0
     tx = np.zeros(T+1, dtype=int) - 1
     ty = np.zeros(T+1, dtype=int) - 1
     
+    # if at least one event is in eventsx
     if not len(eventsx)==0:
         ix = eventsx.tpixel
         tx[ix] = 1
+    # if at least one event is in eventsy
     if not len(eventsy)==0:
         iy = eventsy.tpixel
         ty[iy] = 1
     
-    return (tx[1:] * ty[:-1]).mean()
+    # return pair correlation
+    if dt==0:
+        return (tx * ty).mean()
+    return (tx[dt:] * ty[:-dt]).mean()
+
+def sijk(eventsx, eventsy, eventsz, T, dt=1):
+    """Between events listed in x, y, and z DataFrames for x_t, y_{t-dt}, and z_{t-dt}
+    (i.e. x in the future and y and z in the past). Events are only counted if they
+    occurred within adjacent time periods and assumed to take values -1 (no activity) and
+    1 (activity).
+    
+    Parameters
+    ----------
+    eventsx : DataFrame
+    eventsy : DataFrame
+    eventsz : DataFrame
+    T : int
+        Length of time series, i.e. value of time at last event where counting starts with
+        0.
+    dt : int, 1
+    
+    Returns
+    -------
+    float
+    """
+    
+    assert isinstance(dt, int) and dt>=0
+    tx = np.zeros(T+1, dtype=int) - 1
+    ty = np.zeros(T+1, dtype=int) - 1
+    tz = np.zeros(T+1, dtype=int) - 1
+    
+    # if at least one event is in eventsx
+    if not len(eventsx)==0:
+        ix = eventsx.tpixel
+        tx[ix] = 1
+    # if at least one event is in eventsy
+    if not len(eventsy)==0:
+        iy = eventsy.tpixel
+        ty[iy] = 1
+    # if at least one event is in eventsz
+    if not len(eventsz)==0:
+        iz = eventsz.tpixel
+        tz[iz] = 1
+    
+    # return pair correlation
+    if dt==0:
+        return (tx * ty * tz).mean()
+    return (tx[dt:] * ty[:-dt] * tz[:-dt]).mean()
+
