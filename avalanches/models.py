@@ -1,6 +1,7 @@
 # ====================================================================================== #
 # Models for simulating avalanches on Voronoi cell activity.
-# This was written for binary coarse-graining of activity for a local maxent formulation.
+# This was written for binary coarse-graining of activity (is site active or inactive) for
+# a local maxent formulation.
 # 
 # Author : Eddie Lee, edlee@santafe.edu
 # ====================================================================================== #
@@ -21,41 +22,36 @@ from coniii.utils import bin_states
 class LocalMaxent1():
     """Run avalanche simulation using local maxent probability distribution fixing
     correlations between center site x_t and the past of self and neighbors x_{t-1} and
-    y_{t-1}.
+    y_{t-1}, also referred to as the (1,1) model.
     
     Starting configuration is all sites being at 0 since self.activeSites is initialized
     as empty.
     """
-    def __init__(self, stateprobs, neighbors, rng=None):
+    def __init__(self, fields, neighbors, rng=None):
         """
         Parameters
         ----------
-        stateprobs : dict of tuples
-            First element is an integer for system size, the total no. of
-            "spins" accounted for.
-            Second element is an ndarray for all state probabilities.
+        fields : dict
+            Indexed by pixel, where each value is the field that the spin of row index
+            feels from neighbors.
         neighbors : GeoDataFrame or dict
             Specifies the indices of all neighbors for each pixel in stateprobs.
         rng : np.RandomState, None
         """
         
         # read in args
-        self.stateprobs = stateprobs
+        self.fields = fields
         self.neighbors = neighbors
         self.rng = rng or np.random
         
         # check args
-        assert all([len(i)==2 for i in stateprobs.values()]), "something wrong with stateprobs"
-        assert all([isinstance(i[0], int) for i in stateprobs.values()]), "system size must be int"
         if isinstance(self.neighbors, pd.Series):
             self.neighbors = self.neighbors.to_dict()
         assert isinstance(self.neighbors, dict), "neighbors must be dict or translatable to one"
-        assert all([(len(i)+2)==self.stateprobs[k][0]
-                    for k, i in self.neighbors.items()]), "neighbors don't match up"
+        assert [len(i)-1 for i in fields.values()]==[len(i) for i in self.neighbors.values()]
         
         # set up model
         self.activeSites = []
-        self.states = dict([(n, bin_states(n)) for n in range(2, 12)])
         
     def step(self, replace_active_sites=True):
         """Advance simulation by one time step.
@@ -76,37 +72,19 @@ class LocalMaxent1():
         
         newActiveSites = []
         
-        for pix, (n, pall) in self.stateprobs.items():
-            # when this pixel was not active in previous time step
-            if not pix in self.activeSites:
-                # fetch config of neighboring cells
-                neighState = np.zeros((1, n), dtype=int)
-                for i, nix in enumerate(self.neighbors[pix]):
-                    if nix in self.activeSites:
-                        neighState[0,i+2] = 1
-                
-                # normalize active prob conditional on neighbor state
-                pa = 0.
-                pa += pall[(neighState==self.states[n]).all(1)]
-                neighState[0,0] = 1
-                pa += pall[(neighState==self.states[n]).all(1)]
-                pa = pall[(neighState==self.states[n]).all(1)] / pa
+        for pix, h in self.fields.items():
+            prevState = np.zeros(h.size) - 1
 
-            # when this pixel was active in previous time step
-            else:
-                # fetch config of neighboring cells
-                neighState = np.zeros((1, n), dtype=int)
-                neighState[0,1] = 1
-                for i, nix in enumerate(self.neighbors[pix]):
-                    if nix in self.activeSites:
-                        neighState[0,i+2] = 1
+            # was this pixel active in previous time step?
+            if pix in self.activeSites:
+                prevState[0] = 1
                 
-                # normalize active prob conditional on neighbor state
-                pa = 0.
-                pa += pall[(neighState==self.states[n]).all(1)]
-                neighState[0,0] = 1
-                pa += pall[(neighState==self.states[n]).all(1)]
-                pa = pall[(neighState==self.states[n]).all(1)] / pa
+            # fetch config of neighboring cells
+            for i, nix in enumerate(self.neighbors[pix]):
+                if nix in self.activeSites:
+                    prevState[i+1] = 1
+
+            pa = (np.tanh(prevState.dot(h)) + 1)/2
                 
             if self.rng.rand() < pa:
                 newActiveSites.append(pix)
