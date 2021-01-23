@@ -83,7 +83,7 @@ def _pair_probs(x, y):
             ((x==1)&(y==0)).mean(),
             ((x==1)&(y==1)).mean()]
 
-def sisj(eventsx, eventsy, T, dt=1):
+def sisj(eventsx, eventsy, T, dt=1, laplace_prior=False):
     """Between events listed in x and y DataFrames for x_t and y_{t-dt} (i.e. x in the
     future and y in the past). Events are only counted if they occurred within adjacent
     time periods and assumed to take values -1 (no activity) and 1 (activity).
@@ -96,6 +96,8 @@ def sisj(eventsx, eventsy, T, dt=1):
         Length of time series, i.e. value of time at last event where counting starts with
         0.
     dt : int, 1
+    laplace_prior : bool, False
+        If True, account for four additional possible configurations.
     
     Returns
     -------
@@ -115,6 +117,10 @@ def sisj(eventsx, eventsy, T, dt=1):
         iy = eventsy.tpixel
         ty[iy] = 1
     
+    if laplace_prior:
+        tx = np.concatenate((tx, [-1,-1,1,1]))
+        ty = np.concatenate((ty, [-1,1,-1,1]))
+
     # return pair correlation
     if dt==0:
         return (tx * ty).mean()
