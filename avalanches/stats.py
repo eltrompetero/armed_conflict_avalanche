@@ -91,10 +91,12 @@ def sisj(eventsx, eventsy, T, dt=1, laplace_prior=False):
     Parameters
     ----------
     eventsx : DataFrame
+        Events in future. 
     eventsy : DataFrame
+        Events in past.
     T : int
-        Length of time series, i.e. value of time at last event where counting starts with
-        0.
+        Time point of latest event, i.e. value of time at last event given counting starts
+        with 0.
     dt : int, 1
     laplace_prior : bool, False
         If True, account for four additional possible configurations.
@@ -126,7 +128,7 @@ def sisj(eventsx, eventsy, T, dt=1, laplace_prior=False):
         return (tx * ty).mean()
     return (tx[dt:] * ty[:-dt]).mean()
 
-def sijk(eventsx, eventsy, eventsz, T, dt=1):
+def sijk(eventsx, eventsy, eventsz, T, dt=1, laplace_prior=False):
     """Between events listed in x, y, and z DataFrames for x_t, y_{t-dt}, and z_{t-dt}
     (i.e. x in the future and y and z in the past). Events are only counted if they
     occurred within adjacent time periods and assumed to take values -1 (no activity) and
@@ -141,6 +143,7 @@ def sijk(eventsx, eventsy, eventsz, T, dt=1):
         Length of time series, i.e. value of time at last event where counting starts with
         0.
     dt : int, 1
+    laplace_prior : bool, False
     
     Returns
     -------
@@ -165,6 +168,11 @@ def sijk(eventsx, eventsy, eventsz, T, dt=1):
         iz = eventsz.tpixel
         tz[iz] = 1
     
+    if laplace_prior:
+        tx = np.concatenate((tx, [-1,-1,-1,-1,1,1,1,1]))
+        ty = np.concatenate((ty, [-1,-1,1,1,-1,-1,1,1]))
+        tz = np.concatenate((tz, [-1,1,-1,1,-1,1,-1,1]))
+
     # return pair correlation
     if dt==0:
         return (tx * ty * tz).mean()
