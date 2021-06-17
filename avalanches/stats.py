@@ -11,7 +11,8 @@ from ..utils import *
 # ========= #
 # Functions #
 # ========= #
-def joint_prob(eventsx, eventsy, T):
+def joint_prob(eventsx, eventsy, T,
+               cond_t_bds=None):
     """Joint probabilities between events listed in x and y DataFrames. Only considering
     whether any event occurred at all or not. Events are only counted if they occurred
     within adjacent time periods.
@@ -19,17 +20,50 @@ def joint_prob(eventsx, eventsy, T):
     Parameters
     ----------
     eventsx : DataFrame
+        Must have a tpixel coordinate that can start from 1 and go up to including T.
     eventsy : DataFrame
     T : int
-        Length of time series.
+        Length of time series. This is necessary b/c the full length of the time series
+        cannot be known from the event list, which may not go to the max possible time.
+    cond_t_bds : list of twoples, None
+        Option to condition calculation to certain ranges of tpixel. Bounds are inclusive.
     
     Returns
     -------
     ndarray
-        Probability for variable pairs (x_{t-1}, y_t), (x_t, y_t), (x_t, y_{t-1}).
+        Probability for variable pairs (x_{t-1}, y_t), (x_t, y_t), (x_{t+1}, y_t).
         Each row considers all possible pairs of activation in order of (00, 01, 10, 11).
+    int (optional)
+        If cond_t_bds is specified, then the total duration of samples used to calculate
+        the result is returned to be able to better assess accuracy.
     """
+
+    assert isinstance(eventsx, pd.DataFrame) and isinstance(eventsy, pd.DataFrame)
+    assert T>1
     
+    if not cond_t_bds is None:
+        # recursively call joint_prob on visible segments and weighted aggregate at end
+        plist, Tlist = [], []
+
+        # find each visible starting segment
+        for t0, t1 in cond_t_bds:
+            if (t1-t0)>1:
+                # select all events that fall within the time window
+                eventsx_ = eventsx.iloc[(eventsx.tpixel>=t0).values&(eventsx.tpixel<=t1).values]
+                eventsy_ = eventsy.iloc[(eventsy.tpixel>=t0).values&(eventsy.tpixel<=t1).values]
+                # restart pixel count to begin and end with the specified time window
+                eventsx_.tpixel -= t0 - 1
+                eventsy_.tpixel -= t0 - 1
+
+                Tlist.append(t1-t0+1)
+                plist.append(joint_prob(eventsx_, eventsy_, Tlist[-1]))
+        
+        totT = sum(Tlist) - len(Tlist)
+        # weighted average, remember that each term only involves T-1 entries
+        avgp = sum([p_*(T_-1)/totT for p_, T_ in zip(plist, Tlist)])
+        return avgp, totT
+    
+    # when no cond_t_bds is given...
     tx = np.zeros(T+1, dtype=int)
     ty = np.zeros(T+1, dtype=int)
     
