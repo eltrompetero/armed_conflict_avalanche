@@ -3,8 +3,6 @@
 Currently, a very messy version for analyzing armed conflict data and running simulations.
 
 
-Intro Voronoi grid visualization for Niraj.
-
 In order to run the notebook, you will need to install custom repositories into path.
 ```bash
 $ git clone https://github.com/eltrompetero/misc.git

@@ -9,14 +9,13 @@ import geopandas as gpd
 
 
 
-
 def extend_poissd_coarse_grid(dx):
-    """Redefine PoissonDiscSphere to consider an extended number of coarse grid neighbors
-    to avoid boundary artifacts (that though uncommon) would manifest from not considering
-    neighbors because of thin bounds on polygons.
+    """Redefine PoissonDiscSphere to consider an extended number of coarse grid
+    neighbors to avoid boundary artifacts (that though uncommon) would manifest from
+    not considering neighbors because of thin bounds on polygons.
 
-    This increases the default number of coarse neighbors 9 used in PoissonDiscSphere to
-    15.
+    This increases the default number of coarse neighbors 9 used in PoissonDiscSphere
+    to 15.
 
     Parameters
     ----------
@@ -98,7 +97,8 @@ def polygonize_voronoi(iter_pairs=None):
     Parameters
     ----------
     iter_pairs : list of twoples, None
-        Can be specified to direct polygonization for particular combinations of dx and grids.
+        Can be specified to direct polygonization for particular combinations of dx
+        and grids {dx as int}, {gridix as int}.
     """
 
     from numpy import pi
@@ -147,7 +147,7 @@ def polygonize_voronoi(iter_pairs=None):
     if iter_pairs is None:
         iter_pairs = product([80, 160, 320, 640, 1280], range(10))
 
-    with mp.Pool(mp.cpu_count()-1) as pool:
+    with mp.Pool() as pool:
         pool.map(loop_wrapper, iter_pairs)
 
 def rate_dynamics(dxdt=((160,16), (160,32), (160,64), (160,128), (160,256))):
@@ -297,3 +297,4 @@ def loglog_fit_err_bars(x, y, fit_params, show_plot=False):
     if show_plot:
         return (np.percentile(r,2.5), np.percentile(r,97.5)), (fig,ax)
     return np.percentile(r,2.5), np.percentile(r,97.5)
+
