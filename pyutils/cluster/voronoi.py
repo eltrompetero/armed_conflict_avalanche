@@ -2,7 +2,7 @@
 # Creating and handling voronoi tiling.
 # Author: Eddie Lee, edlee@santafe.edu
 # ====================================================================================== #
-from .utils import *
+from ..utils import *
 from itertools import product
 from numpy import pi
 from misc.globe import VoronoiCell, SphereCoordinate, GreatCircle

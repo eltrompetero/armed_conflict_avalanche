@@ -3,6 +3,8 @@
 Code for construction conflict avalanches and their analysis including simulation of model
 and incorporation of social data.
 
+Cluster module contains routines for generating Voronoi cells and clustering conflict
+events with them. Avalanches module is for simulation of theoretical model.
 
 # Installation
 In order to run the notebook, you will need to install custom repositories into path.
@@ -23,3 +25,4 @@ for Anaconda.
 $ conda create --name armed_conflict --file pyutils/spec-file.txt
 $ conda activate armed_conflict
 ```
+

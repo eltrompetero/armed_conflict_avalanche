@@ -49,65 +49,6 @@ def wrap_lon(x):
         x[x>180] = x[x>180] - 360
     return x
 
-def cluster_cells(cells, active):
-    """Cluster voronoi cells by contiguity. This is basically the routine in
-    .cluster_avalanche() except not accounting for time.
-    
-    Parameters
-    ----------
-    cells: GeoDataFrame
-        Polygons that constitute Voronoi tessellation of map.
-    active: ndarray
-        Indices of cells that should be clustered by proximity.
-       
-    Returns
-    -------
-    list of list of ints
-        Each list indicates the indices of points that belong to one avalanche or another.
-        Since we are given a dataframe, the indices of the data rows will be given.
-    """
-    
-    assert len(active)
-
-    if isinstance(active, np.ndarray):
-        remaining = active.tolist()  # unclustered event ix
-    else:
-        remaining = active[:]
-    clustered = []  # clustered event ix
-    avalanches = []  # groups of conflict avalanches of event ix
-
-    counter = 0
-    while remaining:
-        thisCluster = []
-        toConsider = []  # events whose neighbors remain to be explored
-
-        # initialize a cluster
-        toConsider.append(remaining[0])
-
-        while toConsider:
-            # add this event to the cluster
-            thisEvent = toConsider.pop(0)
-            remaining.pop(remaining.index(thisEvent))
-            thisCluster.append(thisEvent)
-            clustered.append(thisEvent)
-            thisPix = cells.loc[thisEvent]
-
-            # find all the neighbors of this point
-            for i in thisPix.neighbors:
-                if (i in remaining and
-                    not i in thisCluster and
-                    not i in toConsider):
-                    toConsider.append(i)
-
-        avalanches.append(thisCluster)
-        counter += 1
-
-    # check that each event only appears once
-    allix = np.concatenate(avalanches)
-    assert allix.size==np.unique(allix).size, "Some events appear in more than once."
-    
-    return avalanches
-
 def pixels_in_africa(polygons, countries_to_exclude=[]):
     """Select Voronoi cells that are in Africa.
 
@@ -136,85 +77,6 @@ def pixels_in_africa(polygons, countries_to_exclude=[]):
         selectix[i] = countrygdf.intersects(p.geometry).any()
 
     return polygons.iloc[selectix]
-
-def cluster_avalanche(gdf, A, cellneighbors,
-                      counter_mx=np.inf,
-                      use_cpp=True,
-                      run_checks=False):
-    """Cluster events into avalanches by connecting all pixels that are neighbors in space
-    that are active within the specified time interval A.
-    
-    Parameters
-    ----------
-    gdf : GeoDataFrame
-    A : int
-        Separation time scale
-    cellneighbors : dict
-        Key indicates which pixel and values indicate all neighboring pixels.
-    counter_mx : int, np.inf
-        If specified, only construct this number of avalanches.
-    use_cpp : bool, True
-    run_checks : bool, False
-       
-    Returns
-    -------
-    list of list of ints
-        Each list indicates the indices of points that belong to one avalanche or another.
-        These are simple ordered indices, not necessarily the "index" of the dataframe,
-        i.e. use .iloc().
-    """
-    
-    if use_cpp:
-        from .utils_ext import cluster_avalanche
-        day = (gdf['event_date']-gdf['event_date'].min()).values / np.timedelta64(1,'D')
-        day = day.astype(int)
-        pixel = gdf['pixel'].values
-        cellneighbors = dict(zip(cellneighbors.index, cellneighbors.values))
-
-        avalanches = cluster_avalanche(day, pixel, A, cellneighbors, counter_mx)
-    else:
-        remaining = list(range(len(gdf)))  # unclustered event ix
-        clustered = []  # clustered event ix
-        avalanches = []  # groups of conflict avalanches of event ix
-
-        counter = 0
-        while remaining and counter<counter_mx:
-            thisCluster = []
-            toConsider = []  # events whose neighbors remain to be explored
-
-            # initialize a cluster
-            toConsider.append(remaining[0])
-
-            while toConsider:
-                # add this event to the cluster
-                thisEvent = toConsider.pop(0)
-                remaining.pop(remaining.index(thisEvent))
-                thisCluster.append(thisEvent)
-                clustered.append(thisEvent)
-                thisPix = gdf['pixel'].iloc[thisEvent]
-
-                # find all the neighbors of this point
-                # first select all points within time dt
-                selectix = np.zeros(len(gdf), dtype=bool)
-                selectix[remaining] = np.abs(gdf['event_date'].iloc[remaining] -
-                                             gdf['event_date'].iloc[thisEvent])<=np.timedelta64(A, 'D')
-
-                # now select other events by cell adjacency
-                for i in np.where(selectix)[0]:
-                    if (gdf['pixel'].iloc[i] in cellneighbors[thisPix] and
-                        not i in thisCluster and
-                        not i in toConsider):
-                        toConsider.append(i)
-
-            avalanches.append(thisCluster)
-            counter += 1
-    
-    if run_checks:
-        # check that each event only appears once
-        allix = np.concatenate(avalanches)
-        assert allix.size==np.unique(allix).size, "Some events appear in more than once."
-    
-    return avalanches
 
 def grid_split2cluster_ix(gridsplit, dfix):
     """Convert grid split (which indicates the cluster to which each event from the
@@ -588,3 +450,4 @@ def merge(sets):
             results.append(common)
         sets = results
     return sets
+
