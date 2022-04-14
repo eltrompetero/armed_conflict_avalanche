@@ -53,9 +53,16 @@ def _extend_poissd_coarse_grid(poissd):
     return newpoissd
 
 def cluster_battles(iprint=True):
-    """Generate conflict clusters across separation scales."""
+    """Generate conflict clusters across separation scales.
+
+    Parameters
+    ----------
+    iprint : bool, True
+    """
 
     from .workspace import load_battlesgdf
+
+    assert os.path.isdir('cache/africa')
 
     def loop_wrapper(args, gridix=0):
         dx, dt = args

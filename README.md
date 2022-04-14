@@ -1,10 +1,12 @@
 # ARmed COnflict avaLANCHEs (arcolanche)
 
-Code for construction conflict avalanches and their analysis including simulation of model
+Code for construction and analysis of conflict avalanches including simulation of model
 and incorporation of social data.
 
-Cluster module contains routines for generating Voronoi cells and clustering conflict
-events with them. Avalanches module is for simulation of theoretical model.
+- Cluster module contains routines for generating Voronoi cells and clustering conflict
+events with them.
+- Avalanches module is for simulation of fractal conflict model.
+- pipeline.py contains routines for final analysis.
 
 # Installation
 In order to run the notebook, you will need to install custom repositories into path.
@@ -19,10 +21,16 @@ $ git clone https://github.com/eltrompetero/armed_conflict.git
 ```
 
 You will also need an environment with geopandas (also pandas, cartopy, and standard
-scientific python packages). As a shortcut, a spec list is available in the GitHub repo
+scientific python packages). As a shortcut, a YML and spec list is available in the GitHub repo
 for Anaconda.
-```bash
-$ conda create --name armed_conflict --file pyutils/spec-file.txt
-$ conda activate armed_conflict
-```
 
+If you're running Linux, then you can use
+```bash
+$ conda create --name arco --file arcolanche/spec-file.txt
+$ conda activate arco
+```
+Otherwise
+```bash
+$ conda env create -f arcolanche/arco.yml
+$ conda activate arco
+```
