@@ -1,4 +1,4 @@
-# Armed conflict avalanches
+# ARmed COnflict avaLANCHEs (arcolanche)
 
 Code for construction conflict avalanches and their analysis including simulation of model
 and incorporation of social data.
