@@ -64,6 +64,10 @@ def create_polygon(poissd, centerix):
     poissd : PoissonDiscSphere
     centerix : int
         Construct polygon about specified point in PoissonDiscSphere.
+
+    Returns
+    -------
+    shapely.geometry.Polygon
     """
     
     center = poissd.samples[centerix]

@@ -98,7 +98,8 @@ def polygonize_voronoi(iter_pairs=None):
     ----------
     iter_pairs : list of twoples, None
         Can be specified to direct polygonization for particular combinations of dx
-        and grids {dx as int}, {gridix as int}.
+        and grids {dx as int}, {gridix as int}. When None, goes through preset list
+        of all combos up to dx=1280.
     """
 
     from numpy import pi
@@ -145,6 +146,7 @@ def polygonize_voronoi(iter_pairs=None):
         polygons.to_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
         
     if iter_pairs is None:
+        # iterate over all preset combinations of dx and dt
         iter_pairs = product([80, 160, 320, 640, 1280], range(10))
 
     with mp.Pool() as pool:
@@ -178,11 +180,11 @@ def cluster_avalanche(gdf, A, cellneighbors,
     """
     
     if use_cpp:
-        from .utils_ext import cluster_avalanche
+        from ..utils_ext import cluster_avalanche
         day = (gdf['event_date']-gdf['event_date'].min()).values / np.timedelta64(1,'D')
         day = day.astype(int)
         pixel = gdf['pixel'].values
-        cellneighbors = dict(zip(cellneighbors.index, cellneighbors.values))
+        assert isinstance(cellneighbors, dict)
 
         avalanches = cluster_avalanche(day, pixel, A, cellneighbors, counter_mx)
     else:
