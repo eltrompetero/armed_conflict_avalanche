@@ -1,0 +1,101 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+DATADR	acled_utils.py	/^DATADR = os.path.expanduser('~')+'\/Dropbox\/Research\/armed_conflict\/data\/'$/;"	v
+DATADR	awd.py	/^DATADR = os.path.expanduser('~')+'\/Dropbox\/Research\/armed_conflict\/data\/'$/;"	v
+FMIN	exponents.py	/^FMIN=2$/;"	v
+SMIN	exponents.py	/^SMIN=2$/;"	v
+TMIN	exponents.py	/^TMIN=2$/;"	v
+_bootstrap_power_law_fit	pipeline.py	/^def _bootstrap_power_law_fit(Y, upper_bound,$/;"	f
+_coarse_grain_voronoi_tess	acled_utils.py	/^def _coarse_grain_voronoi_tess(dx, fileno):$/;"	f
+_power_law_fit	pipeline.py	/^def _power_law_fit(Y, lower_bound_range, upper_bound,$/;"	f
+_sample_lattice_spacing	acled_utils.py	/^def _sample_lattice_spacing(dx, sample_size):$/;"	f
+_vtess_loop	pipeline.py	/^def _vtess_loop(args):$/;"	f
+add_same_date_events	dynamics.py	/^def add_same_date_events(t, x):$/;"	f
+avalanche_trajectory	dynamics.py	/^def avalanche_trajectory(g, min_len=5):$/;"	f
+avalanche_trajectory_ua	dynamics.py	/^def avalanche_trajectory_ua(g, x, min_len=5):$/;"	f
+average_trajectories_by_coarseness	dynamics.py	/^def average_trajectories_by_coarseness(trajectories):$/;"	f
+center	acled_utils.py	/^def center(X,ddof=0):$/;"	f
+check_consistency	pipeline.py	/^def check_consistency(eventType, gridno, pval_threshold=.05, perc=(16.5,83.5)):$/;"	f
+check_fractal_bounds	exponents.py	/^def check_fractal_bounds(df, dfbds, ignore_nan=True):$/;"	f
+check_relation	acled_utils.py	/^def check_relation(alphaBds, upsBds, dfBds):$/;"	f
+cluster_by_latlon	acled_utils.py	/^def cluster_by_latlon(latlon,mxdist):$/;"	f
+cluster_by_latlon	awd.py	/^def cluster_by_latlon(latlon,mxdist):$/;"	f
+cluster_diameter	acled_utils.py	/^def cluster_diameter(lonlat):$/;"	f
+cluster_dist	acled_utils.py	/^def cluster_dist(dmat,threshold):$/;"	f
+coarse_grain_voronoi_tess	acled_utils.py	/^def coarse_grain_voronoi_tess(dx, fileno):$/;"	f
+cost	acled_utils.py	/^    def cost(a):$/;"	f	function:square_fit_mean_std
+cost	acled_utils.py	/^    def cost(params):$/;"	f	function:square_fit
+count_up_unique_actors	dynamics.py	/^def count_up_unique_actors(x):$/;"	f
+df_scaling	exponents.py	/^def df_scaling(dr, n_points, nfiles=10, prefix=''):$/;"	f
+digitize_actors	acled_utils.py	/^def digitize_actors(subdf):$/;"	f
+distributions	exponents.py	/^def distributions(dr, nfiles=10, prefix=''):$/;"	f
+duration_and_size	acled_utils.py	/^def duration_and_size(geoSplit):$/;"	f
+euclid_dist	acled_utils.py	/^def euclid_dist(xxx_todo_changeme, xxx_todo_changeme1):$/;"	f
+exponent_comparison	exponents.py	/^def exponent_comparison(dr, df, ds, z, nu, alpha, upsilon, tau, pixDiameter, nSampleRange,$/;"	f
+exponent_relation_1	exponents.py	/^def exponent_relation_1(x,y,iprint=True):$/;"	f
+exponent_relation_2	exponents.py	/^def exponent_relation_2(x,y,z,iprint=True):$/;"	f
+extract_event_type	acled_utils.py	/^def extract_event_type(df, event_type):$/;"	f
+extract_info	pipeline.py	/^def extract_info(subdf,dx,dt,$/;"	f
+extract_info_voronoi	pipeline.py	/^def extract_info_voronoi(subdf, dx, dt, grid_no,$/;"	f
+extract_ua_from_geosplit	acled_utils.py	/^def extract_ua_from_geosplit(geoSplit):$/;"	f
+f	acled_utils.py	/^    def f(row):$/;"	f	function:digitize_actors
+f	acled_utils.py	/^    def f(s, t=fit_params[1], x=x, y=y):$/;"	f	function:loglog_fit_err_bars
+f	dynamics.py	/^    def f(i):$/;"	f	function:parallel_load_trajectories
+f	pipeline.py	/^    def f(args):$/;"	f	function:_bootstrap_power_law_fit
+f	pipeline.py	/^    def f(args):$/;"	f	function:_power_law_fit
+fast_cluster_diameter	acled_utils.py	/^def fast_cluster_diameter(lonlat, n_top=3):$/;"	f
+fit_data	armed_conf.py	/^def fit_data(data,ax):$/;"	f
+fractal_dimension	exponents.py	/^def fractal_dimension(x, y,$/;"	f
+fractal_dimension	pipeline.py	/^def fractal_dimension(diameters, sizes, fatalities, durations, spaceThreshold, dayThreshold,$/;"	f
+fractal_dimension_error	exponents.py	/^def fractal_dimension_error(x, y, df, params, threshold=.01, eps=1e-6, symmetric=True):$/;"	f
+gauss_smooth	acled_utils.py	/^def gauss_smooth(x,width,windowlen):$/;"	f
+get_col	armed_conf.py	/^def get_col(data,colname):$/;"	f
+get_dt	armed_conf.py	/^def get_dt(dates):$/;"	f
+get_epnum	cow.py	/^def get_epnum(startdates,enddates):$/;"	f
+get_interv	cow.py	/^    def get_interv(startdates,enddates):$/;"	f	function:remove_neg_dt
+get_latlon	acled_utils.py	/^def get_latlon(df):$/;"	f
+interp_avalanche_trajectory	dynamics.py	/^def interp_avalanche_trajectory(dateFat, x, insert_zero=True):$/;"	f
+intra_event_dt	acled_utils.py	/^def intra_event_dt(splitdf,pairwise=False):$/;"	f
+intra_event_dx	acled_utils.py	/^def intra_event_dx(splitdf):$/;"	f
+load_data	armed_conf.py	/^def load_data():$/;"	f
+load_trajectories	dynamics.py	/^def load_trajectories(event_type, dx, dt, gridno,$/;"	f
+loglog_fit_err_bars	acled_utils.py	/^def loglog_fit_err_bars(x, y, fit_params, show_plot=False):$/;"	f
+merge	acled_utils.py	/^def merge(sets):$/;"	f
+one_iteration	exponents.py	/^        def one_iteration(rng):$/;"	f	function:fractal_dimension
+parallel_load_trajectories	dynamics.py	/^def parallel_load_trajectories(event_type, gridno, dx, dt, **kwargs):$/;"	f
+percentile_bds	acled_utils.py	/^def percentile_bds(X, perc):$/;"	f
+pipeline_civ_violence	acled_utils.py	/^def pipeline_civ_violence(df):$/;"	f
+plot_gmap	acled_utils.py	/^def plot_gmap(subdf,map_name='mymap.html'):$/;"	f
+plot_pix_boundaries	plot.py	/^def plot_pix_boundaries(m,Nside,n_phi=1000,plot_kw={'c':'k'}):$/;"	f
+post_power_law_fit	pipeline.py	/^def post_power_law_fit(eventType,$/;"	f
+power_law_fit	pipeline.py	/^def power_law_fit(eventType,$/;"	f
+print_stats	cow.py	/^def print_stats(x,norm=3600*24*365.):$/;"	f
+raw_scaling_with_L	exponents.py	/^def raw_scaling_with_L(dr, nfiles=10, prefix=''):$/;"	f
+remove_neg_dt	cow.py	/^def remove_neg_dt(startdates,enddates):$/;"	f
+sample_sphere	acled_utils.py	/^def sample_sphere(n=1,degree=True):$/;"	f
+scaling_F_by_T	exponents.py	/^def scaling_F_by_T(dr, nfiles=10, prefix=''):$/;"	f
+scaling_S_by_F	exponents.py	/^def scaling_S_by_F(dr, n_points, nfiles=10, prefix=''):$/;"	f
+scaling_relations	exponents.py	/^def scaling_relations(dr, nSample, pixDiameter, nfiles=10, prefix=''):$/;"	f
+scaling_with_L	exponents.py	/^def scaling_with_L(dr, n_points, corrected=True, nfiles=10, prefix=''):$/;"	f
+scaling_with_T	exponents.py	/^def scaling_with_T(dr, n_points, nfiles=10, prefix=''):$/;"	f
+setup_quickload	pipeline.py	/^def setup_quickload(path):$/;"	f
+sigma_bds	acled_utils.py	/^def sigma_bds(X, factor=1.):$/;"	f
+split_by_date	acled_utils.py	/^def split_by_date(df,threshold=14,return_details=False):$/;"	f
+split_by_date	awd.py	/^def split_by_date(t,threshold=14):$/;"	f
+split_by_dist	acled_utils.py	/^def split_by_dist(df,threshold=2,fast=False):$/;"	f
+split_by_dist_fast	acled_utils.py	/^def split_by_dist_fast(subdf,mxdist=40,method='manual'):$/;"	f
+split_by_index	acled_utils.py	/^def split_by_index(ix,X):$/;"	f
+split_by_index	awd.py	/^def split_by_index(ix,X):$/;"	f
+split_by_nan	acled_utils.py	/^def split_by_nan(v):$/;"	f
+square_fit	acled_utils.py	/^def square_fit(x,y,weights=None):$/;"	f
+square_fit_mean_std	acled_utils.py	/^def square_fit_mean_std(m,s,return_all=False):$/;"	f
+square_val	acled_utils.py	/^def square_val(sqfit,x):$/;"	f
+square_val_mean_std	acled_utils.py	/^def square_val_mean_std(sqfit,m):$/;"	f
+test_PoissonDiscSphere	test_acled_utils.py	/^def test_PoissonDiscSphere():$/;"	f
+transform_bds_to_offset	acled_utils.py	/^def transform_bds_to_offset(x,bds):$/;"	f
+voronoi	pipeline.py	/^def voronoi(piDenom, nStarts, fileno_start=0, n_jobs=None, initial_coarse_grid=None):$/;"	f
+voronoi_pix_diameter	acled_utils.py	/^def voronoi_pix_diameter(spaceThreshold):$/;"	f
