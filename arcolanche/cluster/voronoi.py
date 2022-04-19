@@ -74,6 +74,7 @@ def create_polygon(poissd, centerix):
 
     neighborsix = poissd.neighbors(center)
     neighborsix.pop(neighborsix.index(centerix))
+    assert len(neighborsix)>=3
 
     center = SphereCoordinate(center[0], center[1]+pi/2)
     neighbors = [SphereCoordinate(s[0], s[1]+pi/2) for s in poissd.samples[neighborsix]]

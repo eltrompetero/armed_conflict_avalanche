@@ -8,6 +8,7 @@ events with them.
 - Avalanches module is for simulation of fractal conflict model.
 - pipeline.py contains routines for final analysis.
 
+
 # Installation
 In order to run the notebook, you will need to install custom repositories into path.
 ```bash
@@ -34,3 +35,12 @@ Otherwise
 $ conda env create -f arcolanche/arco.yml
 $ conda activate arco
 ```
+
+
+# Running
+Creating a nested sequence of Voronoi cells with script. Last integer argument is the
+Voronoi cell index. Existing files are overwritten.
+```bash
+cp scripts/create_poissd.py ./ && python create_poissd.py 0
+```
+
