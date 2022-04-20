@@ -126,8 +126,11 @@ def polygonize_voronoi(iter_pairs=None):
         else:
             selectix = np.where((lonlat[:,0]>-18.7) & (lonlat[:,0]<52) &
                                 (lonlat[:,1]>-36) & (lonlat[:,1]<40))[0]
-
-        polygons = [create_polygon(poissd, i) for i in selectix]
+        
+        # create bounding polygons, the "Voronoi cells"
+        polygons = []
+        for i in selectix:
+            polygons.append(create_polygon(poissd, i))
         polygons = gpd.GeoDataFrame({'index':list(range(len(polygons)))},
                                     geometry=polygons,
                                     crs='EPSG:4087')

@@ -74,16 +74,25 @@ def create_polygon(poissd, centerix):
 
     neighborsix = poissd.neighbors(center)
     neighborsix.pop(neighborsix.index(centerix))
-    assert len(neighborsix)>=3
+    assert len(neighborsix)>=3, "Provided point has less than three neighbors."
 
     center = SphereCoordinate(center[0], center[1]+pi/2)
     neighbors = [SphereCoordinate(s[0], s[1]+pi/2) for s in poissd.samples[neighborsix]]
+    
+    try:
+        precision = 1e-7
+        cell = VoronoiCell(center, rng=np.random.RandomState(0), precision=precision)
+        triIx = cell.initialize_with_tri(neighbors)
+    except AssertionError:
+        # try reducing precision
+        precision = 5e-8
+        cell = VoronoiCell(center, rng=np.random.RandomState(0), precision=precision)
+        triIx = cell.initialize_with_tri(neighbors)
 
-    cell = VoronoiCell(center, rng=np.random.RandomState(0))
-    triIx = cell.initialize_with_tri(neighbors)
     for i, ix in enumerate(triIx):
         neighbors.pop(ix-i)
-
+    
+    # iterate thru all neighbors and try to add them to convex hull, most won't be added
     for n in neighbors:
         cell.add_cut(GreatCircle.bisector(n, center))
     
