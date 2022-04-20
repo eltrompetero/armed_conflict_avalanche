@@ -106,7 +106,7 @@ def polygonize_voronoi(iter_pairs=None):
     iter_pairs : list of twoples, None
         Can be specified to direct polygonization for particular combinations of dx
         and grids {dx as int}, {gridix as int}. When None, goes through preset list
-        of all combos up to dx=1280.
+        of all combos from dx=80 up to dx=1280 (about 35km).
     """
 
     from numpy import pi

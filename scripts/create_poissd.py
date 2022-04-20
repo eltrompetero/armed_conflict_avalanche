@@ -3,6 +3,7 @@
 # Author : Eddie Lee, edlee@csh.ac.at
 # ====================================================================================== #
 import sys
+from multiprocess import Pool
 from workspace.utils import load_pickle, save_pickle
 
 from arcolanche import *
@@ -12,7 +13,7 @@ HEIGHT = (-0.7853981633974483, 0.8203047484373349)
 
 
 def create_one_grid(gridix, dx):
-    assert gridix>=0
+    assert 99>=gridix>=0
     assert dx in [40,80,160,320,640,1280]
 
     if dx==40:
@@ -50,7 +51,9 @@ def main(gridix):
         print(f"Done with grid {gridix} and dx {dx}.\n")
 
 if __name__=='__main__':
-    gridix = int(sys.argv[1])
-    
-    main(gridix)
+    # parallelized iteration over indicated grids
+    gridix = [int(i) for i in sys.argv[1:]]
+        
+    with Pool() as pool:
+        pool.map(main, gridix)
 

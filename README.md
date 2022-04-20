@@ -41,9 +41,13 @@ In order to run the notebook, you will need to take several steps.
     ```
 4. In some code, you must specify the current working directory in the variable `wd` or its analog.
 
+
 # Scripts
 - For creating a nested sequence of Voronoi cells with script. Last integer argument is the Voronoi cell index. Existing files are overwritten.
     ```bash
     cp scripts/create_poissd.py ./ && python create_poissd.py 0
     ```
-
+- For create boundaries around Voronoi cells (after running Poisson disc sampling algorithm)
+    ```bash
+    cp scripts/polygonize_poissd.py ./ && python polygonize_poissd.py
+    ```
