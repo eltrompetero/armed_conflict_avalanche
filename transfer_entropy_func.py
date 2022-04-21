@@ -24,17 +24,8 @@ import powerlaw
 
 from vincenty import vincenty
 
-import ava_parameter_functions
-
-import power_law_func
-
 import scipy
 
-import plotting_func
-
-import alpha_xmin_calculator
-import avalanche_numbering
-import transfer_entropy_func
 import misc_funcs
 
 from numba import jit,njit

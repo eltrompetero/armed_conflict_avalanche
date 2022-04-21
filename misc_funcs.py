@@ -43,6 +43,7 @@ import numpy_indexed
 from pandarallel import pandarallel
 import fastparquet as fpar
 
+from numba import jit,njit
 
 import data as data_loader
 
