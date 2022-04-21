@@ -1,6 +1,7 @@
 #from pyutils import *
 from ctypes import sizeof
 from datetime import date, time, timedelta
+from tkinter.messagebox import NO
 import geopandas
 from shapely import geometry
 from sklearn import neighbors
@@ -40,6 +41,8 @@ import itertools
 
 import numpy_indexed
 from pandarallel import pandarallel
+import fastparquet as fpar
+
 
 import data as data_loader
 
@@ -1099,6 +1102,29 @@ def ava_temporal_profile(time,dx,conflict_type,algo_type,spatial_cutoff,temporal
     return interp_points.shape
 
 
+def conflict_position(conflict_type):
+    '''
+    This script is used to create and then save a geodataframe of all the geographic points where events took place using lattitude and longitude of 
+    events from ACLED dataset and the dates on which those events occured
+    '''
+    data = data_loader.conflict_data_loader(conflict_type)
+
+    temp_list = []
+    for i in range(len(data)):
+        temp_point = Point(data["longitude"][i] , data["latitude"][i])
+        temp_list.append(temp_point)
+
+    conflict_event_positions = geopandas.GeoDataFrame(temp_list)
+    conflict_event_positions["date"] = data["event_date"]
+
+    conflict_event_positions.set_geometry(0 , inplace=True)
+    conflict_event_positions.rename_geometry('geometry' , inplace=True)
+
+    conflict_event_positions.to_file(f"generated_data/{conflict_type}/conflict_positions/conflict_positions.shp")
+
+    return None
+
+
 def conflict_event_polygon_mapping(dx , conflict_type , cpu_cores):
     print("Finding event to polygon mapping!")
 
@@ -1106,7 +1132,7 @@ def conflict_event_polygon_mapping(dx , conflict_type , cpu_cores):
 
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
 
-    conflict_positions = gpd.read_file(f"data_{conflict_type}/conflict_positions/conflict_positions.shp")
+    conflict_positions = gpd.read_file(f"generated_data/{conflict_type}/conflict_positions/conflict_positions.shp")
 
 
     pandarallel.initialize(nb_workers=cpu_cores , progress_bar=True)
@@ -1130,25 +1156,30 @@ def conflict_event_polygon_mapping(dx , conflict_type , cpu_cores):
     return mapping
 
 
+def single_tile_events(dx , conflict_type):
 
-def conflict_position(conflict_type):
-    '''
-    This script is used to create and then save a geodataframe of all the geographic points where events took place using lattitude and longitude of 
-    events from ACLED dataset and the dates on which those events occured
-    '''
-    data = data_loader.conflict_data_loader(conflict_type)
+    conflict_data = data_loader.conflict_data_loader(conflict_type)
 
-    temp_list = []
-    for i in range(len(data)):
-        temp_point = Point(data["longitude"][i] , data["latitude"][i])
-        temp_list.append(temp_point)
+    event_mappings = conflict_event_polygon_mapping(dx,conflict_type,12)
+    event_mappings = event_mappings[:,1]
+    event_mappings = pd.DataFrame({'polygon_number' : event_mappings})
 
-    conflict_event_positions = geopandas.GeoDataFrame(temp_list)
-    conflict_event_positions["date"] = data["event_date"]
+    conflict_data.drop(conflict_data.columns.difference(["Unnamed: 0" , "Unnamed: 0.1"]), 1, inplace=True)
 
-    conflict_event_positions.set_geometry(0 , inplace=True)
-    conflict_event_positions.rename_geometry('geometry' , inplace=True)
+    conflict_data["polygon_number"] = event_mappings["polygon_number"]
 
-    conflict_event_positions.to_file(f"generated_data/{conflict_type}/conflict_positions/conflict_positions.shp")
+    groups = conflict_data.groupby("polygon_number")
+
+    if(os.path.exists(f"generated_data/{conflict_type}/{str(dx)}/") == False):
+        os.makedirs(f"generated_data/{conflict_type}/{str(dx)}/")
+
+    for i,v in groups.size().items():
+        d = groups.get_group(i)
+        #d.drop('Unnamed: 0.1', inplace=True, axis=1)
+        d.reset_index(inplace=True , drop=True)
+        d.rename({'Unnamed: 0': f'event_number_{conflict_type}'}, axis=1, inplace=True)
+        d.rename({'Unnamed: 0.1': f'event_number_all'}, axis=1, inplace=True)
+
+        fpar.write(f"generated_data/{conflict_type}/{str(dx)}/{str(int(i))}.parq" , d)
 
     return None
