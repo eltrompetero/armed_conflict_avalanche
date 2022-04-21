@@ -47,6 +47,9 @@ import fastparquet as fpar
 import data as data_loader
 
 
+###Preparing the data====Start###
+
+
 def conflict_position(conflict_type):
     '''
     This script is used to create and then save a geodataframe of all the geographic points where events took place using lattitude and longitude of 
@@ -94,18 +97,18 @@ def conflict_event_polygon_mapping(dx , conflict_type , cpu_cores):
     mapping[:,0] = list(range(len(event_pol_mapping)))
     mapping[:,1] = event_pol_mapping
 
-    #np.savetxt(f"data_{conflict_type}/time_series_{str(dx)}.csv" , mapping , delimiter=',')
+    np.savetxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , mapping , delimiter=',')
 
     print("Done!")
 
-    return mapping
+    return None
 
 
 def single_tile_events(dx , conflict_type):
 
     conflict_data = data_loader.conflict_data_loader(conflict_type)
 
-    event_mappings = conflict_event_polygon_mapping(dx,conflict_type,12)
+    event_mappings = np.loadtxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",")
     event_mappings = event_mappings[:,1]
     event_mappings = pd.DataFrame({'polygon_number' : event_mappings})
 
@@ -128,3 +131,36 @@ def single_tile_events(dx , conflict_type):
         fpar.write(f"generated_data/{conflict_type}/{str(dx)}/{str(int(i))}.parq" , d)
 
     return None
+
+
+def binning(time , dx , conflict_type):
+    print("Creating time bins!")
+
+    time_binning = np.loadtxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",")
+    time_binning = time_binning[:,1]
+
+    time_binning = pd.DataFrame({'polygon_number' : time_binning})
+
+    data = data_loader.conflict_data_loader(conflict_type)
+    time_binning["date"] = data["event_date"]
+
+    day = pd.to_datetime(data["event_date"] , dayfirst=True)  
+
+    time_binning["days"] = (day-day.min()).apply(lambda x : x.days)
+
+    bins = np.digitize(time_binning["days"] , bins=arange(0 , max(time_binning["days"]) + time , time))
+
+    time_binning["bins"] = bins
+
+    #time_binning.to_csv(f"data_{conflict_type}/time_bins_{str(time)}_{str(dx)}.csv")
+
+    print("Done!")
+
+    return time_binning
+
+
+###Preparing the data====End###
+
+
+
+
