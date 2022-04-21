@@ -136,7 +136,7 @@ def single_tile_events(dx , conflict_type):
 def binning(time , dx , conflict_type):
     print("Creating time bins!")
 
-    time_binning = np.loadtxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",")
+    time_binning = np.loadtxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",") #this var is names time_binning because later it will become time_binning. Right now it is event_mappings.
     time_binning = time_binning[:,1]
 
     time_binning = pd.DataFrame({'polygon_number' : time_binning})
@@ -354,7 +354,7 @@ def avalanche_creation_fast_te(time , dx  , conflict_type , type_of_events):
         time_series , time_series_FG = null_model_time_series_generator(time,640,dx,conflict_type)
     elif(type_of_events == "data"):
         time_series = time_series_all_polygons(time,dx,conflict_type)
-        time_series_FG = pd.read_csv(f"data_{conflict_type}/time_series_all_polygons/time_series_1_{str(dx)}.csv")
+        time_series_FG = pd.read_csv(f"generated_data/{conflict_type}/FG_time_series/time_series_1_{str(dx)}.csv")
 
     polygons_TE , neighbor_info_dataframe , list_of_tuples_tile = neighbor_finder_TE(time_series , time ,dx ,conflict_type)
     valid_polygons = time_series.columns.to_numpy()
@@ -365,14 +365,14 @@ def avalanche_creation_fast_te(time , dx  , conflict_type , type_of_events):
     time_series_arr = time_series.to_numpy()
 
     #Only needed to return data_bin so that I can save avalanches in event form too
-    data = pd.read_csv(f"data_{conflict_type}/data_{conflict_type}.csv")
+    data = data_loader.conflict_data_loader(conflict_type)
     time_bin_data = pd.DataFrame()
     time_bin_data["event_date"] = data["event_date"]
     day = pd.to_datetime(time_bin_data["event_date"] , dayfirst=True)  
     time_bin_data["days"] = (day-day.min()).apply(lambda x : x.days)
     bins = np.digitize(time_bin_data["days"] , bins=arange(0 , max(time_bin_data["days"]) + time , time))
     time_bin_data["bins"] = bins
-    pol_num = np.loadtxt(f"data_{conflict_type}/time_series_{str(dx)}.csv" , delimiter=',')
+    pol_num = np.loadtxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",")
     pol_num = pol_num[:,1]
     pol_num = pd.DataFrame({'polygon_TE_number' : pol_num})
     avalanche_data = time_bin_data
@@ -394,7 +394,7 @@ def avalanche_creation_fast_te(time , dx  , conflict_type , type_of_events):
 
 def null_model_time_series_generator(time,dx_primary,dx_interest,conflict_type):
     #cpu_cores = int(input("Enter # of cpu_cores to use: "))
-    cpu_cores = 6
+    cpu_cores = 1
     x,time_series_FG_interest = null_model(dx_primary,dx_interest,conflict_type,"reassign",cpu_cores)
     time_series_FG = time_series_FG_interest
     
@@ -422,7 +422,7 @@ def null_model(dx_primary,dx_interest,conflict_type,prob_type,cpu_cores):
     #time_series.to_csv(f"data_{conflict_type}/time_series_all_polygons/time_series_1_{str(dx_smaller)}.csv" , index=False) #So save the generated time series
     
     
-    time_series_FG = pd.read_csv(f"data_{conflict_type}/time_series_all_polygons/time_series_1_{str(dx_primary)}.csv")
+    time_series_FG = pd.read_csv(f"generated_data/{conflict_type}/FG_time_series/time_series_1_{str(dx_primary)}.csv")
     time_series_FG_arr = time_series_FG.to_numpy()
     
     polygons_primary = gpd.read_file(f'voronoi_grids/{dx_primary}/borders{str(gridix).zfill(2)}.shp')
