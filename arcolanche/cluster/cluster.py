@@ -130,26 +130,32 @@ def polygonize_voronoi(iter_pairs=None):
         # create bounding polygons, the "Voronoi cells"
         polygons = []
         for i in selectix:
-            polygons.append(create_polygon(poissd, i))
+            try:
+                polygons.append(create_polygon(poissd, i))
+            except Exception:
+                raise Exception(f"Problem with {i}.")
         polygons = gpd.GeoDataFrame({'index':list(range(len(polygons)))},
                                     geometry=polygons,
                                     crs='EPSG:4087')
 
         # identify all neighbors of each polygon
-        neighbors = []
         sindex = polygons.sindex
-        for i, p in polygons.iterrows():
-            # scale polygons by a small factor to account for precision error in determining
-            # neighboring polygons; especially important once dx becomes large, say 320
-            pseries = gpd.GeoSeries(p.geometry, crs=polygons.crs).scale(1.01)
-            neighborix = sindex.query_bulk(pseries)[1].tolist()
 
+        # scale polygons by a small factor to account for precision error in determining
+        # neighboring polygons; especially important once dx becomes large, say 320
+        pseries = polygons.scale(1.01)
+        neighborix_ = sindex.query_bulk(pseries, predicate='overlaps')
+
+        neighborix = []
+        neighbors = []
+        for i in range(max(neighborix_[0])+1):
+            ix = neighborix_[1][neighborix_[0]==i].tolist()
+            ix.pop(ix.index(i))
             # remove self
-            neighborix.pop(neighborix.index(i))
-            assert len(neighborix)
-
+            neighborix.append(ix)
+            
             # must save list as string for compatibility with Fiona pickling
-            neighbors.append(str(sorted(neighborix))[1:-1])
+            neighbors.append(str(sorted(neighborix[-1]))[1:-1])
         polygons['neighbors'] = neighbors
 
         # save
@@ -300,3 +306,41 @@ def cluster_cells(cells, active):
     
     return avalanches
 
+def revise_neighbors(dx, gridix, write=True):
+    """Re-calculate neighbors and save to shapefile. Used for a one-time fix, but
+    saved here for later reference.
+
+    Parameters
+    ----------
+    dx : int
+        Inverse solid angle.
+    gridix : int
+        Grid index.
+    write : bool, True
+        If True, write to shapely file.
+    """
+    
+    assert os.path.isfile(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
+    polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
+    
+    sindex = polygons.sindex
+
+    # scale polygons by a small factor to account for precision error in determining
+    # neighboring polygons; especially important once dx becomes large, say 320
+    pseries = polygons.scale(1.01)
+    neighborix_ = sindex.query_bulk(pseries, predicate='overlaps')
+
+    neighborix = []
+    neighbors = []
+    for i in range(max(neighborix_[0])+1):
+        ix = neighborix_[1][neighborix_[0]==i].tolist()
+        ix.pop(ix.index(i))
+        # remove self
+        neighborix.append(ix)
+
+        # must save list as string for compatibility with Fiona pickling
+        neighbors.append(str(sorted(neighborix[-1]))[1:-1])
+    polygons['neighbors'] = neighbors
+    
+    if write:
+        polygons.to_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')

@@ -47,6 +47,11 @@ def main(gridix):
     """
 
     for dx in [40,80,160,320,640,1280]:
+        try:
+            os.makedirs(f'./voronoi_grids/{dx}')
+        except OSError:
+            pass
+
         create_one_grid(gridix, dx)
         print(f"Done with grid {gridix} and dx {dx}.\n")
 
