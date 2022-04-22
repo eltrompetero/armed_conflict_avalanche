@@ -137,7 +137,7 @@ def single_tile_events(dx , conflict_type):
 def binning(time , dx , conflict_type):
     print("Creating time bins!")
 
-    time_binning = np.loadtxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",") #this var is names time_binning because later it will become time_binning. Right now it is event_mappings.
+    time_binning = np.loadtxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",") #this var is named time_binning because later it will become time_binning. Right now it is event_mappings.
     time_binning = time_binning[:,1]
 
     time_binning = pd.DataFrame({'polygon_number' : time_binning})
@@ -761,3 +761,25 @@ def avalanche_te(time_series_arr , neighbors , valid_polygons , tiles_with_self_
                 
     return avalanche_list
 ###TE Avalanches and required functions===End###
+
+
+
+
+###Misc###
+def extract_box_ava_from_file(box_list_path):
+    """Extracts data from ava list file in box form and then outputs a list of lists which contains boxes in tuple form"""
+    box_list = []
+    with open(box_list_path, 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            box_list_temp = []
+            for box in row:
+                a = box.replace("(","")
+                a = a.replace(")","")
+                a = tuple(map(int, a.split(', ')))
+                
+                box_list_temp.append(a)
+                
+            box_list.append(box_list_temp)
+            
+    return box_list
