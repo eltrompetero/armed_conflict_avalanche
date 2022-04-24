@@ -830,3 +830,35 @@ def data_bin_extracter(time_series_FG,time):
     data_bin = pd.DataFrame(data_bin_array , columns=["days","bins","polygon_number"])
     
     return data_bin
+
+
+
+def ava_numbering(time , dx , conflict_type , avaEvent_list_path):
+    print("Creating final data table!")
+
+    data = binning(time,dx,conflict_type)
+    data["avalanche_number"] = 0
+
+    def avalanche_numbering(ava_num , i):
+        data["avalanche_number"].iloc[ava_num] = i
+        return None    
+
+    i = 0
+    with open(avaEvent_list_path, 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            row = list(map(int , row))
+            ava_temp = pd.DataFrame(row)
+
+            ava_temp.apply(avalanche_numbering , args=(i,))
+
+            i += 1
+
+    #data.to_csv(f"data_{conflict_type}/st_avalanche/st_avalanche_{str(time)}_{str(dx)}.csv")
+
+    ACLED_data = data_loader.conflict_data_loader(conflict_type)
+    data["fatalities"] = ACLED_data["fatalities"]
+
+    print("Done!")
+
+    return data
