@@ -1,34 +1,5 @@
-#from pyutils import *
-from ctypes import sizeof
-from datetime import date, time, timedelta
-import geopandas
-from shapely import geometry
-from pyutils.voronoi import *
-#import pyutils.pipeline as pipe
+from .utils import *
 
-#from misc import *
-from misc.globe import *
-
-#from workspace import *
-from workspace.utils import *
-
-from numpy import *
-
-import datetime
-
-import math
-
-import  csv
-
-import powerlaw
-
-from vincenty import vincenty
-
-import scipy
-
-import misc_funcs
-
-from numba import jit,njit
 
 def TE_tiles(*args):
     """args = time , dx , conflict_type , number_of_shuffles , type_of_TE , time_series_all_pol """

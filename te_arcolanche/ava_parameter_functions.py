@@ -1,30 +1,5 @@
-#from pyutils import *
-from ctypes import sizeof
-from datetime import date, time, timedelta
-import geopandas
-from shapely import geometry
-from pyutils.voronoi import *
-#import pyutils.pipeline as pipe
+from .utils import *
 
-#from misc import *
-from misc.globe import *
-
-#from workspace import *
-from workspace.utils import *
-
-from numpy import *
-
-import datetime
-
-import math
-
-import  csv
-
-import powerlaw
-
-from vincenty import vincenty
-
-import itertools
 
 def fatalities(avalanche_data):
     dt = avalanche_data.groupby("avalanche_number").sum()["fatalities"]          

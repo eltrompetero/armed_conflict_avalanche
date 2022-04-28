@@ -1,51 +1,10 @@
-#from pyutils import *
-from ctypes import sizeof
-from datetime import date, time, timedelta
-from tkinter.messagebox import NO
-import geopandas
-from shapely import geometry
-from sklearn import neighbors
-from pyutils.voronoi import *
-#import pyutils.pipeline as pipe
+from .utils import *
 
-#from misc import *
-from misc.globe import *
+from . import transfer_entropy_func 
+from . import self_loop_entropy_func
 
-#from workspace import *
-from workspace.utils import *
-
-from numpy import *
-
-import datetime
-
-import math
-
-import  csv
-
-import powerlaw
-
-from vincenty import vincenty
-
-import scipy
-
-import duckdb
-
-import random
-
-import transfer_entropy_func
-import self_loop_entropy_func
+from . import data as data_loader
 #import avalanche_numbering
-
-import collections
-import itertools
-
-import numpy_indexed
-from pandarallel import pandarallel
-import fastparquet as fpar
-
-from numba import jit,njit
-
-import data as data_loader
 
 
 ###Preparing the data====Start###
