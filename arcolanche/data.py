@@ -61,9 +61,10 @@ def dyadic_data(region='africa'):
 class ACLED2020():
     fname = (f'{DATADR}/1997-01-01-2020-07-23-Eastern_Africa-Middle_Africa-Northern_Africa-'+
              'Southern_Africa-Western_Africa.csv')
-    df = pd.read_csv(fname)
-    df.event_date = pd.to_datetime(df.event_date)
-    df.sort_values('event_date', inplace=True)
+    if os.path.isfile(fname):
+        df = pd.read_csv(fname)
+        df.event_date = pd.to_datetime(df.event_date)
+        df.sort_values('event_date', inplace=True)
 
     @classmethod
     def battles_df(cls, pre_covid=True):
