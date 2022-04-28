@@ -320,27 +320,34 @@ def revise_neighbors(dx, gridix, write=True):
         If True, write to shapely file.
     """
     
+    from .voronoi import check_voronoi_tiles
+
     assert os.path.isfile(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
     
-    sindex = polygons.sindex
-
-    # scale polygons by a small factor to account for precision error in determining
-    # neighboring polygons; especially important once dx becomes large, say 320
-    pseries = polygons.scale(1.01)
-    neighborix_ = sindex.query_bulk(pseries)
-
-    neighborix = []
+    # identify all neighbors of each polygon
     neighbors = []
-    for i in range(max(neighborix_[0])+1):
-        ix = neighborix_[1][neighborix_[0]==i].tolist()
-        ix.pop(ix.index(i))
+    sindex = polygons.sindex
+    for i, p in polygons.iterrows():
+        # scale polygons by a small factor to account for precision error in determining
+        # neighboring polygons; especially important once dx becomes large, say 320
+        pseries = gpd.GeoSeries(p.geometry, crs=polygons.crs).scale(1.01, 1.01)
+        neighborix = sindex.query_bulk(pseries)[1].tolist()
+
         # remove self
-        neighborix.append(ix)
+        try:
+            neighborix.pop(neighborix.index(i))
+        except ValueError:
+            pass
+        assert len(neighborix)
 
         # must save list as string for compatibility with Fiona pickling
-        neighbors.append(str(sorted(neighborix[-1]))[1:-1])
+        neighbors.append(str(sorted(neighborix))[1:-1])
     polygons['neighbors'] = neighbors
+
+    polygons, n_inconsis = check_voronoi_tiles(polygons)
+    if n_inconsis:
+        print(f"There are {n_inconsis} asymmetric pairs that were corrected.")
     
     if write:
         polygons.to_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')

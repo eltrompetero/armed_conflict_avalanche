@@ -102,17 +102,41 @@ def create_polygon(poissd, centerix):
 def check_voronoi_tiles(polygons):
     """Check Voronoi tiles to make sure that they are consistent.
 
+    This will take any asymmetric pair of tiles (where one considers the other to be
+    a neighbor but not vice versa) and make sure that both neighbors lists are
+    consistent with one another.
+
     Parameters
     ----------
-
+    polygons : geopandas.GeoDataFrame
     """
     
     assert (polygons['index']==polygons.index).all()
     assert (np.diff(polygons['index'])==1).all()
-
+    
+    n_inconsis = 0
     for i, row in polygons.iterrows():
         for n in row['neighbors'].split(', '):
             n = int(n)
-            assert str(i) in polygons.loc[n]['neighbors'].split(', '), (i, polygons.loc[i]['neighbors'].split(', '))
+            if not str(i) in polygons.loc[n]['neighbors'].split(', '):
+                new_neighbors = sorted(polygons.loc[n]['neighbors'].split(', ') + [str(i)])
+                polygons.loc[n,'neighbors'] = ', '.join(new_neighbors)
+                n_inconsis += 1
+    return polygons, n_inconsis
 
+def check_poisson_disc(poissd, min_dx):
+    """Check PoissonDiscSphere grid.
+
+    Parameters
+    ----------
+    poissd : PoissonDiscSphere
+    min_dx : float
+    """
     
+    # min distance surpasses min radius
+    for xy in poissd.samples:
+        neighbors, dist = poissd.neighbors(xy, return_dist=True)
+        zeroix = dist==0
+        assert zeroix.sum()==1
+        assert dist[~zeroix].min()>=min_dx, (min_dx, dist[~zeroix].min())
+
