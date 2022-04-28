@@ -144,7 +144,7 @@ def polygonize_voronoi(iter_pairs=None):
         # scale polygons by a small factor to account for precision error in determining
         # neighboring polygons; especially important once dx becomes large, say 320
         pseries = polygons.scale(1.01)
-        neighborix_ = sindex.query_bulk(pseries, predicate='overlaps')
+        neighborix_ = sindex.query_bulk(pseries)
 
         neighborix = []
         neighbors = []
@@ -328,7 +328,7 @@ def revise_neighbors(dx, gridix, write=True):
     # scale polygons by a small factor to account for precision error in determining
     # neighboring polygons; especially important once dx becomes large, say 320
     pseries = polygons.scale(1.01)
-    neighborix_ = sindex.query_bulk(pseries, predicate='overlaps')
+    neighborix_ = sindex.query_bulk(pseries)
 
     neighborix = []
     neighbors = []
@@ -344,3 +344,4 @@ def revise_neighbors(dx, gridix, write=True):
     
     if write:
         polygons.to_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
+    return polygons

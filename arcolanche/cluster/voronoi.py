@@ -98,3 +98,21 @@ def create_polygon(poissd, centerix):
     
     poly = Polygon([(unwrap_lon((v.phi/pi*180+330)%360), (v.theta-pi/2)/pi*180) for v in cell.vertices])
     return poly
+
+def check_voronoi_tiles(polygons):
+    """Check Voronoi tiles to make sure that they are consistent.
+
+    Parameters
+    ----------
+
+    """
+    
+    assert (polygons['index']==polygons.index).all()
+    assert (np.diff(polygons['index'])==1).all()
+
+    for i, row in polygons.iterrows():
+        for n in row['neighbors'].split(', '):
+            n = int(n)
+            assert str(i) in polygons.loc[n]['neighbors'].split(', '), (i, polygons.loc[i]['neighbors'].split(', '))
+
+    
