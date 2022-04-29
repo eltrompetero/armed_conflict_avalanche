@@ -2,9 +2,9 @@ from .utils import *
 
 
 def TE_tiles(*args):
-    """args = time , dx , conflict_type , number_of_shuffles , type_of_TE , time_series_all_pol """
+    """args = time , dx , gridix , conflict_type , number_of_shuffles , type_of_TE , time_series_all_pol """
 
-    time , dx , conflict_type , number_of_shuffles , type_of_TE , time_series_all_pol = args
+    time , dx , gridix , conflict_type , number_of_shuffles , type_of_TE , time_series_all_pol = args
 
 
     if(type_of_TE == "n"):
@@ -40,7 +40,6 @@ def TE_tiles(*args):
 
     valid_polygons = time_series_all_pol.columns.to_list()
 
-    gridix = 0
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
 
     def neighbors_to_list(neighbor_list):

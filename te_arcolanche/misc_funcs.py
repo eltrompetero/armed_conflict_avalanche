@@ -33,10 +33,8 @@ def conflict_position(conflict_type):
     return None
 
 
-def conflict_event_polygon_mapping(dx , conflict_type , cpu_cores):
+def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores):
     print("Finding event to polygon mapping!")
-
-    gridix = 0
 
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
 
@@ -57,18 +55,18 @@ def conflict_event_polygon_mapping(dx , conflict_type , cpu_cores):
     mapping[:,0] = list(range(len(event_pol_mapping)))
     mapping[:,1] = event_pol_mapping
 
-    np.savetxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , mapping , delimiter=',')
+    np.savetxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , mapping , delimiter=',')
 
     print("Done!")
 
     return None
 
 
-def single_tile_events(dx , conflict_type):
+def single_tile_events(dx , gridix , conflict_type):
 
     conflict_data = data_loader.conflict_data_loader(conflict_type)
 
-    event_mappings = np.loadtxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",")
+    event_mappings = np.loadtxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",")
     event_mappings = event_mappings[:,1]
     event_mappings = pd.DataFrame({'polygon_number' : event_mappings})
 
@@ -78,8 +76,8 @@ def single_tile_events(dx , conflict_type):
 
     groups = conflict_data.groupby("polygon_number")
 
-    if(os.path.exists(f"generated_data/{conflict_type}/{str(dx)}/") == False):
-        os.makedirs(f"generated_data/{conflict_type}/{str(dx)}/")
+    #if(os.path.exists(f"generated_data/{conflict_type}/{str(dx)}/") == False):
+    #    os.makedirs(f"generated_data/{conflict_type}/{str(dx)}/")
 
     for i,v in groups.size().items():
         d = groups.get_group(i)
@@ -88,15 +86,15 @@ def single_tile_events(dx , conflict_type):
         d.rename({'Unnamed: 0': f'event_number_{conflict_type}'}, axis=1, inplace=True)
         d.rename({'Unnamed: 0.1': f'event_number_all'}, axis=1, inplace=True)
 
-        fpar.write(f"generated_data/{conflict_type}/{str(dx)}/{str(int(i))}.parq" , d)
+        fpar.write(f"generated_data/{conflict_type}/gridix_{gridix}/{str(dx)}/{str(int(i))}.parq" , d)
 
     return None
 
 
-def binning(time , dx , conflict_type):
+def binning(time , dx , gridix , conflict_type):
     print("Creating time bins!")
 
-    time_binning = np.loadtxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",") #this var is named time_binning because later it will become time_binning. Right now it is event_mappings.
+    time_binning = np.loadtxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",") #this var is named time_binning because later it will become time_binning. Right now it is event_mappings.
     time_binning = time_binning[:,1]
 
     time_binning = pd.DataFrame({'polygon_number' : time_binning})
@@ -124,7 +122,7 @@ def binning(time , dx , conflict_type):
 
 ###ST Avalanches and required functions===Start###
 
-def time_series_all_polygons(time,dx,conflict_type):    
+def time_series_all_polygons(time,dx,gridix,conflict_type):    
     """Creates time series of all the valid polygons , Here time equals to the size of time bin you need in the time series""" 
 
     data = data_loader.conflict_data_loader(conflict_type)
@@ -143,7 +141,7 @@ def time_series_all_polygons(time,dx,conflict_type):
 
     def tile_time_series_creation(tile_number):    
         time_series[f"{tile_number}"] = 0
-        file_directory = f"generated_data/{conflict_type}/{str(dx)}/{str(tile_number)}.parq"
+        file_directory = f"generated_data/{conflict_type}/gridix_{gridix}/{str(dx)}/{str(tile_number)}.parq"
         task = f"SELECT event_number_{conflict_type} FROM parquet_scan('{file_directory}');"
         tile_info = connection.execute(task).fetchdf()
 
@@ -156,7 +154,7 @@ def time_series_all_polygons(time,dx,conflict_type):
         tile_info[f"event_number_{conflict_type}"].apply(update_time_series_dataframe , args=(tile_number,))
         return None
 
-    path = f"generated_data/{conflict_type}/{str(dx)}"
+    path = f"generated_data/{conflict_type}/gridix_{gridix}/{str(dx)}"
     files = os.listdir(path)
 
     valid_polygons = []
@@ -484,14 +482,11 @@ def CG_time_series_fast(time_series_FG , col_nums , time):
     return time_series_CG
 
 
-def neighbor_finder_TE(time_series , time , dx  , conflict_type):    
-    gridix = 0
-    definition_type = ""
+def neighbor_finder_TE(time_series , time , dx , gridix , conflict_type):    
     valid_polygons = time_series.columns.to_list()
     
     TE_type = "transfer_entropy"
     number_of_shuffles = 50
-    gridix = 0
     
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
     def neighbors_to_list(neighbor_list):
@@ -503,7 +498,7 @@ def neighbor_finder_TE(time_series , time , dx  , conflict_type):
     
     #tiles_transfer_entropy = pd.read_pickle(f"data_{str(conflict_type)}/{TE_type}/tiles_{TE_type}_{definition_type}{str(time)}_{str(dx)}_{str(number_of_shuffles)}")
     
-    args = (time , dx , conflict_type , number_of_shuffles , "n" , time_series)
+    args = (time , dx , gridix , conflict_type , number_of_shuffles , "n" , time_series)
     tiles_transfer_entropy = transfer_entropy_func.TE_tiles(*args)
     
     #For shuffled data, Creating tuple list with all neighbor pairs
@@ -546,7 +541,7 @@ def neighbor_finder_TE(time_series , time , dx  , conflict_type):
     neighbor_list = []
     pol_number_list = []
     for primary_tile_number in neighbor_info_dataframe["index"]:
-        if(os.path.exists(f"data_{conflict_type}/{str(dx)}/{str(primary_tile_number)}.parq") == True):
+        if(os.path.exists(f"data_{conflict_type}/gridix_{gridix}/{str(dx)}/{str(primary_tile_number)}.parq") == True):
             if(primary_tile_number in TE_dataframe["pol_1"].values):
                 current_neighbours = TE_dataframe.groupby("pol_1").get_group(primary_tile_number)
                 current_neighbours = current_neighbours[np.isnan(current_neighbours["TE"]) == False]
@@ -556,7 +551,7 @@ def neighbor_finder_TE(time_series , time , dx  , conflict_type):
     polygons_TE["neighbors"] = neighbor_list
     isolated_polygon_list = []
     for primary_tile_number in neighbor_info_dataframe["index"]:
-        if(os.path.exists(f"data_{conflict_type}/{str(dx)}/{str(primary_tile_number)}.parq") == True):
+        if(os.path.exists(f"data_{conflict_type}/gridix_{gridix}/{str(dx)}/{str(primary_tile_number)}.parq") == True):
             if((primary_tile_number in pol_number_list) == False):
                 isolated_polygon_list.append(primary_tile_number)
             else:
