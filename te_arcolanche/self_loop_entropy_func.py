@@ -4,11 +4,9 @@ from .utils import *
 def self_loop_entropy_calculator(*args):
     print("Calculating self loop entropies!")
 
-    time , dx , conflict_type , number_of_shuffles , time_series_all_pol = args
+    time , dx , gridix , conflict_type , number_of_shuffles , time_series_all_pol = args
 
     valid_polygons = time_series_all_pol.columns.to_list()
-
-    gridix = 0 
     
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
     
@@ -20,8 +18,7 @@ def self_loop_entropy_calculator(*args):
         
     tile_indexes = polygons.drop(["geometry","neighbors"] , axis=1)
     tiles_transfer_entropy = pd.DataFrame()
-        
-    gridix = 0
+    
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
 
 
