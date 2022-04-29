@@ -49,6 +49,8 @@ def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores):
 
 
     event_pol_mapping = conflict_positions["geometry"].parallel_apply(location)
+    #event_pol_mapping = conflict_positions["geometry"].apply(location)
+
     event_pol_mapping.to_numpy()
 
     mapping = np.zeros((len(event_pol_mapping),2))
