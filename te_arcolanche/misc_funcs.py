@@ -482,7 +482,27 @@ def CG_time_series_fast(time_series_FG , col_nums , time):
     return time_series_CG
 
 
-def neighbor_finder_TE(time_series , time , dx , gridix , conflict_type):    
+def neighbor_finder_TE(time_series , time , dx , gridix=0 , conflict_type="battles"):    
+    """Calculates transfer entropy and identifies significant links between Voronoi
+    neighbors assuming a 95% confidence interval.
+
+    Parameters
+    ----------
+    time_series : pd.DataFrame
+    time : int
+    dx : int
+    gridix : int, 0
+    conflict_type : str, "battles"
+    
+    Returns
+    -------
+    pd.DataFrame
+    pd.DataFrame
+    list of tuples
+        (cell index, cell index, TE)
+        TE is nan when non-significant
+    """
+
     valid_polygons = time_series.columns.to_list()
     
     TE_type = "transfer_entropy"
