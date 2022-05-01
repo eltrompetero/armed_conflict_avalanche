@@ -23,6 +23,7 @@ import cartopy.feature as cfeature
 from rasterstats import zonal_stats, gen_zonal_stats
 import rasterio
 from threadpoolctl import threadpool_limits
+from multiprocess import Pool
 
 DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
 DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/data'
