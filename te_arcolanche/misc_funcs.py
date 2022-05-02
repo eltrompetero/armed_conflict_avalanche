@@ -179,7 +179,7 @@ def avalanche_creation_fast_st(time_series , time , dx  , gridix , conflict_type
 
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
 
-    data_bin = binning(time,dx,conflict_type)
+    data_bin = binning(time,dx,gridix,conflict_type)
     def polygon_neigbors(n):
         n = int(n)
         neighbors_local = polygons["neighbors"].iloc[n]
@@ -314,7 +314,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     if(type_of_events == "null"):
         time_series , time_series_FG = null_model_time_series_generator(time,640,dx,conflict_type)
     elif(type_of_events == "data"):
-        time_series = time_series_all_polygons(time,dx,conflict_type)
+        time_series = time_series_all_polygons(time,dx,gridix,conflict_type)
         time_series_FG = pd.read_csv(f"generated_data/{conflict_type}/gridix_{str(gridix)}/FG_time_series/time_series_1_{str(dx)}.csv")
 
     polygons_TE , neighbor_info_dataframe , list_of_tuples_tile = neighbor_finder_TE(time_series , time , dx , gridix , conflict_type)
