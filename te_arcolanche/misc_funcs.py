@@ -33,15 +33,17 @@ def conflict_position(conflict_type):
     return None
 
 
-def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores):
+def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores , progress_bar="y"):
     print("Finding event to polygon mapping!")
 
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
 
     conflict_positions = gpd.read_file(f"generated_data/{conflict_type}/conflict_positions/conflict_positions.shp")
 
-
-    pandarallel.initialize(nb_workers=cpu_cores , progress_bar=True)
+    if(progress_bar == "y"):
+        pandarallel.initialize(nb_workers=cpu_cores , progress_bar=True)
+    else:
+        pandarallel.initialize(nb_workers=cpu_cores , progress_bar=False)
 
     def location(point):
         ix = np.where(polygons.contains(point))[0]
