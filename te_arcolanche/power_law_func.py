@@ -1,7 +1,7 @@
 from .utils import *
 
 
-def power_law_fitting_discrete(time , dx , observed_data , xlabel , plot , KS_plot):
+def power_law_fitting_discrete(time , dx , gridix , observed_data , xlabel , plot , KS_plot):
     #print("Calculating power law fit!")
 
     def alpha_estimator(observed_data , xmin):
@@ -110,7 +110,7 @@ def power_law_fitting_discrete(time , dx , observed_data , xlabel , plot , KS_pl
         #plt.text(10**(math.floor(math.log(plot_data2[-1], 10))-1) , 0.5 , f"xmin={str(min_index+1)}" , fontsize=15)
         #plt.text(10**(math.floor(math.log(plot_data2[-1], 10))-1)  , 0.2 , f"alpha={str(round(alpha_list[min_index] , 2))}" , fontsize=15)
 
-        plt.title(f"{str(time)},{str(dx)}")
+        plt.title(f"{str(time)},{str(dx)},{str(gridix)}")
 
     
     return alpha_list[min_index-1] , min_index , min(KS_statistics_list)
@@ -121,7 +121,7 @@ def power_law_fitting_discrete(time , dx , observed_data , xlabel , plot , KS_pl
 
 
 
-def power_law_fitting_continuous(time , dx , observed_data , xlabel , plot , KS_plot):
+def power_law_fitting_continuous(time , dx , gridix , observed_data , xlabel , plot , KS_plot):
     #print("Calculating power law fit!")
 
     def alpha_estimator(observed_data , xmin):
@@ -207,6 +207,6 @@ def power_law_fitting_continuous(time , dx , observed_data , xlabel , plot , KS_
         #plt.text(10**(math.floor(math.log(plot_data2[-1], 10))-1) , 0.5 , f"xmin={str(min_index+1)}" , fontsize=15)
         #plt.text(10**(math.floor(math.log(plot_data2[-1], 10))-1)  , 0.2 , f"alpha={str(round(alpha_list[min_index] , 2))}" , fontsize=15)
 
-        plt.title(f"{str(time)},{str(dx)}")
+        plt.title(f"{str(time)},{str(dx)},{str(gridix)}")
 
     return alpha_list[min_index] , min_index+1

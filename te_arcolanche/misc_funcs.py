@@ -33,15 +33,17 @@ def conflict_position(conflict_type):
     return None
 
 
-def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores):
+def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores , progress_bar="y"):
     print("Finding event to polygon mapping!")
 
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
 
     conflict_positions = gpd.read_file(f"generated_data/{conflict_type}/conflict_positions/conflict_positions.shp")
 
-
-    pandarallel.initialize(nb_workers=cpu_cores , progress_bar=True)
+    if(progress_bar == "y"):
+        pandarallel.initialize(nb_workers=cpu_cores , progress_bar=True)
+    else:
+        pandarallel.initialize(nb_workers=cpu_cores , progress_bar=False)
 
     def location(point):
         ix = np.where(polygons.contains(point))[0]
@@ -49,6 +51,8 @@ def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores):
 
 
     event_pol_mapping = conflict_positions["geometry"].parallel_apply(location)
+    #event_pol_mapping = conflict_positions["geometry"].apply(location)
+
     event_pol_mapping.to_numpy()
 
     mapping = np.zeros((len(event_pol_mapping),2))
@@ -170,13 +174,12 @@ def time_series_all_polygons(time,dx,gridix,conflict_type):
     return time_series
 
 
-def avalanche_creation_fast_st(time_series , time , dx  ,conflict_type):
+def avalanche_creation_fast_st(time_series , time , dx  , gridix , conflict_type):
 #Here enter the time series(invert the time series if you want to calculate peace avalanche).
 
-    gridix = 0
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
 
-    data_bin = binning(time,dx,conflict_type)
+    data_bin = binning(time,dx,gridix,conflict_type)
     def polygon_neigbors(n):
         n = int(n)
         neighbors_local = polygons["neighbors"].iloc[n]
@@ -198,7 +201,7 @@ def avalanche_creation_fast_st(time_series , time , dx  ,conflict_type):
 
 
 def polygon_neigbors_arr(polygons , valid_polygons , type):
-    """Returns an array of arrays which contains the valid naeighbors of valid polygons
+    """Returns an array of arrays which contains the valid neighbors of valid polygons
     valid_polygons = time_series.columns.to_numpy()
     type == "te" if you want to enter polygons_TE and create neighbors_arr in te case. For normal polygons, type == anything else.
     """
@@ -306,20 +309,20 @@ def convert_back_to_regular_form(a , valid_polygons):
 
 
 ###TE Avalanches and required functions===Start###
-def avalanche_creation_fast_te(time , dx  , conflict_type , type_of_events):
+def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_events):
 
     if(type_of_events == "null"):
         time_series , time_series_FG = null_model_time_series_generator(time,640,dx,conflict_type)
     elif(type_of_events == "data"):
-        time_series = time_series_all_polygons(time,dx,conflict_type)
-        time_series_FG = pd.read_csv(f"generated_data/{conflict_type}/FG_time_series/time_series_1_{str(dx)}.csv")
+        time_series = time_series_all_polygons(time,dx,gridix,conflict_type)
+        time_series_FG = pd.read_csv(f"generated_data/{conflict_type}/gridix_{str(gridix)}/FG_time_series/time_series_1_{str(dx)}.csv")
 
-    polygons_TE , neighbor_info_dataframe , list_of_tuples_tile = neighbor_finder_TE(time_series , time ,dx ,conflict_type)
+    polygons_TE , neighbor_info_dataframe , list_of_tuples_tile = neighbor_finder_TE(time_series , time , dx , gridix , conflict_type)
     valid_polygons = time_series.columns.to_numpy()
 
     neighbors_arr = polygon_neigbors_arr(polygons_TE,valid_polygons,"te")
 
-    tiles_with_self_loop_list = self_loop_finder_TE(time_series , time , dx , conflict_type)
+    tiles_with_self_loop_list = self_loop_finder_TE(time_series , time , dx , gridix , conflict_type)
     time_series_arr = time_series.to_numpy()
 
     #Only needed to return data_bin so that I can save avalanches in event form too
@@ -330,7 +333,7 @@ def avalanche_creation_fast_te(time , dx  , conflict_type , type_of_events):
     time_bin_data["days"] = (day-day.min()).apply(lambda x : x.days)
     bins = np.digitize(time_bin_data["days"] , bins=arange(0 , max(time_bin_data["days"]) + time , time))
     time_bin_data["bins"] = bins
-    pol_num = np.loadtxt(f"generated_data/{conflict_type}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",")
+    pol_num = np.loadtxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",")
     pol_num = pol_num[:,1]
     pol_num = pd.DataFrame({'polygon_TE_number' : pol_num})
     avalanche_data = time_bin_data
@@ -350,10 +353,10 @@ def avalanche_creation_fast_te(time , dx  , conflict_type , type_of_events):
     return avalanche_list , data_bin , data_bin_CG
 
 
-def null_model_time_series_generator(time,dx_primary,dx_interest,conflict_type):
+def null_model_time_series_generator(time,dx_primary,dx_interest,gridix,conflict_type):
     #cpu_cores = int(input("Enter # of cpu_cores to use: "))
     cpu_cores = 1
-    x,time_series_FG_interest = null_model(dx_primary,dx_interest,conflict_type,"reassign",cpu_cores)
+    x,time_series_FG_interest = null_model(dx_primary,dx_interest,gridix,conflict_type,"reassign",cpu_cores)
     time_series_FG = time_series_FG_interest
     
     time_series_FG_arr = time_series_FG.to_numpy()
@@ -368,19 +371,17 @@ def null_model_time_series_generator(time,dx_primary,dx_interest,conflict_type):
     return time_series_CG , time_series_FG
 
 
-def null_model(dx_primary,dx_interest,conflict_type,prob_type,cpu_cores):
+def null_model(dx_primary,dx_interest,gridix,conflict_type,prob_type,cpu_cores):
     """Returns simulation time series of primary dx and the dx you are interested in(in dataframe form).
     prob_type = "reassign" for reassigned probabilities.
     
     dx_primary > dx_interest."""
     
-    gridix = 0
-    
     #time_series = misc_funcs.time_series_all_polygons(1,dx_smaller,conflict_type) #If you want to generate time series right now
-    #time_series.to_csv(f"data_{conflict_type}/time_series_all_polygons/time_series_1_{str(dx_smaller)}.csv" , index=False) #So save the generated time series
+    #time_series.to_csv(f"data_{conflict_type}/time_series_all_polygons/time_series_1_{str(dx_smaller)}.csv" , index=False) #To save the generated time series
     
     
-    time_series_FG = pd.read_csv(f"generated_data/{conflict_type}/FG_time_series/time_series_1_{str(dx_primary)}.csv")
+    time_series_FG = pd.read_csv(f"generated_data/{conflict_type}/gridix_{str(gridix)}/FG_time_series/time_series_1_{str(dx_primary)}.csv")
     time_series_FG_arr = time_series_FG.to_numpy()
     
     polygons_primary = gpd.read_file(f'voronoi_grids/{dx_primary}/borders{str(gridix).zfill(2)}.shp')
@@ -482,7 +483,7 @@ def CG_time_series_fast(time_series_FG , col_nums , time):
     return time_series_CG
 
 
-def neighbor_finder_TE(time_series , time , dx , gridix=0 , conflict_type="battles"):    
+def neighbor_finder_TE(time_series , time , dx , gridix , conflict_type="battles"):    
     """Calculates transfer entropy and identifies significant links between Voronoi
     neighbors assuming a 95% confidence interval.
 
@@ -491,7 +492,7 @@ def neighbor_finder_TE(time_series , time , dx , gridix=0 , conflict_type="battl
     time_series : pd.DataFrame
     time : int
     dx : int
-    gridix : int, 0
+    gridix : int
     conflict_type : str, "battles"
     
     Returns
@@ -594,13 +595,13 @@ def significant_links(TE_array , shuffled_TE_arr):
     return TE_array > np.percentile(shuffled_TE_arr , 95 , axis=0)
 
 
-def self_loop_finder_TE(time_series , time , dx  , conflict_type):
+def self_loop_finder_TE(time_series , time , dx  , gridix , conflict_type):
     TE_type = "self_loop_entropy"
     
     number_of_shuffles = 50
     
     #tiles_transfer_entropy = pd.read_pickle(f"data_{str(conflict_type)}/{TE_type}/tiles_{TE_type}_{definition_type}{str(time)}_{str(dx)}_{str(number_of_shuffles)}")
-    args = (time , dx , conflict_type , number_of_shuffles , time_series)
+    args = (time , dx , gridix , conflict_type , number_of_shuffles , time_series)
     tiles_transfer_entropy = self_loop_entropy_func.self_loop_entropy_calculator(*args)
     
     neighbor_TE_details = pd.DataFrame()
@@ -807,10 +808,10 @@ def data_bin_extracter(time_series_FG,time):
 
 
 
-def ava_numbering(time , dx , conflict_type , avaEvent_list_path):
+def ava_numbering(time , dx , gridix , conflict_type , avaEvent_list_path):
     print("Creating final data table!")
 
-    data = binning(time,dx,conflict_type)
+    data = binning(time,dx,gridix,conflict_type)
     data["avalanche_number"] = 0
 
     def avalanche_numbering(ava_num , i):
