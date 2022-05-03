@@ -7,4 +7,4 @@ import sys
 from arcolanche import *
 
 if __name__=='__main__':
-    polygonize_voronoi()
+    polygonize()

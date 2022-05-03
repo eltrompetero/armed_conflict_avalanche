@@ -2,12 +2,12 @@
 # Module for clustering routines used to generate avalanches.
 # Author: Eddie Lee, edlee@santafe.edu
 # ====================================================================================== #
-from ..utils import *
 from itertools import product
 from functools import partial
 import geopandas as gpd
 
-
+from .voronoi import check_voronoi_tiles
+from ..utils import *
 
 def extend_poissd_coarse_grid(dx):
     """Redefine PoissonDiscSphere to consider an extended number of coarse grid
@@ -98,7 +98,7 @@ def cluster_battles(iprint=True):
                 
             if iprint: print(f'Done with {gridix=}.')
 
-def polygonize_voronoi(iter_pairs=None):
+def polygonize(iter_pairs=None):
     """Create polygons denoting boundaries of Voronoi grid.
 
     Parameters
@@ -121,11 +121,11 @@ def polygonize_voronoi(iter_pairs=None):
         for i in range(len(lonlat)):
             lonlat[i] = unwrap_lon((lonlat[i,0]/pi*180 + 330)%360), lonlat[i,1]/pi*180
         if dx<=40:
-            selectix = np.where((lonlat[:,0]>-20.2) & (lonlat[:,0]<53.5) &
+            selectix = np.where((lonlat[:,0]>-22.2) & (lonlat[:,0]<55.5) &
                                 (lonlat[:,1]>-39) & (lonlat[:,1]<42))[0]
         else:
-            selectix = np.where((lonlat[:,0]>-18.7) & (lonlat[:,0]<52) &
-                                (lonlat[:,1]>-36) & (lonlat[:,1]<40))[0]
+            selectix = np.where((lonlat[:,0]>-19.7) & (lonlat[:,0]<53.5) &
+                                (lonlat[:,1]>-37) & (lonlat[:,1]<40))[0]
         
         # create bounding polygons, the "Voronoi cells"
         polygons = []
@@ -136,34 +136,40 @@ def polygonize_voronoi(iter_pairs=None):
                 raise Exception(f"Problem with {i}.")
         polygons = gpd.GeoDataFrame({'index':list(range(len(polygons)))},
                                     geometry=polygons,
-                                    crs='EPSG:4087')
+                                    crs='EPSG:4326')
 
         # identify all neighbors of each polygon
-        sindex = polygons.sindex
-
-        # scale polygons by a small factor to account for precision error in determining
-        # neighboring polygons; especially important once dx becomes large, say 320
-        pseries = polygons.scale(1.01)
-        neighborix_ = sindex.query_bulk(pseries)
-
-        neighborix = []
         neighbors = []
-        for i in range(max(neighborix_[0])+1):
-            ix = neighborix_[1][neighborix_[0]==i].tolist()
-            ix.pop(ix.index(i))
+        sindex = polygons.sindex
+        scaled_polygons = polygons['geometry'].scale(1.01,1.01)
+        for i, p in polygons.iterrows():
+            # scale polygons by a small factor to account for precision error in determining
+            # neighboring polygons; especially important once dx becomes large, say 320
+            # first lines look right but seem to involve some bug in detecting intersections
+            #pseries = gpd.GeoSeries(p.geometry, crs=polygons.crs).scale(1.001, 1.001)
+            #neighborix = sindex.query_bulk(pseries)[1].tolist()
+            neighborix = np.where(polygons.intersects(scaled_polygons.iloc[i]))[0].tolist()
+
             # remove self
-            neighborix.append(ix)
-            
+            try:
+                neighborix.pop(neighborix.index(i))
+            except ValueError:
+                pass
+            assert len(neighborix)
+
             # must save list as string for compatibility with Fiona pickling
-            neighbors.append(str(sorted(neighborix[-1]))[1:-1])
+            neighbors.append(str(sorted(neighborix))[1:-1])
         polygons['neighbors'] = neighbors
+
+        # correct errors
+        polygons, n_inconsis = check_voronoi_tiles(polygons, parallel=False)
 
         # save
         polygons.to_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
         
     if iter_pairs is None:
         # iterate over all preset combinations of dx and dt
-        iter_pairs = product([80, 160, 320, 640, 1280], range(10))
+        iter_pairs = product([40, 80, 160, 320, 640, 1280], range(10))
 
     with mp.Pool() as pool:
         pool.map(loop_wrapper, iter_pairs)
@@ -319,8 +325,6 @@ def revise_neighbors(dx, gridix, write=True):
     write : bool, True
         If True, write to shapely file.
     """
-    
-    from .voronoi import check_voronoi_tiles
 
     assert os.path.isfile(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
     polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
@@ -331,7 +335,7 @@ def revise_neighbors(dx, gridix, write=True):
     for i, p in polygons.iterrows():
         # scale polygons by a small factor to account for precision error in determining
         # neighboring polygons; especially important once dx becomes large, say 320
-        pseries = gpd.GeoSeries(p.geometry, crs=polygons.crs).scale(1.01, 1.01)
+        pseries = gpd.GeoSeries(p.geometry, crs=polygons.crs).scale(1.001, 1.001)
         neighborix = sindex.query_bulk(pseries)[1].tolist()
 
         # remove self
