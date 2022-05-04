@@ -312,14 +312,26 @@ def convert_back_to_regular_form(a , valid_polygons):
 
 ###TE Avalanches and required functions===Start###
 def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_events):
+    #Needs overall restructure!!!! 
+    dtdx = (time, dx)
 
     if(type_of_events == "null"):
         time_series , time_series_FG = null_model_time_series_generator(time,640,dx,conflict_type)
     elif(type_of_events == "data"):
-        time_series = time_series_all_polygons(time,dx,gridix,conflict_type)
-        time_series_FG = pd.read_csv(f"generated_data/{conflict_type}/gridix_{str(gridix)}/FG_time_series/time_series_1_{str(dx)}.csv")
+        # load polygons
+        polygons = gpd.read_file(f'voronoi_grids/{dtdx[1]}/borders{str(gridix).zfill(2)}.shp')
+        def neighbors_to_list(neighbor_list):
+            return list(map(int , neighbor_list.replace(' ', '').split(',')))
+        neighbor_info_df = polygons.drop('geometry' , axis=1)
+        neighbor_info_df['neighbors'] = neighbor_info_df['neighbors'].apply(neighbors_to_list)
 
-    polygons_TE , neighbor_info_dataframe , list_of_tuples_tile = neighbor_finder_TE(time_series , time , dx , gridix , conflict_type)
+        time_series_FG = pd.read_csv(f'generated_data/battles/gridix_{gridix}/FG_time_series/time_series_1_{dtdx[1]}.csv')
+        time_series = CG_time_series_fast(time_series_FG.values, dtdx[0])
+        time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
+
+
+    #polygons_TE , neighbor_info_dataframe , list_of_tuples_tile = neighbor_finder_TE(time_series , time , dx , gridix , conflict_type)
+    pair_poly_te, filtered_neighbors, clean_pair_poly_te = te_causal_network(time_series, neighbor_info_df)
     valid_polygons = time_series.columns.to_numpy()
 
     neighbors_arr = polygon_neigbors_arr(polygons_TE,valid_polygons,"te")
