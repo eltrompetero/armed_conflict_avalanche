@@ -43,16 +43,19 @@ def links(time_series, neighbor_info_dataframe,
     return pair_poly_te
 
 class CausalGraph():
-    def __init__(self, pair_poly_te, sig_threshold=95):
+    def __init__(self, self_poly_te, pair_poly_te, sig_threshold=95):
         """
         Parameters
         ----------
+        self_poly_te : dict
+            Keys are twoples. Values are TE and TE shuffles.
         pair_poly_te : dict
             Keys are twoples. Values are TE and TE shuffles.
         sig_threshold : float, 95
         """
 
         assert 0<=sig_threshold<=100 and isinstance(sig_threshold, int)
+        self.self_poly_te = self_poly_te
         self.pair_poly_te = pair_poly_te
         self.sig_threshold = sig_threshold
 
@@ -65,9 +68,17 @@ class CausalGraph():
         """
 
         self.G = nx.DiGraph()
+        for pair, (te, te_shuffle) in self.self_poly_te.items():
+            if (te>te_shuffle).mean() >= (self.sig_threshold/100):
+                self.G.add_edge(pair[0], pair[1])
+
         for pair, (te, te_shuffle) in self.pair_poly_te.items():
             if (te>te_shuffle).mean() >= (self.sig_threshold/100):
                 self.G.add_edge(pair[0], pair[1])
+
+        self.uG = self.G.to_undirected()
+
+        
 # end CausalGraph    
     #    # process output into convenient packaging
     #    clean_pair_poly_te = []

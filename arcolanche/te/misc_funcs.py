@@ -4,6 +4,8 @@ from . import transfer_entropy_func
 from . import self_loop_entropy_func
 
 from . import data as data_loader
+
+from . import network as net
 #import avalanche_numbering
 
 
@@ -331,40 +333,27 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
 
 
     #polygons_TE , neighbor_info_dataframe , list_of_tuples_tile = neighbor_finder_TE(time_series , time , dx , gridix , conflict_type)
-    pair_poly_te, filtered_neighbors, clean_pair_poly_te = te_causal_network(time_series, neighbor_info_df)
-    valid_polygons = time_series.columns.to_numpy()
 
-    neighbors_arr = polygon_neigbors_arr(polygons_TE,valid_polygons,"te")
+    # Calculate transfer entropies and shuffles for pairs and self
+    self_poly_te = net.self_links(time_series)
+    pair_poly_te = net.links(time_series, neighbor_info_df)
+
+    G = net.CausalGraph(self_poly_te,pair_poly_te)
+
+    neighbors = [list(G.neighbors(n)) for n in G.nodes]
+
+
+    valid_polygons = time_series.columns.to_numpy()
+    #neighbors_arr = polygon_neigbors_arr(polygons_TE,valid_polygons,"te")
 
     tiles_with_self_loop_list = self_loop_finder_TE(time_series , time , dx , gridix , conflict_type)
     time_series_arr = time_series.to_numpy()
-
-    #Only needed to return data_bin so that I can save avalanches in event form too
-    data = data_loader.conflict_data_loader(conflict_type)
-    time_bin_data = pd.DataFrame()
-    time_bin_data["event_date"] = data["event_date"]
-    day = pd.to_datetime(time_bin_data["event_date"] , dayfirst=True)  
-    time_bin_data["days"] = (day-day.min()).apply(lambda x : x.days)
-    bins = np.digitize(time_bin_data["days"] , bins=arange(0 , max(time_bin_data["days"]) + time , time))
-    time_bin_data["bins"] = bins
-    pol_num = np.loadtxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",")
-    pol_num = pol_num[:,1]
-    pol_num = pd.DataFrame({'polygon_TE_number' : pol_num})
-    avalanche_data = time_bin_data
-    avalanche_data["polygon_TE_number"] = pol_num
-    avalanche_data["fatalities"] = data["fatalities"]
-    avalanche_data["event_number"] = [i for i in range(len(avalanche_data))]
-    data_bin = avalanche_data
-    ###
-
-    data_bin_CG = data_bin_extracter(time_series_FG,time)
-
 
     avalanche_list = avalanche_te(time_series_arr , neighbors_arr , valid_polygons , tiles_with_self_loop_list)
     avalanche_list = convert_back_to_regular_form(avalanche_list,valid_polygons)
 
 
-    return avalanche_list , data_bin , data_bin_CG
+    return avalanche_list
 
 
 def null_model_time_series_generator(time,dx_primary,dx_interest,gridix,conflict_type):
