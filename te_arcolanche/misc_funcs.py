@@ -441,7 +441,7 @@ def null_model(dx_primary,dx_interest,gridix,conflict_type,prob_type,cpu_cores):
 
 
 @njit
-def CG_time_series_fast(time_series_FG , col_nums , time):
+def CG_time_series_fast(time_series_FG, time):
     """time_series_FG in array form, col_nums = len(time_series_FG.columns)
     
     Run these lines to convert back to pandas dataframe->
@@ -449,15 +449,16 @@ def CG_time_series_fast(time_series_FG , col_nums , time):
     time_series_CG = pd.DataFrame(time_series_CG , index=range(1,len(time_series_CG)+1))
     time_series_CG.columns = time_series_FG.columns
     """
-    duration = len(time_series_FG)
+
+    duration = time_series_FG.shape[0]
     row_change_arr = np.arange(0 , duration + time , time)
-    time_series_CG = np.zeros((len(row_change_arr)-1,col_nums))
+    time_series_CG = np.zeros((len(row_change_arr)-1, time_series_FG.shape[1])).astype(np.int64)
     
     current_row = 0
     CG_row = 0
     while(current_row < duration):
         #print(current_row)
-        valid_col_arr = np.asarray(np.arange(col_nums))
+        valid_col_arr = np.asarray(np.arange(time_series_FG.shape[1]))
         
         for row_addition in np.arange(time):
             if(current_row+row_addition < duration):
