@@ -8,3 +8,4 @@ from . import pipeline as pipe
 from . import plot as pplot
 from . import workspace as ws
 from .cluster import *
+from . import te
