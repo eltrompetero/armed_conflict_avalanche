@@ -126,8 +126,10 @@ def binning(time , dx , gridix , conflict_type):
 
 ###ST Avalanches and required functions===Start###
 
-def time_series_all_polygons(time,dx,gridix,conflict_type):    
-    """Creates time series of all the valid polygons , Here time equals to the size of time bin you need in the time series""" 
+def time_series_all_polygons(time, dx, gridix, conflict_type):    
+    """Creates time series of all the valid polygons , Here time equals to the size
+    of time bin you need in the time series
+    """ 
 
     data = data_loader.conflict_data_loader(conflict_type)
 
@@ -140,9 +142,10 @@ def time_series_all_polygons(time,dx,gridix,conflict_type):
     bins = np.digitize(time_bin_data["days"] , bins=arange(0 , max(time_bin_data["days"]) + time , time))
     time_bin_data["bins"] = bins
     time_series_len = max(time_bin_data["bins"])
-
-    time_series = pd.DataFrame(index=range(1,time_series_len+1))       #range is from 1 because time bins were intially created such that the first time_bin value was 1
-
+    
+    #range is from 1 because time bins were intially created such that the first time_bin value was 1
+    time_series = pd.DataFrame(index=range(1,time_series_len+1))
+    
     def tile_time_series_creation(tile_number):    
         time_series[f"{tile_number}"] = 0
         file_directory = f"generated_data/{conflict_type}/gridix_{gridix}/{str(dx)}/{str(tile_number)}.parq"
@@ -172,7 +175,6 @@ def time_series_all_polygons(time,dx,gridix,conflict_type):
     time_series.columns = time_series.columns.map(int)
 
     return time_series
-
 
 def avalanche_creation_fast_st(time_series , time , dx  , gridix , conflict_type):
 #Here enter the time series(invert the time series if you want to calculate peace avalanche).
@@ -482,18 +484,16 @@ def CG_time_series_fast(time_series_FG , col_nums , time):
     
     return time_series_CG
 
-
-def neighbor_finder_TE(time_series , time , dx , gridix , conflict_type="battles"):    
+def te_causal_network(time_series, neighbor_info_dataframe,
+                      number_of_shuffles=50):
     """Calculates transfer entropy and identifies significant links between Voronoi
     neighbors assuming a 95% confidence interval.
 
     Parameters
     ----------
     time_series : pd.DataFrame
-    time : int
-    dx : int
-    gridix : int
-    conflict_type : str, "battles"
+    neighbor_info_dataframe : pd.DataFrame
+    number_of_shuffles : int, 50
     
     Returns
     -------
@@ -504,92 +504,34 @@ def neighbor_finder_TE(time_series , time , dx , gridix , conflict_type="battles
         TE is nan when non-significant
     """
 
-    valid_polygons = time_series.columns.to_list()
+    # calculate transfer entropy between pairs of tiles
+    def polygon_pair_gen():
+        """Pairs of legitimate neighboring polygons."""
+        for i, row in neighbor_info_dataframe.iterrows():
+            for n in row['neighbors']:
+                # only consider pairs of polygons that appear in the time series
+                if row['index'] in time_series.columns and n in time_series.columns:
+                    yield (row['index'], n)
     
-    TE_type = "transfer_entropy"
-    number_of_shuffles = 50
-    
-    polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
-    def neighbors_to_list(neighbor_list):
-        return list(map(int , neighbor_list.replace(" ", "").split(",")))
-    neighbor_info_dataframe = polygons.drop("geometry" , axis=1)
-    neighbor_info_dataframe["neighbors_temp"] = neighbor_info_dataframe["neighbors"].apply(neighbors_to_list)
-    neighbor_info_dataframe.drop("neighbors" , inplace=True , axis=1)
-    neighbor_info_dataframe.rename({"neighbors_temp": "neighbors"}, axis=1 , inplace=True)
-    
-    #tiles_transfer_entropy = pd.read_pickle(f"data_{str(conflict_type)}/{TE_type}/tiles_{TE_type}_{definition_type}{str(time)}_{str(dx)}_{str(number_of_shuffles)}")
-    
-    args = (time , dx , gridix , conflict_type , number_of_shuffles , "n" , time_series)
-    tiles_transfer_entropy = transfer_entropy_func.TE_tiles(*args)
-    
-    #For shuffled data, Creating tuple list with all neighbor pairs
-    neighbor_TE_details = pd.DataFrame()
-    for shuffle_number in range(number_of_shuffles+1):
-        list_of_tuples_tile = []
-        for index in range(len(tiles_transfer_entropy)):
-            if(tiles_transfer_entropy[f"{TE_type}_{str(shuffle_number)}"].iloc[index] == ["NA"]):
-                pass
-            else:
-                counter = 0
-                for distribution_list in tiles_transfer_entropy[f"{TE_type}_{str(shuffle_number)}"].iloc[index]:
-                    if(distribution_list == "NA"):
-                        counter += 1
-                    else:
-                        tile_tuple = (index , neighbor_info_dataframe["neighbors"].iloc[index][counter] , tiles_transfer_entropy[f"{TE_type}_{str(shuffle_number)}"].iloc[index][counter])
-                        list_of_tuples_tile.append(tile_tuple)
-                        counter += 1
-        neighbor_TE_details = pd.concat([neighbor_TE_details,pd.DataFrame(list_of_tuples_tile)], ignore_index=True, axis=1)
-    
-    TE_array = neighbor_TE_details[2].to_numpy()
-    
-    #Calculating effective TE, the standard deviation in the measurements of TEs and the mean TE of shuffled timeseries for each pair of neighbor tiles
-    col_num_list = [3*i - 1 for i in range(1,number_of_shuffles+2)]
-    shuffled_TE_dataframe = pd.DataFrame()
-    for col_num in col_num_list[1:]:
-        shuffled_TE_dataframe = pd.concat([shuffled_TE_dataframe,neighbor_TE_details[col_num]] , ignore_index=True , axis=1)
-    
-    shuffled_TE_arr = shuffled_TE_dataframe.transpose().to_numpy()
-    
-    a = significant_links(TE_array , shuffled_TE_arr)
-    #a = (a*1).astype(float)
-    a = (a*1)*TE_array
-    a[a==0] = np.nan
-    
-    list_of_tuples_tile = list(zip(neighbor_TE_details[0].to_list() , neighbor_TE_details[1].to_list() , list(a)))
-    
-    TE_dataframe = pd.DataFrame(list_of_tuples_tile , columns=["pol_1" , "pol_2" , "TE"])
-    polygons_TE = pd.DataFrame(columns=["index" , "neighbors"])
-    neighbor_list = []
-    pol_number_list = []
-    for primary_tile_number in neighbor_info_dataframe["index"]:
-        if(os.path.exists(f"data_{conflict_type}/gridix_{gridix}/{str(dx)}/{str(primary_tile_number)}.parq") == True):
-            if(primary_tile_number in TE_dataframe["pol_1"].values):
-                current_neighbours = TE_dataframe.groupby("pol_1").get_group(primary_tile_number)
-                current_neighbours = current_neighbours[np.isnan(current_neighbours["TE"]) == False]
-                neighbor_list.append(current_neighbours["pol_2"].to_list())
-                pol_number_list.append(primary_tile_number)
-    polygons_TE["index"] = pol_number_list
-    polygons_TE["neighbors"] = neighbor_list
-    isolated_polygon_list = []
-    for primary_tile_number in neighbor_info_dataframe["index"]:
-        if(os.path.exists(f"data_{conflict_type}/gridix_{gridix}/{str(dx)}/{str(primary_tile_number)}.parq") == True):
-            if((primary_tile_number in pol_number_list) == False):
-                isolated_polygon_list.append(primary_tile_number)
-            else:
-                pass
-    #polygons_TE = polygons_TE.append(pd.DataFrame({"index":isolated_polygon_list,"neighbors":[[] for i in isolated_polygon_list]}))
-    polygons_TE = pd.concat([polygons_TE,pd.DataFrame({"index":isolated_polygon_list,"neighbors":[[] for i in isolated_polygon_list]})])
-    polygons_TE.sort_values("index" , inplace=True)
-    polygons_TE.reset_index(inplace=True , drop=True)
-    for pol in polygons["index"].to_list():
-        if((pol in polygons_TE["index"].to_list()) == False):
-            #polygons_TE = polygons_TE.append(pd.DataFrame({"index":pol,"neighbors":[[]]}))
-            polygons_TE = pd.concat([polygons_TE,pd.DataFrame({"index":pol,"neighbors":[[]]})])
-    polygons_TE.sort_values("index" , inplace=True)
-    polygons_TE.reset_index(inplace=True , drop=True)
-    
-    return polygons_TE , neighbor_info_dataframe , list_of_tuples_tile
+    pair_poly_te = transfer_entropy_func.iter_polygon_pair(polygon_pair_gen(),
+                                                           number_of_shuffles, 
+                                                           time_series)
+    # process output into convenient packaging
+    clean_pair_poly_te = []
+    filtered_neighbors = {}
+    for key, val in pair_poly_te.items():
+        # check if polygon already in dict
+        if not key[0] in filtered_neighbors.keys():
+            filtered_neighbors[key[0]] = []
 
+        # add sig neighbors
+        if (val[0]>val[1]).mean()>.95:
+            filtered_neighbors[key[0]].append(key[1])
+            clean_pair_poly_te.append((key[0], key[1], val[0]))
+        else:
+            clean_pair_poly_te.append((key[0], key[1], np.nan))
+
+    return pair_poly_te, filtered_neighbors, clean_pair_poly_te
 
 def significant_links(TE_array , shuffled_TE_arr):
     return TE_array > np.percentile(shuffled_TE_arr , 95 , axis=0)

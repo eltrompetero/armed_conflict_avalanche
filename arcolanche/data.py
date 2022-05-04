@@ -130,3 +130,6 @@ class ACLED2020():
         ix = (df.event_type=='Riots') | (df.event_type=='Protests')
         return df.loc[ix]
 #end ACLED2020
+
+def conflict_data_loader(conflict_type):
+    return pd.read_csv(f'{DATADR}/conflict/data_{conflict_type}.csv')
