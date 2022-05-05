@@ -4,6 +4,7 @@
 # ====================================================================================== #
 import networkx as nx
 from .transfer_entropy_func import iter_polygon_pair
+from .self_loop_entropy_func import iter_valid_polygons
 
 from .utils import *
 
@@ -36,11 +37,41 @@ def links(time_series, neighbor_info_dataframe,
                 # only consider pairs of polygons that appear in the time series
                 if row['index'] in time_series.columns and n in time_series.columns:
                     yield (row['index'], n)
-     
+    
     pair_poly_te = iter_polygon_pair(polygon_pair_gen(),
                                      number_of_shuffles, 
                                      time_series)
     return pair_poly_te
+
+
+def self_links(time_series, number_of_shuffles=50):
+    """Calculates self loop transfer entropy and identifies polygons with significant self loops assuming a 95% confidence interval.
+
+    Parameters
+    ----------
+    time_series : pd.DataFrame
+    number_of_shuffles : int, 50
+    
+    Returns
+    -------
+    pd.DataFrame
+    pd.DataFrame
+    list of tuples
+        (cell index, cell index, TE)
+        TE is nan when non-significant
+    """  
+    
+    def valid_polygons_finder():
+        valid_polygons = time_series.columns.astype(int).to_list()
+
+        return valid_polygons
+
+    valid_poly_te = iter_valid_polygons(valid_polygons_finder(),
+                                        number_of_shuffles,
+                                        time_series)
+
+    return valid_poly_te
+
 
 class CausalGraph():
     def __init__(self, self_poly_te, pair_poly_te, sig_threshold=95):
@@ -68,9 +99,9 @@ class CausalGraph():
         """
 
         self.G = nx.DiGraph()
-        for pair, (te, te_shuffle) in self.self_poly_te.items():
+        for poly, (te, te_shuffle) in self.self_poly_te.items():
             if (te>te_shuffle).mean() >= (self.sig_threshold/100):
-                self.G.add_edge(pair[0], pair[1])
+                self.G.add_edge(poly, poly)
 
         for pair, (te, te_shuffle) in self.pair_poly_te.items():
             if (te>te_shuffle).mean() >= (self.sig_threshold/100):
