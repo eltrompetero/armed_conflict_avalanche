@@ -343,14 +343,21 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     # a array of array where every array contains successive neighbors of valid polygons
     # such that the total length of neighbors_arr is equal to the length of time_series.columns 
     # Line 2 to 4 adds empty lists for isolated nodes that are not in the causal network.
-    neighbors = G.causal_neighbors()
-    for poly in time_series.columns:
-        if(poly not in neighbors.keys()):
-            neighbors[poly] = []
-    neighbors_list = []
-    for i in neighbors:
-        neighbors_list.append(np.array(neighbors[i]))
-    neighbors_arr = np.array(neighbors_list , dtype=object)
+    #neighbors = G.causal_neighbors()
+    #for poly in time_series.columns:
+    #    if(poly not in neighbors.keys()):
+    #        neighbors[poly] = []
+    #neighbors_list = []
+    #for i in neighbors:
+    #    neighbors_list.append(np.array(neighbors[i]))
+    #neighbors_arr = np.array(neighbors_list , dtype=object)
+
+    neighbors_basix = []
+    for node in time_series.columns:
+        neighbors_basix.append([])
+        if(node in G.nodes):
+            for n in G.neighbors(node):
+                neighbors_basix[-1].append(np.where(time_series.columns == n)[0][0])
 
 
     valid_polygons = time_series.columns.to_numpy()
@@ -359,7 +366,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     tiles_with_self_loop_list = G.self_loop_list()
     time_series_arr = time_series.to_numpy()
 
-    avalanche_list = avalanche_te(time_series_arr , neighbors_arr , valid_polygons , tiles_with_self_loop_list)
+    avalanche_list = avalanche_te(time_series_arr , neighbors_basix)
     avalanche_list = convert_back_to_regular_form(avalanche_list,valid_polygons)
 
 
@@ -614,22 +621,16 @@ def data_bin_extracter(time_series_FG,time):
     return data_bin
 
 
-def avalanche_te(time_series_arr , neighbors , valid_polygons , tiles_with_self_loop_list):
-    """Input preparation code-
+def avalanche_te(time_series_arr , neighbors):
+    """This function geenrates avalanches using time series and information about
+    neighbors of each polygon. The neighbor array contains self loop details and
+    also information about isloated nodes. Isolated nodes have empty neighbor arrays.
+    
+    Input preparation code-
     time_series_arr = time_series.to_numpy()
     valid_polygons = time_series.columns.to_numpy()
     neighbors = misc_funcs.polygon_neigbors_arr(polygons , valid_polygons)
     """
-    #Mapping polygon numbers to sequence of numbers from 0 to total number of valid polygons
-    for neighbor_arr_index in range(len(neighbors)):
-        for pol_num in range(len(neighbors[neighbor_arr_index])):
-            neighbors[neighbor_arr_index][pol_num] = np.where(valid_polygons == neighbors[neighbor_arr_index][pol_num])[0][0]
-    
-    tiles_with_self_loop = np.zeros(len(tiles_with_self_loop_list) , dtype=int)
-    for tile_index in range(len(tiles_with_self_loop_list)):
-        tiles_with_self_loop[tile_index] = np.where(valid_polygons == tiles_with_self_loop_list[tile_index])[0][0]
-    ##
-    
     avalanche_list = []
     for time_step in range(len(time_series_arr)):
         initial_boxes = [(pol_index,time_step) for pol_index in np.where(time_series_arr[time_step,:] == 1)[0]]
@@ -659,11 +660,11 @@ def avalanche_te(time_series_arr , neighbors , valid_polygons , tiles_with_self_
                     time_series_arr[box[1]+1,active_neighbors] = 0
                     
                     
-                    if((time_series_arr[box[1]+1,box[0]] == 1) and (box[0] in tiles_with_self_loop)):
-                        avalanche_temp.append((box[0],box[1]+1))
-                        secondary_boxes.append((box[0],box[1]+1))
-                        time_series_arr[box[1]+1,box[0]] = 0
-                        
+                    #if((time_series_arr[box[1]+1,box[0]] == 1) and (box[0] in tiles_with_self_loop)):
+                    #    avalanche_temp.append((box[0],box[1]+1))
+                    #    secondary_boxes.append((box[0],box[1]+1))
+                    #    time_series_arr[box[1]+1,box[0]] = 0
+                    
                 
                 
                 for secondary_box in secondary_boxes:
@@ -680,10 +681,10 @@ def avalanche_te(time_series_arr , neighbors , valid_polygons , tiles_with_self_
                         time_series_arr[secondary_box[1]+1,active_neighbors] = 0
                         
                         
-                        if((time_series_arr[secondary_box[1]+1,secondary_box[0]] == 1) and (secondary_box[0] in tiles_with_self_loop)):
-                            avalanche_temp.append((secondary_box[0],secondary_box[1]+1))
-                            secondary_boxes.append((secondary_box[0],secondary_box[1]+1))
-                            time_series_arr[secondary_box[1]+1,secondary_box[0]] = 0
+                        #if((time_series_arr[secondary_box[1]+1,secondary_box[0]] == 1) and (secondary_box[0] in tiles_with_self_loop)):
+                        #    avalanche_temp.append((secondary_box[0],secondary_box[1]+1))
+                        #    secondary_boxes.append((secondary_box[0],secondary_box[1]+1))
+                        #    time_series_arr[secondary_box[1]+1,secondary_box[0]] = 0
                             
             
                 avalanche_list.append(avalanche_temp)
