@@ -107,7 +107,52 @@ class CausalGraph(nx.DiGraph):
 
         self.uG = self.to_undirected()
 
-        
+
+    def self_loop_list(self):
+        """Outputs a list of all nodes which have a self loop.
+
+        Returns
+        -------
+        list
+            A list of all nodes which have a self loop.
+
+        """
+        self_loop_node_list = []
+        for i in self.edges:
+            if(i[0] == i[1]):
+                self_loop_node_list.append(i[0])
+
+        return self_loop_node_list
+
+
+    def edges_no_self(self):
+        """Outputs a list of tuples where each tuple contains node index which has a
+         causal link between them.
+
+        Returns
+        -------
+        list
+            A list of tuples where each tuple contain two nodes which have a link
+            between them. 
+        """
+        return [i for i in self.edges() if i[0] != i[1]]
+
+
+    def causal_neighbors(self):
+        """Outputs a dict where keys are node index and values are list of
+         successive neighbors.
+        """
+        neighbor_dict = {}
+        for node in self.nodes:
+            neighbor_list_temp = []
+            for neighbor in self.successors(node):
+                if(node != neighbor):
+                    neighbor_list_temp.append(neighbor)
+                neighbor_dict[node] = neighbor_list_temp
+
+        return neighbor_dict
+
+
 # end CausalGraph    
     #    # process output into convenient packaging
     #    clean_pair_poly_te = []

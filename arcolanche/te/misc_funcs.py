@@ -332,21 +332,31 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
         time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
 
 
-    #polygons_TE , neighbor_info_dataframe , list_of_tuples_tile = neighbor_finder_TE(time_series , time , dx , gridix , conflict_type)
-
     # Calculate transfer entropies and shuffles for pairs and self
     self_poly_te = net.self_links(time_series)
     pair_poly_te = net.links(time_series, neighbor_info_df)
 
-    G = net.CausalGraph(self_poly_te,pair_poly_te)
+    G = net.CausalGraph()
+    G.setup(self_poly_te,pair_poly_te)
 
-    neighbors = [list(G.neighbors(n)) for n in G.nodes]
+    # To create neighbors_arr that avalanches_te requires i.e
+    # a array of array where every array contains successive neighbors of valid polygons
+    # such that the total length of neighbors_arr is equal to the length of time_series.columns 
+    # Line 2 to 4 adds empty lists for isolated nodes that are not in the causal network.
+    neighbors = G.causal_sucessors()
+    for poly in time_series.columns:
+        if(poly not in neighbors.keys()):
+            neighbors[poly] = []
+    neighbors_list = []
+    for i in neighbors:
+        neighbors_list.append(np.array(neighbors[i]))
+    neighbors_arr = np.array(neighbors_list , dtype=object)
 
 
     valid_polygons = time_series.columns.to_numpy()
-    #neighbors_arr = polygon_neigbors_arr(polygons_TE,valid_polygons,"te")
 
-    tiles_with_self_loop_list = self_loop_finder_TE(time_series , time , dx , gridix , conflict_type)
+
+    tiles_with_self_loop_list = G.self_loop_list()
     time_series_arr = time_series.to_numpy()
 
     avalanche_list = avalanche_te(time_series_arr , neighbors_arr , valid_polygons , tiles_with_self_loop_list)
@@ -819,3 +829,18 @@ def duration_for_box_avas(avalanches):
     for ava in avalanches:
         duration.append(len(unique(list(zip(*ava))[1])))
     return duration , "Duration"
+
+
+def time_series_generator(time, dx, gridix, conflict_type):
+    polygons = gpd.read_file(f'voronoi_grids/{str(dx)}/borders{str(gridix).zfill(2)}.shp')
+
+    def neighbors_to_list(neighbor_list):
+        return list(map(int , neighbor_list.replace(' ', '').split(',')))
+    neighbor_info_df = polygons.drop('geometry' , axis=1)
+    neighbor_info_df['neighbors'] = neighbor_info_df['neighbors'].apply(neighbors_to_list)
+
+    time_series_FG = pd.read_csv(f'generated_data/{conflict_type}/gridix_{gridix}/FG_time_series/time_series_1_{str(dx)}.csv')
+    time_series = CG_time_series_fast(time_series_FG.values, time)
+    time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
+
+    return time_series , neighbor_info_df
