@@ -343,7 +343,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     # a array of array where every array contains successive neighbors of valid polygons
     # such that the total length of neighbors_arr is equal to the length of time_series.columns 
     # Line 2 to 4 adds empty lists for isolated nodes that are not in the causal network.
-    neighbors = G.causal_sucessors()
+    neighbors = G.causal_neighbors()
     for poly in time_series.columns:
         if(poly not in neighbors.keys()):
             neighbors[poly] = []
