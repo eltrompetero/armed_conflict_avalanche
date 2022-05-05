@@ -73,8 +73,8 @@ def self_links(time_series, number_of_shuffles=50):
     return valid_poly_te
 
 
-class CausalGraph():
-    def __init__(self, self_poly_te, pair_poly_te, sig_threshold=95):
+class CausalGraph(nx.DiGraph):
+    def setup(self, self_poly_te, pair_poly_te, sig_threshold=95):
         """
         Parameters
         ----------
@@ -95,19 +95,17 @@ class CausalGraph():
     def build_causal(self):
         """Build causal network using self.sig_threshold.
 
-        This replaces self.G.
         """
 
-        self.G = nx.DiGraph()
         for poly, (te, te_shuffle) in self.self_poly_te.items():
             if (te>te_shuffle).mean() >= (self.sig_threshold/100):
-                self.G.add_edge(poly, poly)
+                self.add_edge(poly, poly)
 
         for pair, (te, te_shuffle) in self.pair_poly_te.items():
             if (te>te_shuffle).mean() >= (self.sig_threshold/100):
-                self.G.add_edge(pair[0], pair[1])
+                self.add_edge(pair[0], pair[1])
 
-        self.uG = self.G.to_undirected()
+        self.uG = self.to_undirected()
 
         
 # end CausalGraph    
