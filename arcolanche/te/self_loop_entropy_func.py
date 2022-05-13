@@ -30,7 +30,7 @@ def iter_valid_polygons(valid_polygons, number_of_shuffles, time_series , n_cpu=
         return pol, (SelfTEcalculator.calc(x),
                         [SelfTEcalculator.shuffle_calc(x) for i in range(number_of_shuffles)])
 
-    if not n_cpu is None:
+    if n_cpu is None:
         pol_te = {}
         for pol in valid_polygons:
             pol_te[pol] = loop_wrapper(pol)[1]

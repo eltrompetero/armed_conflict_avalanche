@@ -370,7 +370,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     avalanche_list = convert_back_to_regular_form(avalanche_list,valid_polygons)
 
 
-    return avalanche_list
+    return avalanche_list , time_series_arr , neighbors_basix
 
 
 def null_model_time_series_generator(time,dx_primary,dx_interest,gridix,conflict_type):

@@ -34,7 +34,7 @@ def iter_polygon_pair(polygon_pair, number_of_shuffles, time_series,
         return pair, (TEcalculator.calc(x, y),
                       [TEcalculator.shuffle_calc(x, y) for i in range(number_of_shuffles)])
     
-    if not n_cpu is None:
+    if n_cpu is None:
         pair_te = {}
         for pair in polygon_pair:
             pair_te[pair] = loop_wrapper(pair)[1]
