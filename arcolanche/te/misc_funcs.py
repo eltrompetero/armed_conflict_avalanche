@@ -4,6 +4,8 @@ from . import transfer_entropy_func
 from . import self_loop_entropy_func
 
 from . import data as data_loader
+
+from . import network as net
 #import avalanche_numbering
 
 
@@ -330,41 +332,45 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
         time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
 
 
-    #polygons_TE , neighbor_info_dataframe , list_of_tuples_tile = neighbor_finder_TE(time_series , time , dx , gridix , conflict_type)
-    pair_poly_te, filtered_neighbors, clean_pair_poly_te = te_causal_network(time_series, neighbor_info_df)
+    # Calculate transfer entropies and shuffles for pairs and self
+    self_poly_te = net.self_links(time_series)
+    pair_poly_te = net.links(time_series, neighbor_info_df)
+
+    G = net.CausalGraph()
+    G.setup(self_poly_te,pair_poly_te)
+
+    # To create neighbors_arr that avalanches_te requires i.e
+    # a array of array where every array contains successive neighbors of valid polygons
+    # such that the total length of neighbors_arr is equal to the length of time_series.columns 
+    # Line 2 to 4 adds empty lists for isolated nodes that are not in the causal network.
+    #neighbors = G.causal_neighbors()
+    #for poly in time_series.columns:
+    #    if(poly not in neighbors.keys()):
+    #        neighbors[poly] = []
+    #neighbors_list = []
+    #for i in neighbors:
+    #    neighbors_list.append(np.array(neighbors[i]))
+    #neighbors_arr = np.array(neighbors_list , dtype=object)
+
+    neighbors_basix = []
+    for node in time_series.columns:
+        neighbors_basix.append([])
+        if(node in G.nodes):
+            for n in G.neighbors(node):
+                neighbors_basix[-1].append(np.where(time_series.columns == n)[0][0])
+
+
     valid_polygons = time_series.columns.to_numpy()
 
-    neighbors_arr = polygon_neigbors_arr(polygons_TE,valid_polygons,"te")
 
-    tiles_with_self_loop_list = self_loop_finder_TE(time_series , time , dx , gridix , conflict_type)
+    tiles_with_self_loop_list = G.self_loop_list()
     time_series_arr = time_series.to_numpy()
 
-    #Only needed to return data_bin so that I can save avalanches in event form too
-    data = data_loader.conflict_data_loader(conflict_type)
-    time_bin_data = pd.DataFrame()
-    time_bin_data["event_date"] = data["event_date"]
-    day = pd.to_datetime(time_bin_data["event_date"] , dayfirst=True)  
-    time_bin_data["days"] = (day-day.min()).apply(lambda x : x.days)
-    bins = np.digitize(time_bin_data["days"] , bins=arange(0 , max(time_bin_data["days"]) + time , time))
-    time_bin_data["bins"] = bins
-    pol_num = np.loadtxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",")
-    pol_num = pol_num[:,1]
-    pol_num = pd.DataFrame({'polygon_TE_number' : pol_num})
-    avalanche_data = time_bin_data
-    avalanche_data["polygon_TE_number"] = pol_num
-    avalanche_data["fatalities"] = data["fatalities"]
-    avalanche_data["event_number"] = [i for i in range(len(avalanche_data))]
-    data_bin = avalanche_data
-    ###
-
-    data_bin_CG = data_bin_extracter(time_series_FG,time)
-
-
-    avalanche_list = avalanche_te(time_series_arr , neighbors_arr , valid_polygons , tiles_with_self_loop_list)
+    avalanche_list = avalanche_te(time_series_arr , neighbors_basix)
     avalanche_list = convert_back_to_regular_form(avalanche_list,valid_polygons)
 
 
-    return avalanche_list , data_bin , data_bin_CG
+    return avalanche_list
 
 
 def null_model_time_series_generator(time,dx_primary,dx_interest,gridix,conflict_type):
@@ -615,22 +621,16 @@ def data_bin_extracter(time_series_FG,time):
     return data_bin
 
 
-def avalanche_te(time_series_arr , neighbors , valid_polygons , tiles_with_self_loop_list):
-    """Input preparation code-
+def avalanche_te(time_series_arr , neighbors):
+    """This function geenrates avalanches using time series and information about
+    neighbors of each polygon. The neighbor array contains self loop details and
+    also information about isloated nodes. Isolated nodes have empty neighbor arrays.
+    
+    Input preparation code-
     time_series_arr = time_series.to_numpy()
     valid_polygons = time_series.columns.to_numpy()
     neighbors = misc_funcs.polygon_neigbors_arr(polygons , valid_polygons)
     """
-    #Mapping polygon numbers to sequence of numbers from 0 to total number of valid polygons
-    for neighbor_arr_index in range(len(neighbors)):
-        for pol_num in range(len(neighbors[neighbor_arr_index])):
-            neighbors[neighbor_arr_index][pol_num] = np.where(valid_polygons == neighbors[neighbor_arr_index][pol_num])[0][0]
-    
-    tiles_with_self_loop = np.zeros(len(tiles_with_self_loop_list) , dtype=int)
-    for tile_index in range(len(tiles_with_self_loop_list)):
-        tiles_with_self_loop[tile_index] = np.where(valid_polygons == tiles_with_self_loop_list[tile_index])[0][0]
-    ##
-    
     avalanche_list = []
     for time_step in range(len(time_series_arr)):
         initial_boxes = [(pol_index,time_step) for pol_index in np.where(time_series_arr[time_step,:] == 1)[0]]
@@ -660,11 +660,11 @@ def avalanche_te(time_series_arr , neighbors , valid_polygons , tiles_with_self_
                     time_series_arr[box[1]+1,active_neighbors] = 0
                     
                     
-                    if((time_series_arr[box[1]+1,box[0]] == 1) and (box[0] in tiles_with_self_loop)):
-                        avalanche_temp.append((box[0],box[1]+1))
-                        secondary_boxes.append((box[0],box[1]+1))
-                        time_series_arr[box[1]+1,box[0]] = 0
-                        
+                    #if((time_series_arr[box[1]+1,box[0]] == 1) and (box[0] in tiles_with_self_loop)):
+                    #    avalanche_temp.append((box[0],box[1]+1))
+                    #    secondary_boxes.append((box[0],box[1]+1))
+                    #    time_series_arr[box[1]+1,box[0]] = 0
+                    
                 
                 
                 for secondary_box in secondary_boxes:
@@ -681,10 +681,10 @@ def avalanche_te(time_series_arr , neighbors , valid_polygons , tiles_with_self_
                         time_series_arr[secondary_box[1]+1,active_neighbors] = 0
                         
                         
-                        if((time_series_arr[secondary_box[1]+1,secondary_box[0]] == 1) and (secondary_box[0] in tiles_with_self_loop)):
-                            avalanche_temp.append((secondary_box[0],secondary_box[1]+1))
-                            secondary_boxes.append((secondary_box[0],secondary_box[1]+1))
-                            time_series_arr[secondary_box[1]+1,secondary_box[0]] = 0
+                        #if((time_series_arr[secondary_box[1]+1,secondary_box[0]] == 1) and (secondary_box[0] in tiles_with_self_loop)):
+                        #    avalanche_temp.append((secondary_box[0],secondary_box[1]+1))
+                        #    secondary_boxes.append((secondary_box[0],secondary_box[1]+1))
+                        #    time_series_arr[secondary_box[1]+1,secondary_box[0]] = 0
                             
             
                 avalanche_list.append(avalanche_temp)
@@ -830,3 +830,18 @@ def duration_for_box_avas(avalanches):
     for ava in avalanches:
         duration.append(len(unique(list(zip(*ava))[1])))
     return duration , "Duration"
+
+
+def time_series_generator(time, dx, gridix, conflict_type):
+    polygons = gpd.read_file(f'voronoi_grids/{str(dx)}/borders{str(gridix).zfill(2)}.shp')
+
+    def neighbors_to_list(neighbor_list):
+        return list(map(int , neighbor_list.replace(' ', '').split(',')))
+    neighbor_info_df = polygons.drop('geometry' , axis=1)
+    neighbor_info_df['neighbors'] = neighbor_info_df['neighbors'].apply(neighbors_to_list)
+
+    time_series_FG = pd.read_csv(f'generated_data/{conflict_type}/gridix_{gridix}/FG_time_series/time_series_1_{str(dx)}.csv')
+    time_series = CG_time_series_fast(time_series_FG.values, time)
+    time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
+
+    return time_series , neighbor_info_df
