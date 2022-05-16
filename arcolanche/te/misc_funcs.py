@@ -318,7 +318,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     dtdx = (time, dx)
 
     if(type_of_events == "null"):
-        time_series , time_series_FG = null_model_time_series_generator(time,640,dx,conflict_type)
+        time_series , time_series_FG = null_model_time_series_generator(time,640,dx,gridix,conflict_type)
     elif(type_of_events == "data"):
         # load polygons
         polygons = gpd.read_file(f'voronoi_grids/{dtdx[1]}/borders{str(gridix).zfill(2)}.shp')
