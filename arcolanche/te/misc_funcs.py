@@ -373,16 +373,15 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     return avalanche_list , time_series_arr , neighbors_basix
 
 
-def null_model_time_series_generator(time,dx_primary,dx_interest,gridix,conflict_type):
+def null_model_time_series_generator(time,dx_primary,dx_interest,gridix,conflict_type,cpu_cores=1):
     #cpu_cores = int(input("Enter # of cpu_cores to use: "))
-    cpu_cores = 1
     x,time_series_FG_interest = null_model(dx_primary,dx_interest,gridix,conflict_type,"reassign",cpu_cores)
     time_series_FG = time_series_FG_interest
     
     time_series_FG_arr = time_series_FG.to_numpy()
     col_nums = len(time_series_FG.columns)
     
-    time_series_CG = CG_time_series_fast(time_series_FG_arr,col_nums,time)
+    time_series_CG = CG_time_series_fast(time_series_FG_arr,time)
     
     time_series_CG = time_series_CG.astype(int)
     time_series_CG = pd.DataFrame(time_series_CG , index=range(1,len(time_series_CG)+1))
@@ -396,10 +395,7 @@ def null_model(dx_primary,dx_interest,gridix,conflict_type,prob_type,cpu_cores):
     prob_type = "reassign" for reassigned probabilities.
     
     dx_primary > dx_interest."""
-    
-    #time_series = misc_funcs.time_series_all_polygons(1,dx_smaller,conflict_type) #If you want to generate time series right now
-    #time_series.to_csv(f"data_{conflict_type}/time_series_all_polygons/time_series_1_{str(dx_smaller)}.csv" , index=False) #To save the generated time series
-    
+     
     
     time_series_FG = pd.read_csv(f"generated_data/{conflict_type}/gridix_{str(gridix)}/FG_time_series/time_series_1_{str(dx_primary)}.csv")
     time_series_FG_arr = time_series_FG.to_numpy()
