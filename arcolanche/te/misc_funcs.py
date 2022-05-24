@@ -317,17 +317,16 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     #Needs overall restructure!!!! 
     dtdx = (time, dx)
 
-    if(type_of_events == "null"):
+    polygons = gpd.read_file(f'voronoi_grids/{dtdx[1]}/borders{str(gridix).zfill(2)}.shp')
+    def neighbors_to_list(neighbor_list):
+        return list(map(int , neighbor_list.replace(' ', '').split(',')))
+    neighbor_info_df = polygons.drop('geometry' , axis=1)
+    neighbor_info_df['neighbors'] = neighbor_info_df['neighbors'].apply(neighbors_to_list)
+
+    if(type_of_events == "null_reassign"):
         time_series , time_series_FG = null_model_time_series_generator(time,640,dx,gridix,conflict_type)
     elif(type_of_events == "data"):
-        # load polygons
-        polygons = gpd.read_file(f'voronoi_grids/{dtdx[1]}/borders{str(gridix).zfill(2)}.shp')
-        def neighbors_to_list(neighbor_list):
-            return list(map(int , neighbor_list.replace(' ', '').split(',')))
-        neighbor_info_df = polygons.drop('geometry' , axis=1)
-        neighbor_info_df['neighbors'] = neighbor_info_df['neighbors'].apply(neighbors_to_list)
-
-        time_series_FG = pd.read_csv(f'generated_data/battles/gridix_{gridix}/FG_time_series/time_series_1_{dtdx[1]}.csv')
+        time_series_FG = pd.read_csv(f'generated_data/{conflict_type}/gridix_{gridix}/FG_time_series/time_series_1_{dtdx[1]}.csv')
         time_series = CG_time_series_fast(time_series_FG.values, dtdx[0])
         time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
 
