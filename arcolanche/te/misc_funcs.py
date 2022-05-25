@@ -275,10 +275,16 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
 
     if(type_of_events == "null_reassign"):
         time_series , time_series_FG = null_model_time_series_generator(time,640,dx,gridix,conflict_type)
+        data_bin_array = None
     elif(type_of_events == "data"):
         time_series_FG = pd.read_csv(f'generated_data/{conflict_type}/gridix_{gridix}/FG_time_series/time_series_1_{dtdx[1]}.csv')
         time_series = CG_time_series_fast(time_series_FG.values, dtdx[0])
         time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
+        data_bin_array = None
+    elif(type_of_events == "randomize_polygons"):
+        time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=True)
+        time_series = CG_time_series_fast(time_series_FG,time)
+        time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
 
 
     # Calculate transfer entropies and shuffles for pairs and self
@@ -319,7 +325,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     avalanche_list = convert_back_to_regular_form(avalanche_list,valid_polygons)
 
 
-    return avalanche_list , time_series_arr , neighbors_basix
+    return avalanche_list , time_series_arr , neighbors_basix , data_bin_array
 
 
 def null_model_time_series_generator(time,dx_primary,dx_interest,gridix,conflict_type,cpu_cores=1):
@@ -743,13 +749,18 @@ def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
         An array containing the polygon numbers in ascending order
         which can be used as column names for dataframe of fine grained
         time series.
+    numpy array
+        Array containing two columns where column one has polygon numbers
+        and column two has the day index of conflict event. The length
+        of this array is equal to the total number of events in the 
+        dataset.
     """
     data_frame = binning(time,dx,gridix,conflict_type)
     
     if(randomize_polygons == False):
-        data_array = np.array(data_frame[["polygon_number","days"]] , dtype=int)
+        data_array = np.array(data_frame[["polygon_number","days","bins"]] , dtype=int)
     elif(randomize_polygons == True):
-        data_array = np.array(data_frame[["polygon_number","days"]] , dtype=int)
+        data_array = np.array(data_frame[["polygon_number","days","bins"]] , dtype=int)
         data_array[:,0] = np.random.permutation(data_array[:,0])   #Randomly changing the polygon where a conflict event occurs
         
     polygon_groups = numpy_indexed.group_by(data_array[:,0]).split_array_as_list(data_array)
