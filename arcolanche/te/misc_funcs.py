@@ -772,3 +772,58 @@ def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
         time_series_FG[event_day_index[:,1],index] = 1
         
     return time_series_FG , col_label , data_array
+
+
+def boxAva_to_eventAva(time , dx , gridix , conflict_type , algo_type , box_ava=None , data_array=None):
+    """Converts avalanches from box form to event form.
+
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    algo_type : str
+    box_ava : list of lists , None
+        List of avalanches in box form inside a list.
+    data_array : numpy array , None
+        Array containing polygon_number,days and bins corresponding to all events.
+
+    Returns
+    -------
+    list of lists
+        List of avalanches in event form inside a list.
+    """
+    if box_ava is None:
+        box_path = f"avalanches/{conflict_type}/gridix_{gridix}/{algo_type}/{algo_type}_ava_box_{str(time)}_{str(dx)}.csv"
+        box_ava = box_str_to_tuple(box_path)
+    
+    if data_array is None:
+        data_bin = binning(time,dx,gridix,conflict_type)
+        data_bin = data_bin[["polygon_number","days","bins"]]
+        data_bin["event_number"] = data_bin.index
+        data_bin = np.array(data_bin)
+    else:
+        data_bin = pd.DataFrame(data_array,columns=["polygon_number","days","bins"])
+        data_bin["event_number"] = data_bin.index
+        data_bin = np.array(data_bin)
+        
+        
+    pol_groups = numpy_indexed.group_by(data_bin[:,0]).split_array_as_list(data_bin)
+    pol_labels = np.sort(np.unique(data_bin[:,0]))
+    
+    pol_bin_groups = []
+    for pol_group in pol_groups:
+        pol_bin_groups.extend(numpy_indexed.group_by(pol_group[:,2]).split_array_as_list(pol_group))
+    pol_bin_groups = np.concatenate(tuple(pol_bin_groups))
+        
+        
+    ava_event = []
+    for ava in box_ava:
+        ava_event_temp = []
+        for box in ava:
+            ava_event_temp.extend(pol_bin_groups[:,3][np.where((pol_bin_groups[:,0] == box[0]) & (pol_bin_groups[:,2] == box[1]))[0]].astype(int).tolist())
+        
+        ava_event.append(ava_event_temp)
+        
+    return ava_event
