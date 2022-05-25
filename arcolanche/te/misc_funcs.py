@@ -128,56 +128,6 @@ def binning(time , dx , gridix , conflict_type):
 
 ###ST Avalanches and required functions===Start###
 
-def time_series_all_polygons(time, dx, gridix, conflict_type):    
-    """Creates time series of all the valid polygons , Here time equals to the size
-    of time bin you need in the time series
-    """ 
-
-    data = data_loader.conflict_data_loader(conflict_type)
-
-    connection = duckdb.connect(database=':memory:', read_only=False)
-
-    time_bin_data = pd.DataFrame()
-    time_bin_data["event_date"] = data["event_date"]
-    day = pd.to_datetime(time_bin_data["event_date"] , dayfirst=True)  
-    time_bin_data["days"] = (day-day.min()).apply(lambda x : x.days)
-    bins = np.digitize(time_bin_data["days"] , bins=arange(0 , max(time_bin_data["days"]) + time , time))
-    time_bin_data["bins"] = bins
-    time_series_len = max(time_bin_data["bins"])
-    
-    #range is from 1 because time bins were intially created such that the first time_bin value was 1
-    time_series = pd.DataFrame(index=range(1,time_series_len+1))
-    
-    def tile_time_series_creation(tile_number):    
-        time_series[f"{tile_number}"] = 0
-        file_directory = f"generated_data/{conflict_type}/gridix_{gridix}/{str(dx)}/{str(tile_number)}.parq"
-        task = f"SELECT event_number_{conflict_type} FROM parquet_scan('{file_directory}');"
-        tile_info = connection.execute(task).fetchdf()
-
-        def update_time_series_dataframe(event_id,tile_number):
-            #global time_series
-            bin_on = time_bin_data.iloc[event_id]["bins"]
-            time_series.loc[bin_on][f"{tile_number}"] = 1
-            return None
-
-        tile_info[f"event_number_{conflict_type}"].apply(update_time_series_dataframe , args=(tile_number,))
-        return None
-
-    path = f"generated_data/{conflict_type}/gridix_{gridix}/{str(dx)}"
-    files = os.listdir(path)
-
-    valid_polygons = []
-    for f in files:
-        valid_polygons.append(int(f.split(".")[0]))
-    valid_polygons.sort()
-
-    for i in valid_polygons:
-        tile_time_series_creation(i)
-
-    time_series.columns = time_series.columns.map(int)
-
-    return time_series
-
 def avalanche_creation_fast_st(time_series , time , dx  , gridix , conflict_type):
 #Here enter the time series(invert the time series if you want to calculate peace avalanche).
 
@@ -773,3 +723,41 @@ def time_series_generator(time, dx, gridix, conflict_type):
     time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
 
     return time_series , neighbor_info_df
+
+def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
+    """Generates fine grained time series of conflicts.
+    
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    randomize_polygons : bool , False
+    
+    Returns
+    -------
+    numpy array
+        Fine grained time series.
+    numpy array
+        An array containing the polygon numbers in ascending order
+        which can be used as column names for dataframe of fine grained
+        time series.
+    """
+    data_frame = binning(time,dx,gridix,conflict_type)
+    
+    if(randomize_polygons == False):
+        data_array = np.array(data_frame[["polygon_number","days"]] , dtype=int)
+    elif(randomize_polygons == True):
+        data_array = np.array(data_frame[["polygon_number","days"]] , dtype=int)
+        data_array[:,0] = np.random.permutation(data_array[:,0])   #Randomly changing the polygon where a conflict event occurs
+        
+    polygon_groups = numpy_indexed.group_by(data_array[:,0]).split_array_as_list(data_array)
+    
+    col_index = np.unique(data_array[:,0])
+    time_series_FG = np.zeros((max(data_array[:,1])+1,len(col_index)))
+    
+    for event_day_index,index in zip(polygon_groups,range(len(col_index))):
+        time_series_FG[event_day_index[:,1],index] = 1
+        
+    return time_series_FG , col_index
