@@ -754,10 +754,10 @@ def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
         
     polygon_groups = numpy_indexed.group_by(data_array[:,0]).split_array_as_list(data_array)
     
-    col_index = np.unique(data_array[:,0])
-    time_series_FG = np.zeros((max(data_array[:,1])+1,len(col_index)))
+    col_label = np.unique(data_array[:,0])
+    time_series_FG = np.zeros((max(data_array[:,1])+1,len(col_label)))
     
-    for event_day_index,index in zip(polygon_groups,range(len(col_index))):
+    for event_day_index,index in zip(polygon_groups,range(len(col_label))):
         time_series_FG[event_day_index[:,1],index] = 1
         
-    return time_series_FG , col_index
+    return time_series_FG , col_label , data_array
