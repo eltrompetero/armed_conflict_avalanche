@@ -98,7 +98,7 @@ def single_tile_events(dx , gridix , conflict_type):
 
 
 def binning(time , dx , gridix , conflict_type):
-    print("Creating time bins!")
+    #print("Creating time bins!")
 
     time_binning = np.loadtxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",") #this var is named time_binning because later it will become time_binning. Right now it is event_mappings.
     time_binning = time_binning[:,1]
@@ -118,7 +118,7 @@ def binning(time , dx , gridix , conflict_type):
 
     #time_binning.to_csv(f"data_{conflict_type}/time_bins_{str(time)}_{str(dx)}.csv")
 
-    print("Done!")
+    #print("Done!")
 
     return time_binning
 
@@ -647,35 +647,20 @@ def avalanche_te(time_series_arr , neighbors):
 
 
 ###Misc###
-def ava_numbering(time , dx , gridix , conflict_type , avaEvent_list_path):
-    print("Creating final data table!")
-
-    data = binning(time,dx,gridix,conflict_type)
-    data["avalanche_number"] = 0
-
-    def avalanche_numbering(ava_num , i):
-        data["avalanche_number"].iloc[ava_num] = i
-        return None    
-
-    i = 0
-    with open(avaEvent_list_path, 'r') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            row = list(map(int , row))
-            ava_temp = pd.DataFrame(row)
-
-            ava_temp.apply(avalanche_numbering , args=(i,))
-
-            i += 1
-
-    #data.to_csv(f"data_{conflict_type}/st_avalanche/st_avalanche_{str(time)}_{str(dx)}.csv")
-
+def ava_numbering(time,dx,gridix,conflict_type,ava_events):
+    avalanche_data = binning(time,dx,gridix,conflict_type)
+    avalanche_data["avalanche_number"] = 0
+    avalanche_number_arr = np.array(avalanche_data["avalanche_number"])
+    
+    for ava,index in zip(ava_events,range(len(ava_events))):
+        avalanche_number_arr[ava] = index
+        
+    avalanche_data["avalanche_number"] = avalanche_number_arr
+    
     ACLED_data = data_loader.conflict_data_loader(conflict_type)
-    data["fatalities"] = ACLED_data["fatalities"]
-
-    print("Done!")
-
-    return data
+    avalanche_data["fatalities"] = ACLED_data["fatalities"]
+    
+    return avalanche_data
 
 
 
@@ -697,6 +682,18 @@ def box_str_to_tuple(box_list_path):
             
     return box_list
 
+
+def event_str_to_tuple(event_list_path):
+    """Extracts data from ava list file in event form and then outputs a list of lists which contains events with datatype int"""
+    event_list = []
+    with open(event_list_path, 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            a = list(map(int , row))
+                
+            event_list.append(a)
+            
+    return event_list
 
 
 def sites_for_box_avas(avalanches):
