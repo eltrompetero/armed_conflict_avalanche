@@ -648,6 +648,23 @@ def avalanche_te(time_series_arr , neighbors):
 
 ###Misc###
 def ava_numbering(time,dx,gridix,conflict_type,ava_events):
+    """Creates a avalanche data table with contains polygon_number, bins, days, avalanche_number and fatalities corresponding
+    to each conflict event.
+
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    ava_events : list of lists
+
+    Returns
+    -------
+    pd.Dataframe
+        Dataframe contains the following information corresponding to each conflict event-
+        ['polygon_number', 'date', 'days', 'bins', 'avalanche_number','fatalities']
+    """
     avalanche_data = binning(time,dx,gridix,conflict_type)
     avalanche_data["avalanche_number"] = 0
     avalanche_number_arr = np.array(avalanche_data["avalanche_number"])
