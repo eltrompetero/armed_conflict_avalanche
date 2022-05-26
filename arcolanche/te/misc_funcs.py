@@ -648,7 +648,7 @@ def avalanche_te(time_series_arr , neighbors):
 
 ###Misc###
 def ava_numbering(time,dx,gridix,conflict_type,ava_events):
-    """Creates a avalanche data table with contains polygon_number, bins, days, avalanche_number and fatalities corresponding
+    """Creates an avalanche data table which contains polygon_number, bins, days, avalanche_number and fatalities corresponding
     to each conflict event.
 
     Parameters
@@ -662,9 +662,10 @@ def ava_numbering(time,dx,gridix,conflict_type,ava_events):
     Returns
     -------
     pd.Dataframe
-        Dataframe contains the following information corresponding to each conflict event-
+        Dataframe contains the following information corresponding to each conflict event:-
         ['polygon_number', 'date', 'days', 'bins', 'avalanche_number','fatalities']
     """
+
     avalanche_data = binning(time,dx,gridix,conflict_type)
     avalanche_data["avalanche_number"] = 0
     avalanche_number_arr = np.array(avalanche_data["avalanche_number"])
@@ -769,6 +770,7 @@ def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
         of this array is equal to the total number of events in the 
         dataset.
     """
+
     data_frame = binning(time,dx,gridix,conflict_type)
     
     if(randomize_polygons == False):
@@ -808,6 +810,7 @@ def boxAva_to_eventAva(time , dx , gridix , conflict_type , algo_type , box_ava=
     list of lists
         List of avalanches in event form inside a list.
     """
+    
     if box_ava is None:
         box_path = f"avalanches/{conflict_type}/gridix_{gridix}/{algo_type}/{algo_type}_ava_box_{str(time)}_{str(dx)}.csv"
         box_ava = box_str_to_tuple(box_path)
