@@ -11,12 +11,20 @@ from arcolanche import *
 WIDTH = (0.05235987755982988, 1.6406094968746698)
 HEIGHT = (-0.7853981633974483, 0.8203047484373349)
 
+LARGEWIDTH = (np.pi*2-.25 , 1.95)
+LARGEHEIGHT = (-1.0 , 1.1)
 
 def create_one_grid(gridix, dx):
     assert 99>=gridix>=0
-    assert dx in [40,80,160,320,640,1280]
+    assert dx in [20,40,80,160,320,640,1280]
 
-    if dx==40:
+    if dx==20:
+        # generate centers of voronoi cells
+        poissd = PoissonDiscSphere(np.pi/dx,
+                                   width_bds=LARGEWIDTH,
+                                   height_bds=LARGEHEIGHT)
+        
+    elif dx==40:
         # generate centers of voronoi cells
         poissd = PoissonDiscSphere(np.pi/dx,
                                    width_bds=WIDTH,
