@@ -27,10 +27,12 @@ def transform(phitheta):
     if phitheta.ndim==1:
         newcoord = phitheta / pi * 180
         newcoord[0] += 330
+        newcoord[0] %= 360
         return newcoord
         
     newcoord = phitheta / pi * 180
     newcoord[:,0] += 330
+    newcoord[:,0] %= 360
     return newcoord
 
 def unwrap_lon(x):
