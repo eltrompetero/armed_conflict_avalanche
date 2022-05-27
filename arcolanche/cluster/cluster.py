@@ -120,7 +120,10 @@ def polygonize(iter_pairs=None):
         lonlat = poissd.samples.copy()
         for i in range(len(lonlat)):
             lonlat[i] = unwrap_lon((lonlat[i,0]/pi*180 + 330)%360), lonlat[i,1]/pi*180
-        if dx<=40:
+        if dx<=20:
+            selectix = np.where((lonlat[:,0]>-37.2) & (lonlat[:,0]<70.5) &
+                                (lonlat[:,1]>-54) & (lonlat[:,1]<57))[0]
+        elif dx<=40:
             selectix = np.where((lonlat[:,0]>-22.2) & (lonlat[:,0]<55.5) &
                                 (lonlat[:,1]>-39) & (lonlat[:,1]<42))[0]
         else:

@@ -22,11 +22,11 @@ def links(time_series, neighbor_info_dataframe,
     
     Returns
     -------
-    pd.DataFrame
-    pd.DataFrame
-    list of tuples
-        (cell index, cell index, TE)
-        TE is nan when non-significant
+    dict
+        dict with keys as directed edge and
+        values as tuple where first element is
+        the transfer entropy and the second
+        element is a list of shuffled transfer entropies.
     """
 
     # calculate transfer entropy between pairs of tiles
@@ -54,11 +54,11 @@ def self_links(time_series, number_of_shuffles=50):
     
     Returns
     -------
-    pd.DataFrame
-    pd.DataFrame
-    list of tuples
-        (cell index, cell index, TE)
-        TE is nan when non-significant
+    dict
+        dict with keys as self loop tiles and
+        values as tuple where first element is
+        the self transfer entropy and the second
+        element is a list of shuffled self transfer entropies.
     """  
     
     def valid_polygons_finder():
