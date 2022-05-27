@@ -1,6 +1,6 @@
 # ====================================================================================== #
 # Module for clustering routines used to generate avalanches.
-# Author: Eddie Lee, edlee@santafe.edu
+# Author: Eddie Lee, edlee@csh.ac.at
 # ====================================================================================== #
 from itertools import product
 from functools import partial
@@ -139,11 +139,12 @@ def polygonize(iter_pairs=None):
                 raise Exception(f"Problem with {i}.")
         polygons = gpd.GeoDataFrame({'index':list(range(len(polygons)))},
                                     geometry=polygons,
-                                    crs='EPSG:4326')
+                                    crs='EPSG:4326',
+                                    index=selectix)
 
         # identify all neighbors of each polygon
         neighbors = []
-        sindex = polygons.sindex
+        #sindex = polygons.sindex
         scaled_polygons = polygons['geometry'].scale(1.01,1.01)
         for i, p in polygons.iterrows():
             # scale polygons by a small factor to account for precision error in determining
@@ -151,7 +152,7 @@ def polygonize(iter_pairs=None):
             # first lines look right but seem to involve some bug in detecting intersections
             #pseries = gpd.GeoSeries(p.geometry, crs=polygons.crs).scale(1.001, 1.001)
             #neighborix = sindex.query_bulk(pseries)[1].tolist()
-            neighborix = np.where(polygons.intersects(scaled_polygons.iloc[i]))[0].tolist()
+            neighborix = polygons.index[polygons.intersects(scaled_polygons.loc[i])].tolist()
 
             # remove self
             try:
@@ -169,6 +170,8 @@ def polygonize(iter_pairs=None):
 
         # save
         polygons.to_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
+        with open(f'voronoi_grids/{dx}/borders_ix{str(gridix).zfill(2)}.p', 'wb') as f:
+            pickle.dump({'selectix':selectix}, f)
         
     if iter_pairs is None:
         # iterate over all preset combinations of dx and dt

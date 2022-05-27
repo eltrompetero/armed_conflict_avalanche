@@ -1,6 +1,6 @@
 # ====================================================================================== #
 # Creating and handling voronoi tiling.
-# Author: Eddie Lee, edlee@santafe.edu
+# Author: Eddie Lee, edlee@csh.ac.at
 # ====================================================================================== #
 from ..utils import *
 from itertools import product
@@ -99,7 +99,7 @@ def create_polygon(poissd, centerix):
     poly = Polygon([(unwrap_lon((v.phi/pi*180+330)%360), (v.theta-pi/2)/pi*180) for v in cell.vertices])
     return poly
 
-def check_voronoi_tiles(polygons, iprint=False, parallel=True):
+def check_voronoi_tiles(gdf, iprint=False, parallel=True):
     """Check Voronoi tiles to make sure that they are consistent.
 
     This will take any asymmetric pair of tiles (where one considers the other to be
@@ -108,7 +108,7 @@ def check_voronoi_tiles(polygons, iprint=False, parallel=True):
 
     Parameters
     ----------
-    polygons : geopandas.GeoDataFrame
+    gdf : geopandas.GeoDataFrame
     iprint : bool, False
     parallel : bool, False
 
@@ -121,19 +121,19 @@ def check_voronoi_tiles(polygons, iprint=False, parallel=True):
     from shapely import wkt
     from shapely.errors import TopologicalError
     
-    assert (polygons['index']==polygons.index).all()
-    assert (np.diff(polygons['index'])==1).all()
+    #assert (gdf['index']==gdf.index).all()
+    assert (np.diff(gdf['index'])==1).all()
 
-    assert polygons.geometry.is_valid.all()
+    assert gdf.geometry.is_valid.all()
     if iprint: print("All geometries valid.")
     
     n_inconsis = 0
-    for i, row in polygons.iterrows():
+    for i, row in gdf.iterrows():
         for n in row['neighbors'].split(', '):
             n = int(n)
-            if not str(i) in polygons.loc[n]['neighbors'].split(', '):
-                new_neighbors = sorted(polygons.loc[n]['neighbors'].split(', ') + [str(i)])
-                polygons.loc[n,'neighbors'] = ', '.join(new_neighbors)
+            if not str(i) in gdf.loc[n]['neighbors'].split(', '):
+                new_neighbors = sorted(gdf.loc[n]['neighbors'].split(', ') + [str(i)])
+                gdf.loc[n,'neighbors'] = ', '.join(new_neighbors)
                 n_inconsis += 1
     if iprint: print("Done with correcting asymmetric neighbors.")
 
@@ -160,44 +160,44 @@ def check_voronoi_tiles(polygons, iprint=False, parallel=True):
     if parallel:
         with Pool() as pool:
             # union voronoi cells
-            voronoi_cov = polygons.iloc[0].geometry
-            for i in range(1, len(polygons)):
-                voronoi_cov = voronoi_cov.union(polygons.iloc[i].geometry)
+            voronoi_cov = gdf.iloc[0].geometry
+            for i in range(1, len(gdf)):
+                voronoi_cov = voronoi_cov.union(gdf.iloc[i].geometry)
             voronoi_cov = gpd.GeoSeries(voronoi_cov)
             try:
                 pool.map(loop_wrapper, africa.iterrows())
             except TopologicalError:
-                polygons['geometry'] = polygons['geometry'].apply(lambda x:wkt.loads(wkt.dumps(x,
+                gdf['geometry'] = gdf['geometry'].apply(lambda x:wkt.loads(wkt.dumps(x,
                                                                   rounding_precision=8)))
                 # union voronoi cells
-                voronoi_cov = polygons.iloc[0].geometry
-                for i in range(1, len(polygons)):
-                    voronoi_cov = voronoi_cov.union(polygons.iloc[i].geometry)
+                voronoi_cov = gdf.iloc[0].geometry
+                for i in range(1, len(gdf)):
+                    voronoi_cov = voronoi_cov.union(gdf.iloc[i].geometry)
                 voronoi_cov = gpd.GeoSeries(voronoi_cov)
                 pool.map(loop_wrapper, africa.iterrows())
     else:
         try:
             # union voronoi cells
-            voronoi_cov = polygons.iloc[0].geometry
-            for i in range(1, len(polygons)):
-                voronoi_cov = voronoi_cov.union(polygons.iloc[i].geometry)
+            voronoi_cov = gdf.iloc[0].geometry
+            for i in range(1, len(gdf)):
+                voronoi_cov = voronoi_cov.union(gdf.iloc[i].geometry)
             voronoi_cov = gpd.GeoSeries(voronoi_cov)
             for args in africa.iterrows():
                 loop_wrapper(args)
         except TopologicalError:
-            polygons['geometry'] = polygons['geometry'].apply(lambda x:wkt.loads(wkt.dumps(x,
+            gdf['geometry'] = gdf['geometry'].apply(lambda x:wkt.loads(wkt.dumps(x,
                                                                 rounding_precision=8)))
             # union voronoi cells
-            voronoi_cov = polygons.iloc[0].geometry
-            for i in range(1, len(polygons)):
-                voronoi_cov = voronoi_cov.union(polygons.iloc[i].geometry)
+            voronoi_cov = gdf.iloc[0].geometry
+            for i in range(1, len(gdf)):
+                voronoi_cov = voronoi_cov.union(gdf.iloc[i].geometry)
             voronoi_cov = gpd.GeoSeries(voronoi_cov)
             for args in africa.iterrows():
                 loop_wrapper(args)
  
     if iprint: print("Done with checking overlap with Africa.")
 
-    return polygons, n_inconsis
+    return gdf, n_inconsis
 
 def check_poisson_disc(poissd, min_dx):
     """Check PoissonDiscSphere grid.
@@ -215,3 +215,25 @@ def check_poisson_disc(poissd, min_dx):
         assert zeroix.sum()==1
         assert dist[~zeroix].min()>=min_dx, (min_dx, dist[~zeroix].min())
 
+def load_voronoi(dx, gridix=0):
+    """Load GeoPandas DataFrame and apply proper index before returning.
+
+    Parameters
+    ----------
+    dx : int
+    gridix : int, 0
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+    """
+
+    gdf = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
+    with open(f'voronoi_grids/{dx}/borders_ix{str(gridix).zfill(2)}.p', 'rb') as f:
+        ix = pickle.load(f)['selectix']
+    gdf.set_index(ix, inplace=True)
+    
+    # turn neighbor strings into lists
+    gdf['neighbors'] = gdf['neighbors'].apply(lambda x: [int(i) for i in x.split(', ')])
+
+    return gdf
