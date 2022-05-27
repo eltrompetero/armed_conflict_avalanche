@@ -277,9 +277,10 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
         time_series , time_series_FG = null_model_time_series_generator(time,640,dx,gridix,conflict_type)
         data_bin_array = None
     elif(type_of_events == "data"):
-        time_series_FG = pd.read_csv(f'generated_data/{conflict_type}/gridix_{gridix}/FG_time_series/time_series_1_{dtdx[1]}.csv')
-        time_series = CG_time_series_fast(time_series_FG.values, dtdx[0])
-        time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
+        time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type)
+        time_series = CG_time_series_fast(time_series_FG,time)
+        time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
+
         data_bin_array = None
     elif(type_of_events == "randomize_polygons"):
         time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=True)

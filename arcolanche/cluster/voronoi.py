@@ -239,3 +239,24 @@ def load_voronoi(dx, gridix=0):
     gdf['neighbors'] = gdf['neighbors'].apply(lambda x: [int(i) for i in x.split(', ')])
 
     return gdf
+
+def load_centers(dx, gridix=0):
+    """Load voronoi centers as ndarray, but put them into same reference frame as
+    polygons.
+
+    Parameters
+    ----------
+    dx : int
+    gridix : int, 0
+
+    Returns
+    -------
+    np.ndarray
+    """
+    
+    with open(f'voronoi_grids/{dx}/{str(gridix).zfill(2)}.p', 'rb') as f:
+        poissd = pickle.load(f)['poissd']
+
+    # must unwrap centers to test for presence in cell
+    centers = gpd.GeoSeries([Point(unwrap_lon(xy[0]), xy[1]) for xy in transform(poissd.samples)])
+    return centers
