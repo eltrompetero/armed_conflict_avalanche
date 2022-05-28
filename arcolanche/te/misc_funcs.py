@@ -60,6 +60,7 @@ def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores , pro
     mapping = np.zeros((len(event_pol_mapping),2))
     mapping[:,0] = list(range(len(event_pol_mapping)))
     mapping[:,1] = event_pol_mapping
+    mapping = mapping.astype(int)
 
     np.savetxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , mapping , delimiter=',')
 
@@ -787,7 +788,7 @@ def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
     for event_day_index,index in zip(polygon_groups,range(len(col_label))):
         time_series_FG[event_day_index[:,1],index] = 1
         
-    return time_series_FG , col_label , data_array
+    return time_series_FG.astype(int) , col_label , data_array
 
 
 def boxAva_to_eventAva(time , dx , gridix , conflict_type , algo_type , box_ava=None , data_array=None):
