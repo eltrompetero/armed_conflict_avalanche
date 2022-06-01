@@ -265,7 +265,7 @@ def convert_back_to_regular_form(a , valid_polygons):
 
 ###TE Avalanches and required functions===Start###
 def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_events):
-    #Needs overall restructure!!!! 
+
     dtdx = (time, dx)
 
     polygons = gpd.read_file(f'voronoi_grids/{dtdx[1]}/borders{str(gridix).zfill(2)}.shp')
@@ -286,6 +286,14 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
         time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=True)
         time_series = CG_time_series_fast(time_series_FG,time)
         time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
+    elif(type_of_events == "shuffle_ts"):
+        time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type)
+        time_series = CG_time_series_fast(time_series_FG,time)
+
+        for col_index in range(time_series.shape[1]):
+            time_series[:,col_index] = np.random.permutation(time_series[:,col_index])
+
+        time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
 
 
     # Calculate transfer entropies and shuffles for pairs and self
@@ -294,7 +302,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
 
     G = net.CausalGraph()
     G.setup(self_poly_te,pair_poly_te)
-
+    
     # To create neighbors_arr that avalanches_te requires i.e
     # a array of array where every array contains successive neighbors of valid polygons
     # such that the total length of neighbors_arr is equal to the length of time_series.columns 
@@ -315,7 +323,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
             for n in G.neighbors(node):
                 neighbors_basix[-1].append(np.where(time_series.columns == n)[0][0])
 
-
+    
     valid_polygons = time_series.columns.to_numpy()
 
 
@@ -325,8 +333,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     avalanche_list = avalanche_te(time_series_arr , neighbors_basix)
     avalanche_list = convert_back_to_regular_form(avalanche_list,valid_polygons)
 
-
-    return avalanche_list , time_series_arr , neighbors_basix , data_bin_array
+    return avalanche_list , time_series_arr , neighbors_basix , data_bin_array , pair_poly_te
 
 
 def null_model_time_series_generator(time,dx_primary,dx_interest,gridix,conflict_type,cpu_cores=1):
