@@ -287,6 +287,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
         time_series = CG_time_series_fast(time_series_FG,time)
         time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
     elif(type_of_events == "shuffle_ts"):
+        #fix the data_bin_array for this null model
         time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type)
         time_series = CG_time_series_fast(time_series_FG,time)
 
@@ -333,7 +334,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     avalanche_list = avalanche_te(time_series_arr , neighbors_basix)
     avalanche_list = convert_back_to_regular_form(avalanche_list,valid_polygons)
 
-    return avalanche_list , time_series_arr , neighbors_basix , data_bin_array , pair_poly_te
+    return avalanche_list , time_series_arr , neighbors_basix , data_bin_array
 
 
 def null_model_time_series_generator(time,dx_primary,dx_interest,gridix,conflict_type,cpu_cores=1):
@@ -682,7 +683,7 @@ def ava_numbering(time,dx,gridix,conflict_type,ava_events):
         avalanche_number_arr[ava] = index
         
     avalanche_data["avalanche_number"] = avalanche_number_arr
-    
+
     ACLED_data = data_loader.conflict_data_loader(conflict_type)
     avalanche_data["fatalities"] = ACLED_data["fatalities"]
     
@@ -852,3 +853,48 @@ def boxAva_to_eventAva(time , dx , gridix , conflict_type , algo_type , box_ava=
         ava_event.append(ava_event_temp)
         
     return ava_event
+
+
+def CG_time_series_events(time,dx,gridix,conflict_type):
+    """Generates a CG time series where instead of 1's we have a list of 
+    events corresponding to that box.
+    
+    Parameter
+    ---------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    
+    Returns
+    -------
+    ndarray
+        CG time series with events.
+    ndarray
+        array containing coloumn numbers which correponds to 
+        polygon numbers.
+    ndarray
+        Standard binary CG time series.
+    """
+
+    data_bin = binning(time,dx,gridix,conflict_type)
+    data_bin["event_number"] = data_bin.index
+    
+    data_bin_arr = data_bin[["event_number","polygon_number","bins"]].values.astype(int)
+    
+    event_groups = numpy_indexed.group_by(data_bin_arr[:,[1,2]]).split_array_as_list(data_bin_arr)
+    
+    time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type)
+    time_series_arr = CG_time_series_fast(time_series_FG,time)
+    
+    time_series_events = np.zeros(time_series_arr.shape , dtype=object)
+    
+    for group in event_groups:
+        col_num = group[0,1]
+        time_bin_num = group[0,2]-1
+        
+        col_index = np.where(col_label==col_num)[0][0]
+        
+        time_series_events[time_bin_num,col_index] = group[:,0]
+    
+    return time_series_events , col_label , time_series_arr
