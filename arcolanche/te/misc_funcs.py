@@ -871,7 +871,7 @@ def CG_time_series_events(time,dx,gridix,conflict_type):
     ndarray
         CG time series with events.
     ndarray
-        array containing coloumn numbers which correponds to 
+        Array containing coloumn numbers which correponds to 
         polygon numbers.
     ndarray
         Standard binary CG time series.
@@ -898,3 +898,34 @@ def CG_time_series_events(time,dx,gridix,conflict_type):
         time_series_events[time_bin_num,col_index] = group[:,0]
     
     return time_series_events , col_label , time_series_arr
+
+
+def CG_events_to_CG_binary(time,dx,gridix,conflict_type):
+    """Convert CG time series containing event information to 
+    CG time series in standard binary form.
+    
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    
+    Returns
+    -------
+    ndarray
+        Standard binary CG time series.
+    ndarray
+        Array containing coloumn numbers which correponds to 
+        polygon numbers.
+    """
+    
+    time_series_events,col_label,x = CG_time_series_events(time,dx,gridix,conflict_type)
+    
+    time_series = np.zeros(time_series_events.shape , dtype=int)
+    
+    for event_group,box in zip(np.nditer(time_series_events , flags=["refs_ok"]),np.nditer(time_series , op_flags=["readwrite"])):
+        if(event_group != 0):
+            box[...] = 1
+            
+    return time_series , col_label
