@@ -287,13 +287,14 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
         time_series = CG_time_series_fast(time_series_FG,time)
         time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
     elif(type_of_events == "shuffle_ts"):
-        #fix the data_bin_array for this null model
-        time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type)
-        time_series = CG_time_series_fast(time_series_FG,time)
+        #Write function to extract data_bin_array from time_series_events
+        data_bin_array = None  #Temp fix (only box avalanches can be generated now)
+        time_series_events,col_label = CG_time_series_events(time,dx,gridix,conflict_type)
 
-        for col_index in range(time_series.shape[1]):
-            time_series[:,col_index] = np.random.permutation(time_series[:,col_index])
+        for col_index in range(time_series_events.shape[1]):
+            time_series_events[:,col_index] = np.random.permutation(time_series_events[:,col_index])
 
+        time_series = CG_events_to_CG_binary(time_series_events)
         time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
 
 
@@ -873,8 +874,6 @@ def CG_time_series_events(time,dx,gridix,conflict_type):
     ndarray
         Array containing coloumn numbers which correponds to 
         polygon numbers.
-    ndarray
-        Standard binary CG time series.
     """
 
     data_bin = binning(time,dx,gridix,conflict_type)
@@ -897,19 +896,17 @@ def CG_time_series_events(time,dx,gridix,conflict_type):
         
         time_series_events[time_bin_num,col_index] = group[:,0]
     
-    return time_series_events , col_label , time_series_arr
+    return time_series_events , col_label
 
 
-def CG_events_to_CG_binary(time,dx,gridix,conflict_type):
+def CG_events_to_CG_binary(time_series_events):
     """Convert CG time series containing event information to 
     CG time series in standard binary form.
     
     Parameters
     ----------
-    time : int
-    dx : int
-    gridix : int
-    conflict_type : str
+    time_series_events : ndarray
+        CG time series with events.
     
     Returns
     -------
@@ -920,12 +917,10 @@ def CG_events_to_CG_binary(time,dx,gridix,conflict_type):
         polygon numbers.
     """
     
-    time_series_events,col_label,x = CG_time_series_events(time,dx,gridix,conflict_type)
-    
     time_series = np.zeros(time_series_events.shape , dtype=int)
     
     for event_group,box in zip(np.nditer(time_series_events , flags=["refs_ok"]),np.nditer(time_series , op_flags=["readwrite"])):
         if(event_group != 0):
             box[...] = 1
-            
-    return time_series , col_label
+        
+    return time_series
