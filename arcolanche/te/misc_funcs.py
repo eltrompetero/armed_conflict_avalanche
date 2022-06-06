@@ -117,6 +117,8 @@ def binning(time , dx , gridix , conflict_type):
 
     time_binning["bins"] = bins
 
+    time_binning["event_number"] = time_binning.index
+
     #time_binning.to_csv(f"data_{conflict_type}/time_bins_{str(time)}_{str(dx)}.csv")
 
     #print("Done!")
@@ -281,7 +283,13 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
         time_series_FG = pd.read_csv(f'generated_data/{conflict_type}/gridix_{gridix}/FG_time_series/time_series_1_{dtdx[1]}.csv')
         time_series = CG_time_series_fast(time_series_FG.values, dtdx[0])
         time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
-        data_bin_array = None
+        #data_bin_array = None
+
+        data_bin = binning(time,dx,gridix,conflict_type)
+        data_bin = data_bin[["polygon_number","days","bins","event_number"]]
+        data_bin_array = np.array(data_bin)
+
+
     elif(type_of_events == "randomize_polygons"):
         time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=True)
         time_series = CG_time_series_fast(time_series_FG,time)
@@ -784,9 +792,9 @@ def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
     data_frame = binning(time,dx,gridix,conflict_type)
     
     if(randomize_polygons == False):
-        data_array = np.array(data_frame[["polygon_number","days","bins"]] , dtype=int)
+        data_array = np.array(data_frame[["polygon_number","days","bins","event_number"]] , dtype=int)
     elif(randomize_polygons == True):
-        data_array = np.array(data_frame[["polygon_number","days","bins"]] , dtype=int)
+        data_array = np.array(data_frame[["polygon_number","days","bins","event_number"]] , dtype=int)
         data_array[:,0] = np.random.permutation(data_array[:,0])   #Randomly changing the polygon where a conflict event occurs
         
     polygon_groups = numpy_indexed.group_by(data_array[:,0]).split_array_as_list(data_array)
@@ -924,3 +932,5 @@ def CG_events_to_CG_binary(time_series_events):
             box[...] = 1
         
     return time_series
+
+
