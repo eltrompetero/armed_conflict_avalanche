@@ -919,9 +919,6 @@ def CG_events_to_CG_binary(time_series_events):
     -------
     ndarray
         Standard binary CG time series.
-    ndarray
-        Array containing coloumn numbers which correponds to 
-        polygon numbers.
     """
     
     time_series = np.zeros(time_series_events.shape , dtype=int)
