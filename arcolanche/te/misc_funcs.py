@@ -294,13 +294,17 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
         time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=True)
         time_series = CG_time_series_fast(time_series_FG,time)
         time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
+
     elif(type_of_events == "shuffle_ts"):
-        #Write function to extract data_bin_array from time_series_events
-        data_bin_array = None  #Temp fix (only box avalanches can be generated now)
         time_series_events,col_label = CG_time_series_events(time,dx,gridix,conflict_type)
 
         for col_index in range(time_series_events.shape[1]):
             time_series_events[:,col_index] = np.random.permutation(time_series_events[:,col_index])
+
+        data_bin_array = CG_event_ts_to_data_bin(time_series_events,col_label)
+        data_bin = pd.DataFrame(data_bin_array)
+        data_bin["event_number"] = data_bin.index
+        data_bin_array = np.array(data_bin)
 
         time_series = CG_events_to_CG_binary(time_series_events)
         time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
@@ -880,7 +884,7 @@ def CG_time_series_events(time,dx,gridix,conflict_type):
     ndarray
         CG time series with events.
     ndarray
-        Array containing coloumn numbers which correponds to 
+        Array containing column numbers which correponds to 
         polygon numbers.
     """
 
@@ -930,3 +934,48 @@ def CG_events_to_CG_binary(time_series_events):
     return time_series
 
 
+def CG_event_ts_to_data_bin(time_series_events,col_label):
+    """Extract or generate data_bin_array from CG time series containing
+    event info.
+
+    Parameters
+    ----------
+    time_series_events : ndarray
+        CG time series with events.
+    col_label : ndarray
+        Array containing column numbers which correponds to 
+        polygon numbers.
+
+    Returns
+    -------
+    ndarray
+        datqa_bin_array with 3 columns: polygon_number,days=0,bins
+    """
+
+    number_of_events = 0
+    for i in np.nditer(time_series_events , flags=["refs_ok"] , order="F"):
+        if(i != 0):
+            max_temp = np.amax(i.tolist())
+            if(max_temp > number_of_events):
+                number_of_events = max_temp
+    
+    data_bin_array = np.zeros((number_of_events+1,3) , dtype=int)
+    
+    overall_counter = 1
+    time_bin_counter = 1
+    col_switch_indicator = time_series_events.shape[0] 
+    col_index = 0
+    for event_group in np.nditer(time_series_events , flags=["refs_ok"] , order="F"):
+        if(event_group != 0):
+            data_bin_array[event_group.tolist(),0] = col_label[col_index]
+            data_bin_array[event_group.tolist(),2] = time_bin_counter
+        
+        if(overall_counter != 0):
+            if(overall_counter % col_switch_indicator == 0):
+                col_index += 1
+                time_bin_counter = 0
+        
+        overall_counter += 1
+        time_bin_counter += 1
+        
+    return data_bin_array
