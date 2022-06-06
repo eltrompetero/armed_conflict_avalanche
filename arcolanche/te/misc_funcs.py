@@ -60,6 +60,7 @@ def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores , pro
     mapping = np.zeros((len(event_pol_mapping),2))
     mapping[:,0] = list(range(len(event_pol_mapping)))
     mapping[:,1] = event_pol_mapping
+    mapping = mapping.astype(int)
 
     np.savetxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , mapping , delimiter=',')
 
@@ -115,6 +116,8 @@ def binning(time , dx , gridix , conflict_type):
     bins = np.digitize(time_binning["days"] , bins=arange(0 , max(time_binning["days"]) + time , time))
 
     time_binning["bins"] = bins
+
+    time_binning["event_number"] = time_binning.index
 
     #time_binning.to_csv(f"data_{conflict_type}/time_bins_{str(time)}_{str(dx)}.csv")
 
@@ -264,7 +267,7 @@ def convert_back_to_regular_form(a , valid_polygons):
 
 ###TE Avalanches and required functions===Start###
 def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_events):
-    #Needs overall restructure!!!! 
+
     dtdx = (time, dx)
 
     polygons = gpd.read_file(f'voronoi_grids/{dtdx[1]}/borders{str(gridix).zfill(2)}.shp')
@@ -280,10 +283,26 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
         time_series_FG = pd.read_csv(f'generated_data/{conflict_type}/gridix_{gridix}/FG_time_series/time_series_1_{dtdx[1]}.csv')
         time_series = CG_time_series_fast(time_series_FG.values, dtdx[0])
         time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
-        data_bin_array = None
+        #data_bin_array = None
+
+        data_bin = binning(time,dx,gridix,conflict_type)
+        data_bin = data_bin[["polygon_number","days","bins","event_number"]]
+        data_bin_array = np.array(data_bin)
+
+
     elif(type_of_events == "randomize_polygons"):
         time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=True)
         time_series = CG_time_series_fast(time_series_FG,time)
+        time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
+    elif(type_of_events == "shuffle_ts"):
+        #Write function to extract data_bin_array from time_series_events
+        data_bin_array = None  #Temp fix (only box avalanches can be generated now)
+        time_series_events,col_label = CG_time_series_events(time,dx,gridix,conflict_type)
+
+        for col_index in range(time_series_events.shape[1]):
+            time_series_events[:,col_index] = np.random.permutation(time_series_events[:,col_index])
+
+        time_series = CG_events_to_CG_binary(time_series_events)
         time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
 
 
@@ -293,7 +312,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
 
     G = net.CausalGraph()
     G.setup(self_poly_te,pair_poly_te)
-
+    
     # To create neighbors_arr that avalanches_te requires i.e
     # a array of array where every array contains successive neighbors of valid polygons
     # such that the total length of neighbors_arr is equal to the length of time_series.columns 
@@ -314,7 +333,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
             for n in G.neighbors(node):
                 neighbors_basix[-1].append(np.where(time_series.columns == n)[0][0])
 
-
+    
     valid_polygons = time_series.columns.to_numpy()
 
 
@@ -323,7 +342,6 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
 
     avalanche_list = avalanche_te(time_series_arr , neighbors_basix)
     avalanche_list = convert_back_to_regular_form(avalanche_list,valid_polygons)
-
 
     return avalanche_list , time_series_arr , neighbors_basix , data_bin_array
 
@@ -674,7 +692,7 @@ def ava_numbering(time,dx,gridix,conflict_type,ava_events):
         avalanche_number_arr[ava] = index
         
     avalanche_data["avalanche_number"] = avalanche_number_arr
-    
+
     ACLED_data = data_loader.conflict_data_loader(conflict_type)
     avalanche_data["fatalities"] = ACLED_data["fatalities"]
     
@@ -774,9 +792,9 @@ def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
     data_frame = binning(time,dx,gridix,conflict_type)
     
     if(randomize_polygons == False):
-        data_array = np.array(data_frame[["polygon_number","days","bins"]] , dtype=int)
+        data_array = np.array(data_frame[["polygon_number","days","bins","event_number"]] , dtype=int)
     elif(randomize_polygons == True):
-        data_array = np.array(data_frame[["polygon_number","days","bins"]] , dtype=int)
+        data_array = np.array(data_frame[["polygon_number","days","bins","event_number"]] , dtype=int)
         data_array[:,0] = np.random.permutation(data_array[:,0])   #Randomly changing the polygon where a conflict event occurs
         
     polygon_groups = numpy_indexed.group_by(data_array[:,0]).split_array_as_list(data_array)
@@ -787,7 +805,7 @@ def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
     for event_day_index,index in zip(polygon_groups,range(len(col_label))):
         time_series_FG[event_day_index[:,1],index] = 1
         
-    return time_series_FG , col_label , data_array
+    return time_series_FG.astype(int) , col_label , data_array
 
 
 def boxAva_to_eventAva(time , dx , gridix , conflict_type , algo_type , box_ava=None , data_array=None):
@@ -844,3 +862,75 @@ def boxAva_to_eventAva(time , dx , gridix , conflict_type , algo_type , box_ava=
         ava_event.append(ava_event_temp)
         
     return ava_event
+
+
+def CG_time_series_events(time,dx,gridix,conflict_type):
+    """Generates a CG time series where instead of 1's we have a list of 
+    events corresponding to that box.
+    
+    Parameter
+    ---------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    
+    Returns
+    -------
+    ndarray
+        CG time series with events.
+    ndarray
+        Array containing coloumn numbers which correponds to 
+        polygon numbers.
+    """
+
+    data_bin = binning(time,dx,gridix,conflict_type)
+    data_bin["event_number"] = data_bin.index
+    
+    data_bin_arr = data_bin[["event_number","polygon_number","bins"]].values.astype(int)
+    
+    event_groups = numpy_indexed.group_by(data_bin_arr[:,[1,2]]).split_array_as_list(data_bin_arr)
+    
+    time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type)
+    time_series_arr = CG_time_series_fast(time_series_FG,time)
+    
+    time_series_events = np.zeros(time_series_arr.shape , dtype=object)
+    
+    for group in event_groups:
+        col_num = group[0,1]
+        time_bin_num = group[0,2]-1
+        
+        col_index = np.where(col_label==col_num)[0][0]
+        
+        time_series_events[time_bin_num,col_index] = group[:,0]
+    
+    return time_series_events , col_label
+
+
+def CG_events_to_CG_binary(time_series_events):
+    """Convert CG time series containing event information to 
+    CG time series in standard binary form.
+    
+    Parameters
+    ----------
+    time_series_events : ndarray
+        CG time series with events.
+    
+    Returns
+    -------
+    ndarray
+        Standard binary CG time series.
+    ndarray
+        Array containing coloumn numbers which correponds to 
+        polygon numbers.
+    """
+    
+    time_series = np.zeros(time_series_events.shape , dtype=int)
+    
+    for event_group,box in zip(np.nditer(time_series_events , flags=["refs_ok"]),np.nditer(time_series , op_flags=["readwrite"])):
+        if(event_group != 0):
+            box[...] = 1
+        
+    return time_series
+
+
