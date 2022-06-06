@@ -885,7 +885,6 @@ def CG_time_series_events(time,dx,gridix,conflict_type):
     """
 
     data_bin = binning(time,dx,gridix,conflict_type)
-    data_bin["event_number"] = data_bin.index
     
     data_bin_arr = data_bin[["event_number","polygon_number","bins"]].values.astype(int)
     
