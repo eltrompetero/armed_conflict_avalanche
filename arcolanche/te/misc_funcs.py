@@ -291,7 +291,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
 
 
     elif(type_of_events == "randomize_polygons"):
-        time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=True)
+        time_series_FG,col_label,data_bin_array = FG_time_series(dx,gridix,conflict_type,randomize_polygons=True)
         time_series = CG_time_series_fast(time_series_FG,time)
         time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
 
@@ -767,7 +767,7 @@ def time_series_generator(time, dx, gridix, conflict_type):
 
     return time_series , neighbor_info_df
 
-def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
+def FG_time_series(dx,gridix,conflict_type,randomize_polygons=False):
     """Generates fine grained time series of conflicts.
     
     Parameters
@@ -793,7 +793,7 @@ def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
         dataset.
     """
 
-    data_frame = binning(time,dx,gridix,conflict_type)
+    data_frame = binning(1,dx,gridix,conflict_type)
     
     if(randomize_polygons == False):
         data_array = np.array(data_frame[["polygon_number","days","bins","event_number"]] , dtype=int)
@@ -894,7 +894,7 @@ def CG_time_series_events(time,dx,gridix,conflict_type):
     
     event_groups = numpy_indexed.group_by(data_bin_arr[:,[1,2]]).split_array_as_list(data_bin_arr)
     
-    time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type)
+    time_series_FG,col_label,data_bin_array = FG_time_series(dx,gridix,conflict_type)
     time_series_arr = CG_time_series_fast(time_series_FG,time)
     
     time_series_events = np.zeros(time_series_arr.shape , dtype=object)
