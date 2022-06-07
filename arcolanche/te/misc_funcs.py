@@ -772,7 +772,6 @@ def FG_time_series(dx,gridix,conflict_type,randomize_polygons=False):
     
     Parameters
     ----------
-    time : int
     dx : int
     gridix : int
     conflict_type : str
@@ -979,3 +978,45 @@ def CG_event_ts_to_data_bin(time_series_events,col_label):
         time_bin_counter += 1
         
     return data_bin_array
+
+
+def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold=0.1):
+    """Generated conflict zones across Africa using aggregation of conflict
+    avalanches.
+
+    Parameters
+    ----------
+    time: int
+    dx : int
+    gridix : int
+    conflict_type : str
+    type_of_algo : str
+    threshold : float , 0.1
+
+    Returns
+    -------
+    list of arrays
+        the arrays contain polygon number/id of polygons in each conflict
+        zone
+    """
+
+    box_path = f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_box_{str(time)}_{str(dx)}.csv"
+    ava_box = box_str_to_tuple(box_path)
+    
+    size_arr = np.array([len(unique(list(zip(*i))[0])) for i in ava_box])
+    ava_box_threshold = np.array(ava_box , dtype=object)[np.where(size_arr >= max(size_arr) * threshold)[0]].tolist()  
+    
+    zones = []
+    for ava in ava_box_threshold:
+        ava_unique_arr = np.unique(np.array(list(zip(*ava))[0]))
+        if(len(zones) == 0):
+            zones.append(ava_unique_arr)
+        else:
+            for zone,index in zip(zones,range(len(zones))):
+                if(len(np.intersect1d(zone,ava_unique_arr)) != 0):
+                    zones[index] = np.unique(np.concatenate((zone,ava_unique_arr)))
+                    break
+                elif(index == len(zones)-1):
+                    zones.append(ava_unique_arr)
+    
+    return zones
