@@ -980,7 +980,7 @@ def CG_event_ts_to_data_bin(time_series_events,col_label):
     return data_bin_array
 
 
-def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold=0.1):
+def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold=1):
     """Generated conflict zones across Africa using aggregation of conflict
     avalanches.
 
@@ -991,7 +991,7 @@ def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold=
     gridix : int
     conflict_type : str
     type_of_algo : str
-    threshold : float , 0.1
+    threshold : int/float , 1
 
     Returns
     -------
