@@ -1004,7 +1004,13 @@ def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold=
     ava_box = box_str_to_tuple(box_path)
     
     size_arr = np.array([len(unique(list(zip(*i))[0])) for i in ava_box])
-    ava_box_threshold = np.array(ava_box , dtype=object)[np.where(size_arr >= max(size_arr) * threshold)[0]].tolist()  
+
+    if(type(threshold) == int):
+        threshold_size = threshold
+    elif(type(threshold) == float):
+        threshold_size = max(size_arr) * threshold
+
+    ava_box_threshold = np.array(ava_box , dtype=object)[np.where(size_arr >= threshold_size)[0]].tolist()  
     
     zones = []
     for ava in ava_box_threshold:
