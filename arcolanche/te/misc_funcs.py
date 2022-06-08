@@ -1013,7 +1013,7 @@ def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold=
             zones.append(ava_unique_arr)
         else:
             for zone,index in zip(zones,range(len(zones))):
-                if(len(np.intersect1d(zone,ava_unique_arr)) != 0):
+                if(len(set(zone).intersection(set(ava_unique_arr))) != 0):
                     zones[index] = np.unique(np.concatenate((zone,ava_unique_arr)))
                     break
                 elif(index == len(zones)-1):
