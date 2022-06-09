@@ -1010,19 +1010,29 @@ def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold=
     elif(type(threshold) == float):
         threshold_size = max(size_arr) * threshold
 
-    ava_box_threshold = np.array(ava_box , dtype=object)[np.where(size_arr >= threshold_size)[0]].tolist()  
+    ava_box_threshold = np.array(ava_box , dtype=object)[np.where(size_arr > threshold_size)[0]].tolist()  
     
     zones = []
     for ava in ava_box_threshold:
+        valid = True
+        indexes_to_delete = []
         ava_unique_arr = np.unique(np.array(list(zip(*ava))[0]))
         if(len(zones) == 0):
             zones.append(ava_unique_arr)
         else:
-            for zone,index in zip(zones,range(len(zones))):
+            for index,zone in enumerate(zones):
                 if(len(set(zone).intersection(set(ava_unique_arr))) != 0):
+                    valid = False
                     zones[index] = np.unique(np.concatenate((zone,ava_unique_arr)))
-                    break
-                elif(index == len(zones)-1):
+                    ava_unique_arr = zones[index]
+                    indexes_to_delete.append(index)
+
+                elif((index == (len(zones)-1)) & (valid == True)):
                     zones.append(ava_unique_arr)
-    
+            
+            index_correction = 0
+            for index in indexes_to_delete[:-1]:
+                del zones[index-index_correction]
+                index_correction += 1
+
     return zones
