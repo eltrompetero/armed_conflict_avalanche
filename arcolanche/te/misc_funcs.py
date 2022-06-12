@@ -1038,3 +1038,74 @@ def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold=
                 index_correction += 1
 
     return zones
+
+
+def actor_dict_generator(conflict_type):
+    """Generates a dictionary containing all unique actors(actor1 and actor2 combined)
+        and their corresponding keys.
+        
+    Parameters
+    ----------
+    conflict_type : str
+    
+    Returns
+    -------
+    dict
+        Dictionary containing all unique actors(actor1 and actor2 combined)
+        and their corresponding keys. 
+    """
+    
+    acled_data = data_loader.conflict_data_loader(conflict_type)
+    acled_data_actors = acled_data[["actor1","actor2"]]
+    
+    actor1_arr = (acled_data_actors["actor1"]).to_numpy()
+    actor2_arr = (acled_data_actors["actor2"]).to_numpy()
+    
+    actors_arr = np.concatenate((actor1_arr,actor2_arr))
+    actors_arr = np.unique(actors_arr)
+    
+    actors_dict = {}
+    for index,actor in zip(range(len(actors_arr)),actors_arr):
+        actors_dict[index] = (actor)
+        
+    return actors_dict
+
+
+def actor_counter(event_nums , conflict_type , actors_dict):
+    """Finds the actor composition in the list of entered event numbers.
+    
+    Parameters
+    ----------
+    event_nums : list
+        list of event numbers
+    actors_dict : dict
+        Dictionary containing all unique actors(actor1 and actor2 combined)
+        and their corresponding keys.
+        
+    Returns
+    -------
+    list of tuples
+        First entry of tuple corresponds to the identifier of actor in the
+        actor_dict. Second entry of tuple correponds to the total number of
+        occurances of this actor in the entered event list.
+    """
+    
+    def actor_dict_lookup(actor):
+        for key,value in actors_dict.items():
+            if(actor == value):
+                key_to_return = key
+                break
+            
+        return key_to_return  
+    
+    acled_data = data_loader.conflict_data_loader(conflict_type)
+    acled_data_actors = acled_data[["actor1","actor2"]]
+        
+    actors_event = acled_data_actors.loc[event_nums].to_numpy()
+    actors_event = actors_event.reshape(actors_event.shape[0]*actors_event.shape[1])
+    
+    actor_count = []
+    for actor_group in numpy_indexed.group_by(actors_event).split_array_as_list(actors_event):
+        actor_count.append((actor_dict_lookup(actor_group[0]),len(actor_group)))
+        
+    return actor_count
