@@ -1110,3 +1110,45 @@ def actor_counter(event_nums , conflict_type , actors_dict):
         actor_count.append((actor_dict_lookup(actor_group[0]),len(actor_group)))
         
     return actor_count
+
+
+def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict):
+    """Find the actor composition in a given zone for a particular scale and gridix.
+    
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    zone : list
+        List containing the polygon indexes of polygons that are in the selected zone.
+        
+    Returns
+    -------
+    list of tuples
+        First entry of tuple corresponds to the identifier of actor in the
+        actor_dict. Second entry of tuple correponds to the total number of
+        occurances of this actor in the entered event list.
+    """
+    
+    box_path = f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_box_{str(time)}_{str(dx)}.csv"
+    ava_box = box_str_to_tuple(box_path)
+    
+    zone_set = set(zone)
+    in_ava_indexes = []
+    for index,ava in enumerate(ava_box):
+        ava_pol_set = set(list(zip(*ava))[0])
+        if(len(ava_pol_set.intersection(zone_set)) != 0):
+            in_ava_indexes.append(index)    
+            
+    event_path = f"avalanches/battles/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_event_{str(time)}_{str(dx)}.csv"
+    ava_event = event_str_to_tuple(event_path)
+    ava_event = np.array(ava_event , dtype=object)
+    
+    in_zone_events = ava_event[in_ava_indexes]
+    in_zone_events = [x for l in in_zone_events for x in l]
+    
+    actor_count = actor_counter(in_zone_events,conflict_type,actor_dict)
+    
+    return actor_count
