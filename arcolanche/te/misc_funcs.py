@@ -1073,6 +1073,7 @@ def actor_dict_generator(conflict_type):
 
 def actor_counter(event_nums , conflict_type , actors_dict):
     """Finds the actor composition in the list of entered event numbers.
+    Here actor1 and actor2 are treated the same.
     
     Parameters
     ----------
