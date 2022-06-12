@@ -980,7 +980,7 @@ def CG_event_ts_to_data_bin(time_series_events,col_label):
     return data_bin_array
 
 
-def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold=1):
+def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold):
     """Generates conflict zones across Africa using aggregation of conflict
     avalanches.
 
@@ -991,9 +991,9 @@ def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold=
     gridix : int
     conflict_type : str
     type_of_algo : str
-    threshold : int/float , 1
-        Determines the lower bound of the avalanche sizes above which avalanches
-        are considered during aggreagtion step.
+    threshold : int/float
+        Determines the lower bound for the avalanche size above which avalanches
+        are considered during aggregation step.
 
     Returns
     -------
@@ -1071,7 +1071,7 @@ def actor_dict_generator(conflict_type):
     return actors_dict
 
 
-def actor_counter(event_nums , conflict_type , actors_dict):
+def event_actor_counter(event_nums , conflict_type , actors_dict):
     """Finds the actor composition in the list of entered event numbers.
     Here actor1 and actor2 are treated the same.
     
@@ -1086,7 +1086,7 @@ def actor_counter(event_nums , conflict_type , actors_dict):
     Returns
     -------
     list of tuples
-        First entry of tuple corresponds to the identifier of actor in the
+        First entry of tuple corresponds to the key of actor in the
         actor_dict. Second entry of tuple correponds to the total number of
         occurances of this actor in the entered event list.
     """
@@ -1127,9 +1127,9 @@ def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict
     Returns
     -------
     list of tuples
-        First entry of tuple corresponds to the identifier of actor in the
+        First entry of tuple corresponds to the key of actor in the
         actor_dict. Second entry of tuple correponds to the total number of
-        occurances of this actor in the entered event list.
+        occurances of this actor in the avalanches present in entered zone.
     """
     
     box_path = f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_box_{str(time)}_{str(dx)}.csv"
@@ -1149,6 +1149,8 @@ def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict
     in_zone_events = ava_event[in_ava_indexes]
     in_zone_events = [x for l in in_zone_events for x in l]
     
-    actor_count = actor_counter(in_zone_events,conflict_type,actor_dict)
+    actor_count = event_actor_counter(in_zone_events,conflict_type,actor_dict)
     
     return actor_count
+
+
