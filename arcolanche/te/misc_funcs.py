@@ -1154,3 +1154,58 @@ def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict
     return actor_count
 
 
+def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,threshold):
+    """Calculates the summation of ratio of common actors and sum of number of actors in 
+    each pair of conflict zones.
+    
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    type_of_algo : str
+    threshold : int/float
+    
+    Returns
+    -------
+    float
+    """
+    
+    zones = conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold)
+    
+    sorted_zones = sorted(zones , key=len)
+    sorted_zones.reverse()
+    
+    actor_dict = actor_dict_generator(conflict_type)
+    
+    actor_sets = []
+    for index,zone in enumerate(sorted_zones):
+        actor_count = zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict)
+        
+        actor_sets.append(set(list(zip(*actor_count))[0]))
+        
+    common_actors_coeff = 0
+    count = 0
+    for index in range(len(actor_sets)):
+        for jndex in range(index,len(actor_sets)):
+            if(index == jndex):
+                common_actors_coeff = 1
+                count += 1
+            else:
+                common_actors_term = (2*len(actor_sets[index].intersection(actor_sets[jndex]))) / (len(actor_sets[index]) + len(actor_sets[jndex]))
+                common_actors_coeff += common_actors_term * 2
+                count += 2
+                #if(common_actors_term != 0):
+                #    count += 1
+                #else:
+                #    #print(index,jndex)
+                #    pass
+
+
+    if(count == 0):
+        common_actors_coeff = 0
+    else:
+        common_actors_coeff = common_actors_coeff/count
+    
+    return common_actors_coeff
