@@ -1209,3 +1209,34 @@ def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,thr
         common_actors_coeff = common_actors_coeff/count
     
     return common_actors_coeff
+
+
+def discrete_power_law_plot(dt , xlabel):
+    #For discrete quantities
+
+    dt1 = bincount(dt)      #For getting frequency distribution
+    dt1 = dt1/dt1.sum()             #For Normalization
+    dt1[dt1 == 0] = np.nan
+    dt1 = pd.DataFrame(dt1)
+    dt1 = dt1.cumsum(skipna=True)           #To get commulaative distribution
+    dt1 = (1-dt1)                    #To get complimentary commulative distribution
+    dt1 = dt1[0]
+
+    plt.scatter(np.arange(1 , dt1.size-1) , dt1[1:-1] , marker='.')
+    ax = plt.gca()
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_ylim([10**-4 , 10**0])
+    ax.set_xlim([10**0 , 10**4])
+
+    plt.xticks(fontsize= 20)
+    plt.yticks(fontsize= 20)
+
+    plt.xlabel(xlabel , fontsize=20)
+    plt.ylabel("1-CDF" , fontsize=20)
+
+    #plt.title(f"{str(time)},{str(dx)}")
+
+    #plt.savefig(f"{conflict_type}_{parameter_of_interest}_{str(dx)}_{str(time)}.png")
+
+    return None
