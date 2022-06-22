@@ -1190,17 +1190,13 @@ def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,thr
     for index in range(len(actor_sets)):
         for jndex in range(index,len(actor_sets)):
             if(index == jndex):
-                common_actors_coeff = 1
+                common_actors_term = 1
+                common_actors_coeff += common_actors_term
                 count += 1
             else:
                 common_actors_term = (2*len(actor_sets[index].intersection(actor_sets[jndex]))) / (len(actor_sets[index]) + len(actor_sets[jndex]))
                 common_actors_coeff += common_actors_term * 2
                 count += 2
-                #if(common_actors_term != 0):
-                #    count += 1
-                #else:
-                #    #print(index,jndex)
-                #    pass
 
 
     if(count == 0):
