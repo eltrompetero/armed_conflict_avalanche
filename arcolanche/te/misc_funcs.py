@@ -1154,7 +1154,7 @@ def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict
     return actor_count
 
 
-def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,threshold):
+def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,threshold,weighted=False):
     """Calculates the summation of ratio of common actors and sum of number of actors in 
     each pair of conflict zones.
     
@@ -1166,6 +1166,7 @@ def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,thr
     conflict_type : str
     type_of_algo : str
     threshold : int/float
+    weighted : bool , False
     
     Returns
     -------
@@ -1180,23 +1181,54 @@ def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,thr
     actor_dict = actor_dict_generator(conflict_type)
     
     actor_sets = []
+    actor_dicts_list = []
     for index,zone in enumerate(sorted_zones):
         actor_count = zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict)
         
         actor_sets.append(set(list(zip(*actor_count))[0]))
+        actor_dicts_list.append(dict(zip(list(zip(*actor_count))[0],list(zip(*actor_count))[1])))
+    
+    if(weighted == False):
+        common_actors_coeff = 0
+        count = 0
+        for index in range(len(actor_sets)):
+            for jndex in range(index,len(actor_sets)):
+                if(index == jndex):
+                    common_actors_term = 1
+                    common_actors_coeff += common_actors_term
+                    count += 1
+                else:
+                    common_actors_term = (2*len(actor_sets[index].intersection(actor_sets[jndex]))) / (len(actor_sets[index]) + len(actor_sets[jndex]))
+                    common_actors_coeff += common_actors_term * 2
+                    count += 2
+    else:
+        common_actors_coeff = 0
+        count = 0
+        for index in range(len(actor_sets)):
+            primary_zones = actor_dicts_list[index]
+            primary_zone_actors = primary_zones.keys()
+            primary_zone_counts = sum(list(primary_zones.values()))
+            
+            for jndex in range(index,len(actor_sets)):
+                if(index == jndex):
+                    common_actors_term = 1
+                    common_actors_coeff += common_actors_term
+                    count += 1
+                else:
+                    secondary_zones = actor_dicts_list[jndex]
+                    secondary_zone_actors = secondary_zones.keys()
+                    secondary_zone_counts = sum(list(secondary_zones.values()))
+                    
+                    weights_term = 0
+                    for actor in primary_zone_actors:
+                        if(actor in secondary_zone_actors):
+                            weights_term += (primary_zones[actor]/primary_zone_counts) * \
+                                                 (secondary_zones[actor]/secondary_zone_counts)
+                            
+                    common_actors_term = (2 * weights_term) / (len(primary_zone_actors)+len(secondary_zone_actors))
+                    common_actors_coeff += common_actors_term
+                    count += 2
         
-    common_actors_coeff = 0
-    count = 0
-    for index in range(len(actor_sets)):
-        for jndex in range(index,len(actor_sets)):
-            if(index == jndex):
-                common_actors_term = 1
-                common_actors_coeff += common_actors_term
-                count += 1
-            else:
-                common_actors_term = (2*len(actor_sets[index].intersection(actor_sets[jndex]))) / (len(actor_sets[index]) + len(actor_sets[jndex]))
-                common_actors_coeff += common_actors_term * 2
-                count += 2
 
 
     if(count == 0):
