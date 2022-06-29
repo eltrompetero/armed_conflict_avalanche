@@ -1140,7 +1140,7 @@ def events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone):
         if(len(ava_pol_set.intersection(zone_set)) != 0):
             in_ava_indexes.append(index)    
             
-    event_path = f"avalanches/battles/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_event_{str(time)}_{str(dx)}.csv"
+    event_path = f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_event_{str(time)}_{str(dx)}.csv"
     ava_event = event_str_to_tuple(event_path)
     ava_event = np.array(ava_event , dtype=object)
     
