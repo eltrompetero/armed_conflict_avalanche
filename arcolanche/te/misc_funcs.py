@@ -1171,7 +1171,7 @@ def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone):
     """
     
     actor_dict = actor_dict_generator(conflict_type)
-    in_zone_events = events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict)
+    in_zone_events = events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone)
     actor_count = event_actor_counter(in_zone_events,conflict_type,actor_dict)
 
     return actor_count
