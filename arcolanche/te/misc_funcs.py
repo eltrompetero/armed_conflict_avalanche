@@ -1112,8 +1112,8 @@ def event_actor_counter(event_nums , conflict_type , actors_dict):
     return actor_count
 
 
-def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict):
-    """Find the actor composition in a given zone for a particular scale and gridix.
+def events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone):
+    """Find all the vents that are in a particular zone.
     
     Parameters
     ----------
@@ -1126,10 +1126,8 @@ def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict
         
     Returns
     -------
-    list of tuples
-        First entry of tuple corresponds to the key of actor in the
-        actor_dict. Second entry of tuple correponds to the total number of
-        occurances of this actor in the avalanches present in entered zone.
+    list
+        A list of all the events that are in  aparticular zone.
     """
     
     box_path = f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_box_{str(time)}_{str(dx)}.csv"
@@ -1149,8 +1147,33 @@ def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict
     in_zone_events = ava_event[in_ava_indexes]
     in_zone_events = [x for l in in_zone_events for x in l]
     
-    actor_count = event_actor_counter(in_zone_events,conflict_type,actor_dict)
+    return in_zone_events
+
+
+def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone):
+    """Find the actor composition in a given zone for a particular scale and gridix.
+
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    zone : list
+        List containing the polygon indexes of polygons that are in the selected zone.
+
+    Returns
+    -------
+    list of tuples
+        First entry of tuple corresponds to the key of actor in the
+        actor_dict. Second entry of tuple correponds to the total number of
+        occurances of this actor in the avalanches present in entered zone.
+    """
     
+    actor_dict = actor_dict_generator(conflict_type)
+    in_zone_events = events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict)
+    actor_count = event_actor_counter(in_zone_events,conflict_type,actor_dict)
+
     return actor_count
 
 
@@ -1166,6 +1189,8 @@ def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,thr
     conflict_type : str
     type_of_algo : str
     threshold : int/float
+        Determines the lower bound for the avalanche size above which avalanches
+        are considered during aggregation step.
     weighted : bool , False
     
     Returns
@@ -1246,8 +1271,8 @@ def discrete_power_law_plot(dt , xlabel):
     dt1 = dt1/dt1.sum()             #For Normalization
     dt1[dt1 == 0] = np.nan
     dt1 = pd.DataFrame(dt1)
-    dt1 = dt1.cumsum(skipna=True)           #To get commulaative distribution
-    dt1 = (1-dt1)                    #To get complimentary commulative distribution
+    dt1 = dt1.cumsum(skipna=True)           #To get cumulative distribution
+    dt1 = (1-dt1)                    #To get complimentary cumulative distribution
     dt1 = dt1[0]
 
     plt.scatter(np.arange(1 , dt1.size-1) , dt1[1:-1] , marker='.')
