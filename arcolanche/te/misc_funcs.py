@@ -948,7 +948,7 @@ def CG_event_ts_to_data_bin(time_series_events,col_label):
     Returns
     -------
     ndarray
-        datqa_bin_array with 3 columns: polygon_number,days=0,bins
+        data_bin_array with 3 columns: polygon_number,days=0,bins
     """
 
     number_of_events = 0

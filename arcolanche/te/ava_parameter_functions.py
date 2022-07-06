@@ -147,3 +147,29 @@ def diameter_events(avalanche_data,centers,location_data_arr,ava_box):
             dt.append(max(distances))
             
     return dt
+
+
+
+def diameter_true(ava_event,location_data_arr):
+    def event_distance(args):
+        event1 , event2 = args
+        
+        point1 = (location_data_arr[event1][0],location_data_arr[event1][1])
+        point2 = (location_data_arr[event2][0],location_data_arr[event2][1])
+        
+        return vincenty(point1,point2)
+    
+    dt = []
+    for i,ava in enumerate(ava_event):
+        event_pairs = list(combinations(ava,2))
+        
+        if(event_pairs):
+            distances = []
+            for pair in event_pairs:
+                distances.append(event_distance(pair))
+                
+            dt.append(max(distances))
+        else:
+            dt.append(0)
+            
+    return dt
