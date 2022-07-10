@@ -1203,12 +1203,10 @@ def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,thr
     sorted_zones = sorted(zones , key=len)
     sorted_zones.reverse()
     
-    actor_dict = actor_dict_generator(conflict_type)
-    
     actor_sets = []
     actor_dicts_list = []
     for index,zone in enumerate(sorted_zones):
-        actor_count = zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,actor_dict)
+        actor_count = zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone)
         
         actor_sets.append(set(list(zip(*actor_count))[0]))
         actor_dicts_list.append(dict(zip(list(zip(*actor_count))[0],list(zip(*actor_count))[1])))
