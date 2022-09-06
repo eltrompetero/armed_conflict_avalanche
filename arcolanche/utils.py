@@ -175,36 +175,39 @@ def _max_pair_dist(lonlat):
     return jithaversine(phitheta[maxdistix[0]], phitheta[maxdistix[1]])
 
 def check_relation(alphaBds, upsBds, dfBds):
-    """Checks the basic relation between the time scales exponent alpha with another
-    scaling variable like fatalities. The relation checked for this case would be
+    """Check the scaling relation betwenn scaling variables X (along x-axis) and Y (along y-axis).
+    Distribution of X has exponent alpha.
+    Distribution of Y has exponent upsilon.
+    Ratio of fractal dimension Y to X is df.
+    For example: When Y is fatalities and X is time,
+    the relation checked for this case would be
         $\\alpha - 1 = (\\upsilon-1) d_{\\rm f}$
 
     Parameters
     ----------
     alphaBds : tuple
-        Bound for alpha, exponent for P(T) ~ T^-alpha.
+        Lower and upper bounds for alpha.
     upsBds : tuple
-        Bound for variable to scale with T, like upsilon for fatalities.
+        Lower and upper bounds for upsilon.
     dfBds : ndarray
-        Bounds for scaling of second variable with T (fractal dimension). Each sequential col
-        represents lower then upper bounds respectively.
+        Lower and upper bounds for the ratio of fractal dimensions.
 
     Returns
     -------
     bool
-        Whether or not the scaling relation is violated.
+        True if the scaling relation is violated.
     """
 
     if not (hasattr(alphaBds,'__len__') and hasattr(upsBds,'__len__')):
         return False
-    if ( (((alphaBds[0]-1)>(dfBds[:,0]*(upsBds[0]-1))) &
-          ((alphaBds[0]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
-         (((alphaBds[1]-1)>(dfBds[:,0]*(upsBds[0]-1))) &
-          ((alphaBds[1]-1)<(dfBds[:,1]*(upsBds[1]-1)))).any() or
-         (((alphaBds[0]-1)<(dfBds[:,0]*(upsBds[0]-1))) &
-          ((alphaBds[1]-1)>(dfBds[:,0]*(upsBds[0]-1)))).any() or
-         (((alphaBds[0]-1)<(dfBds[:,1]*(upsBds[1]-1))) &
-          ((alphaBds[1]-1)>(dfBds[:,1]*(upsBds[1]-1)))).any() ):
+    if ( (((alphaBds[0]-1)>(dfBds[0]*(upsBds[0]-1))) &
+          ((alphaBds[0]-1)<(dfBds[1]*(upsBds[1]-1)))) or
+         (((alphaBds[1]-1)>(dfBds[0]*(upsBds[0]-1))) &
+          ((alphaBds[1]-1)<(dfBds[1]*(upsBds[1]-1)))) or
+         (((alphaBds[0]-1)<(dfBds[0]*(upsBds[0]-1))) &
+          ((alphaBds[1]-1)>(dfBds[0]*(upsBds[0]-1)))) or
+         (((alphaBds[0]-1)<(dfBds[1]*(upsBds[1]-1))) &
+          ((alphaBds[1]-1)>(dfBds[1]*(upsBds[1]-1)))) ):
         return True
     return False
 
