@@ -1071,7 +1071,7 @@ def actor_dict_generator(acled_data):
     return actors_dict
 
 
-def event_actor_counter(event_nums , conflict_type , actors_dict , acled_data):
+def event_actor_counter(event_nums , actors_dict , acled_data):
     """Finds the actor composition in the list of entered event numbers.
     Here actor1 and actor2 are treated the same.
     
@@ -1172,7 +1172,7 @@ def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,acled_data
     
     actor_dict = actor_dict_generator(acled_data)
     in_zone_events = events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone)
-    actor_count = event_actor_counter(in_zone_events,conflict_type,actor_dict,acled_data)
+    actor_count = event_actor_counter(in_zone_events,actor_dict,acled_data)
 
     return actor_count
 
@@ -1293,3 +1293,87 @@ def discrete_power_law_plot(dt , xlabel):
     #plt.savefig(f"{conflict_type}_{parameter_of_interest}_{str(dx)}_{str(time)}.png")
 
     return None
+
+
+
+def common_actors_coeff_calculator_events(time,dx,gridix,conflict_type,type_of_algo,weighted=False):
+    """Calculates the summation of ratio of common actors and sum of number of actors in 
+    each pair of conflict avalacnhes.
+    
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    type_of_algo : str
+    weighted : bool , False
+    
+    Returns
+    -------
+    float
+    """
+
+    acled_data = data_loader.conflict_data_loader(conflict_type)
+    actor_dict = actor_dict_generator(acled_data)
+
+    event_path = f"avalanches/battles/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_event_{str(time)}_{str(dx)}.csv"
+    ava_event = event_str_to_tuple(event_path)
+
+    actor_sets = []
+    actor_dicts_list = []
+    for index,ava in enumerate(ava_event):
+        actor_count = event_actor_counter(ava,actor_dict,acled_data)
+
+        actor_sets.append(set(list(zip(*actor_count))[0]))
+        actor_dicts_list.append(dict(zip(list(zip(*actor_count))[0],list(zip(*actor_count))[1])))
+
+    if(weighted == False):
+        common_actors_coeff = 0
+        count = 0
+        for index in range(len(actor_sets)):
+            for jndex in range(index,len(actor_sets)):
+                if(index == jndex):
+                    common_actors_term = 1
+                    common_actors_coeff += common_actors_term
+                    count += 1
+                else:
+                    common_actors_term = (2*len(actor_sets[index].intersection(actor_sets[jndex]))) / (len(actor_sets[index]) + len(actor_sets[jndex]))
+                    common_actors_coeff += common_actors_term * 2
+                    count += 2
+    else:
+        common_actors_coeff = 0
+        count = 0
+        for index in range(len(actor_sets)):
+            primary_zones = actor_dicts_list[index]
+            primary_zone_actors = primary_zones.keys()
+            primary_zone_counts = sum(list(primary_zones.values()))
+
+            for jndex in range(index,len(actor_sets)):
+                if(index == jndex):
+                    common_actors_term = 1
+                    common_actors_coeff += common_actors_term
+                    count += 1
+                else:
+                    secondary_zones = actor_dicts_list[jndex]
+                    secondary_zone_actors = secondary_zones.keys()
+                    secondary_zone_counts = sum(list(secondary_zones.values()))
+
+                    weights_term = 0
+                    for actor in primary_zone_actors:
+                        if(actor in secondary_zone_actors):
+                            weights_term += (primary_zones[actor]/primary_zone_counts) * \
+                                                 (secondary_zones[actor]/secondary_zone_counts)
+
+                    common_actors_term = (2 * weights_term) / (len(primary_zone_actors)+len(secondary_zone_actors))
+                    common_actors_coeff += common_actors_term
+                    count += 2
+
+
+
+    if(count == 0):
+        common_actors_coeff = 0
+    else:
+        common_actors_coeff = common_actors_coeff/count
+
+    return common_actors_coeff
