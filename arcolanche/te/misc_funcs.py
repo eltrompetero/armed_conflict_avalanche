@@ -1046,7 +1046,8 @@ def actor_dict_generator(acled_data):
         
     Parameters
     ----------
-    conflict_type : str
+    acled_data : pd.Dataframe
+        Dataframe of the data downloaded from ACLED, filtered according to event_type.
     
     Returns
     -------
@@ -1082,6 +1083,8 @@ def event_actor_counter(event_nums , actors_dict , acled_data):
     actors_dict : dict
         Dictionary containing all unique actors(actor1 and actor2 combined)
         and their corresponding keys.
+    acled_data : pd.Dataframe
+        Dataframe of the data downloaded from ACLED, filtered according to event_type.
         
     Returns
     -------
@@ -1121,6 +1124,7 @@ def events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone):
     dx : int
     gridix : int
     conflict_type : str
+    type_of_algo : str
     zone : list
         List containing the polygon indexes of polygons that are in the selected zone.
         
@@ -1159,8 +1163,11 @@ def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,acled_data
     dx : int
     gridix : int
     conflict_type : str
+    type_of_algo : str
     zone : list
         List containing the polygon indexes of polygons that are in the selected zone.
+    acled_data : pd.Dataframe
+        Dataframe of the data downloaded from ACLED, filtered according to event_type.
 
     Returns
     -------
