@@ -291,16 +291,20 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
 
 
     elif(type_of_events == "randomize_polygons"):
-        time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=True)
+        time_series_FG,col_label,data_bin_array = FG_time_series(dx,gridix,conflict_type,randomize_polygons=True)
         time_series = CG_time_series_fast(time_series_FG,time)
         time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
+
     elif(type_of_events == "shuffle_ts"):
-        #Write function to extract data_bin_array from time_series_events
-        data_bin_array = None  #Temp fix (only box avalanches can be generated now)
         time_series_events,col_label = CG_time_series_events(time,dx,gridix,conflict_type)
 
         for col_index in range(time_series_events.shape[1]):
             time_series_events[:,col_index] = np.random.permutation(time_series_events[:,col_index])
+
+        data_bin_array = CG_event_ts_to_data_bin(time_series_events,col_label)
+        data_bin = pd.DataFrame(data_bin_array)
+        data_bin["event_number"] = data_bin.index
+        data_bin_array = np.array(data_bin)
 
         time_series = CG_events_to_CG_binary(time_series_events)
         time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
@@ -763,12 +767,11 @@ def time_series_generator(time, dx, gridix, conflict_type):
 
     return time_series , neighbor_info_df
 
-def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
+def FG_time_series(dx,gridix,conflict_type,randomize_polygons=False):
     """Generates fine grained time series of conflicts.
     
     Parameters
     ----------
-    time : int
     dx : int
     gridix : int
     conflict_type : str
@@ -789,7 +792,7 @@ def FG_time_series(time,dx,gridix,conflict_type,randomize_polygons=False):
         dataset.
     """
 
-    data_frame = binning(time,dx,gridix,conflict_type)
+    data_frame = binning(1,dx,gridix,conflict_type)
     
     if(randomize_polygons == False):
         data_array = np.array(data_frame[["polygon_number","days","bins","event_number"]] , dtype=int)
@@ -880,18 +883,17 @@ def CG_time_series_events(time,dx,gridix,conflict_type):
     ndarray
         CG time series with events.
     ndarray
-        Array containing coloumn numbers which correponds to 
+        Array containing column numbers which correponds to 
         polygon numbers.
     """
 
     data_bin = binning(time,dx,gridix,conflict_type)
-    data_bin["event_number"] = data_bin.index
     
     data_bin_arr = data_bin[["event_number","polygon_number","bins"]].values.astype(int)
     
     event_groups = numpy_indexed.group_by(data_bin_arr[:,[1,2]]).split_array_as_list(data_bin_arr)
     
-    time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type)
+    time_series_FG,col_label,data_bin_array = FG_time_series(dx,gridix,conflict_type)
     time_series_arr = CG_time_series_fast(time_series_FG,time)
     
     time_series_events = np.zeros(time_series_arr.shape , dtype=object)
@@ -920,9 +922,6 @@ def CG_events_to_CG_binary(time_series_events):
     -------
     ndarray
         Standard binary CG time series.
-    ndarray
-        Array containing coloumn numbers which correponds to 
-        polygon numbers.
     """
     
     time_series = np.zeros(time_series_events.shape , dtype=int)
@@ -934,3 +933,363 @@ def CG_events_to_CG_binary(time_series_events):
     return time_series
 
 
+def CG_event_ts_to_data_bin(time_series_events,col_label):
+    """Extract or generate data_bin_array from CG time series containing
+    event info.
+
+    Parameters
+    ----------
+    time_series_events : ndarray
+        CG time series with events.
+    col_label : ndarray
+        Array containing column numbers which correponds to 
+        polygon numbers.
+
+    Returns
+    -------
+    ndarray
+        data_bin_array with 3 columns: polygon_number,days=0,bins
+    """
+
+    number_of_events = 0
+    for i in np.nditer(time_series_events , flags=["refs_ok"] , order="F"):
+        if(i != 0):
+            max_temp = np.amax(i.tolist())
+            if(max_temp > number_of_events):
+                number_of_events = max_temp
+    
+    data_bin_array = np.zeros((number_of_events+1,3) , dtype=int)
+    
+    overall_counter = 1
+    time_bin_counter = 1
+    col_switch_indicator = time_series_events.shape[0] 
+    col_index = 0
+    for event_group in np.nditer(time_series_events , flags=["refs_ok"] , order="F"):
+        if(event_group != 0):
+            data_bin_array[event_group.tolist(),0] = col_label[col_index]
+            data_bin_array[event_group.tolist(),2] = time_bin_counter
+        
+        if(overall_counter != 0):
+            if(overall_counter % col_switch_indicator == 0):
+                col_index += 1
+                time_bin_counter = 0
+        
+        overall_counter += 1
+        time_bin_counter += 1
+        
+    return data_bin_array
+
+
+def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold):
+    """Generates conflict zones across Africa using aggregation of conflict
+    avalanches.
+
+    Parameters
+    ----------
+    time: int
+    dx : int
+    gridix : int
+    conflict_type : str
+    type_of_algo : str
+    threshold : int/float
+        Determines the lower bound for the avalanche size above which avalanches
+        are considered during aggregation step.
+
+    Returns
+    -------
+    list of arrays
+        the arrays contain polygon number/id of polygons in each conflict
+        zone
+    """
+
+    box_path = f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_box_{str(time)}_{str(dx)}.csv"
+    ava_box = box_str_to_tuple(box_path)
+    
+    size_arr = np.array([len(unique(list(zip(*i))[0])) for i in ava_box])
+
+    if(type(threshold) == int):
+        threshold_size = threshold
+    elif(type(threshold) == float):
+        threshold_size = max(size_arr) * threshold
+
+    ava_box_threshold = np.array(ava_box , dtype=object)[np.where(size_arr > threshold_size)[0]].tolist()  
+    
+    zones = []
+    for ava in ava_box_threshold:
+        valid = True
+        indexes_to_delete = []
+        ava_unique_arr = np.unique(np.array(list(zip(*ava))[0]))
+        if(len(zones) == 0):
+            zones.append(ava_unique_arr)
+        else:
+            for index,zone in enumerate(zones):
+                if(len(set(zone).intersection(set(ava_unique_arr))) != 0):
+                    valid = False
+                    zones[index] = np.unique(np.concatenate((zone,ava_unique_arr)))
+                    ava_unique_arr = zones[index]
+                    indexes_to_delete.append(index)
+
+                elif((index == (len(zones)-1)) & (valid == True)):
+                    zones.append(ava_unique_arr)
+            
+            index_correction = 0
+            for index in indexes_to_delete[:-1]:
+                del zones[index-index_correction]
+                index_correction += 1
+
+    return zones
+
+
+def actor_dict_generator(acled_data):
+    """Generates a dictionary containing all unique actors(actor1 and actor2 combined)
+        and their corresponding keys.
+        
+    Parameters
+    ----------
+    conflict_type : str
+    
+    Returns
+    -------
+    dict
+        Dictionary containing all unique actors(actor1 and actor2 combined)
+        and their corresponding keys. 
+    """
+    
+    #acled_data = data_loader.conflict_data_loader(conflict_type)
+    acled_data_actors = acled_data[["actor1","actor2"]]
+    
+    actor1_arr = (acled_data_actors["actor1"]).to_numpy()
+    actor2_arr = (acled_data_actors["actor2"]).to_numpy()
+    
+    actors_arr = np.concatenate((actor1_arr,actor2_arr))
+    actors_arr = np.unique(actors_arr)
+    
+    actors_dict = {}
+    for index,actor in zip(range(len(actors_arr)),actors_arr):
+        actors_dict[index] = (actor)
+        
+    return actors_dict
+
+
+def event_actor_counter(event_nums , conflict_type , actors_dict , acled_data):
+    """Finds the actor composition in the list of entered event numbers.
+    Here actor1 and actor2 are treated the same.
+    
+    Parameters
+    ----------
+    event_nums : list
+        list of event numbers
+    actors_dict : dict
+        Dictionary containing all unique actors(actor1 and actor2 combined)
+        and their corresponding keys.
+        
+    Returns
+    -------
+    list of tuples
+        First entry of tuple corresponds to the key of actor in the
+        actor_dict. Second entry of tuple correponds to the total number of
+        occurances of this actor in the entered event list.
+    """
+    
+    def actor_dict_lookup(actor):
+        for key,value in actors_dict.items():
+            if(actor == value):
+                key_to_return = key
+                break
+            
+        return key_to_return  
+    
+    #acled_data = data_loader.conflict_data_loader(conflict_type)
+    acled_data_actors = acled_data[["actor1","actor2"]]
+        
+    actors_event = acled_data_actors.loc[event_nums].to_numpy()
+    actors_event = actors_event.reshape(actors_event.shape[0]*actors_event.shape[1])
+    
+    actor_count = []
+    for actor_group in numpy_indexed.group_by(actors_event).split_array_as_list(actors_event):
+        actor_count.append((actor_dict_lookup(actor_group[0]),len(actor_group)))
+        
+    return actor_count
+
+
+def events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone):
+    """Find all the vents that are in a particular zone.
+    
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    zone : list
+        List containing the polygon indexes of polygons that are in the selected zone.
+        
+    Returns
+    -------
+    list
+        A list of all the events that are in  aparticular zone.
+    """
+    
+    box_path = f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_box_{str(time)}_{str(dx)}.csv"
+    ava_box = box_str_to_tuple(box_path)
+    
+    zone_set = set(zone)
+    in_ava_indexes = []
+    for index,ava in enumerate(ava_box):
+        ava_pol_set = set(list(zip(*ava))[0])
+        if(len(ava_pol_set.intersection(zone_set)) != 0):
+            in_ava_indexes.append(index)    
+            
+    event_path = f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_event_{str(time)}_{str(dx)}.csv"
+    ava_event = event_str_to_tuple(event_path)
+    ava_event = np.array(ava_event , dtype=object)
+    
+    in_zone_events = ava_event[in_ava_indexes]
+    in_zone_events = [x for l in in_zone_events for x in l]
+    
+    return in_zone_events
+
+
+def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,acled_data):
+    """Find the actor composition in a given zone for a particular scale and gridix.
+
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    zone : list
+        List containing the polygon indexes of polygons that are in the selected zone.
+
+    Returns
+    -------
+    list of tuples
+        First entry of tuple corresponds to the key of actor in the
+        actor_dict. Second entry of tuple correponds to the total number of
+        occurances of this actor in the avalanches present in entered zone.
+    """
+    
+    actor_dict = actor_dict_generator(acled_data)
+    in_zone_events = events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone)
+    actor_count = event_actor_counter(in_zone_events,conflict_type,actor_dict,acled_data)
+
+    return actor_count
+
+
+def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,threshold,weighted=False):
+    """Calculates the summation of ratio of common actors and sum of number of actors in 
+    each pair of conflict zones.
+    
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    type_of_algo : str
+    threshold : int/float
+        Determines the lower bound for the avalanche size above which avalanches
+        are considered during aggregation step.
+    weighted : bool , False
+    
+    Returns
+    -------
+    float
+    """
+    
+    acled_data = data_loader.conflict_data_loader(conflict_type)
+
+    zones = conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold)
+    
+    sorted_zones = sorted(zones , key=len)
+    sorted_zones.reverse()
+    
+    actor_sets = []
+    actor_dicts_list = []
+    for index,zone in enumerate(sorted_zones):
+        actor_count = zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,acled_data)
+        
+        actor_sets.append(set(list(zip(*actor_count))[0]))
+        actor_dicts_list.append(dict(zip(list(zip(*actor_count))[0],list(zip(*actor_count))[1])))
+    
+    if(weighted == False):
+        common_actors_coeff = 0
+        count = 0
+        for index in range(len(actor_sets)):
+            for jndex in range(index,len(actor_sets)):
+                if(index == jndex):
+                    common_actors_term = 1
+                    common_actors_coeff += common_actors_term
+                    count += 1
+                else:
+                    common_actors_term = (2*len(actor_sets[index].intersection(actor_sets[jndex]))) / (len(actor_sets[index]) + len(actor_sets[jndex]))
+                    common_actors_coeff += common_actors_term * 2
+                    count += 2
+    else:
+        common_actors_coeff = 0
+        count = 0
+        for index in range(len(actor_sets)):
+            primary_zones = actor_dicts_list[index]
+            primary_zone_actors = primary_zones.keys()
+            primary_zone_counts = sum(list(primary_zones.values()))
+            
+            for jndex in range(index,len(actor_sets)):
+                if(index == jndex):
+                    common_actors_term = 1
+                    common_actors_coeff += common_actors_term
+                    count += 1
+                else:
+                    secondary_zones = actor_dicts_list[jndex]
+                    secondary_zone_actors = secondary_zones.keys()
+                    secondary_zone_counts = sum(list(secondary_zones.values()))
+                    
+                    weights_term = 0
+                    for actor in primary_zone_actors:
+                        if(actor in secondary_zone_actors):
+                            weights_term += (primary_zones[actor]/primary_zone_counts) * \
+                                                 (secondary_zones[actor]/secondary_zone_counts)
+                            
+                    common_actors_term = (2 * weights_term) / (len(primary_zone_actors)+len(secondary_zone_actors))
+                    common_actors_coeff += common_actors_term
+                    count += 2
+        
+
+
+    if(count == 0):
+        common_actors_coeff = 0
+    else:
+        common_actors_coeff = common_actors_coeff/count
+    
+    return common_actors_coeff
+
+
+def discrete_power_law_plot(dt , xlabel):
+    #For discrete quantities
+
+    dt1 = bincount(dt)      #For getting frequency distribution
+    dt1 = dt1/dt1.sum()             #For Normalization
+    dt1[dt1 == 0] = np.nan
+    dt1 = pd.DataFrame(dt1)
+    dt1 = dt1.cumsum(skipna=True)           #To get cumulative distribution
+    dt1 = (1-dt1)                    #To get complimentary cumulative distribution
+    dt1 = dt1[0]
+
+    plt.scatter(np.arange(1 , dt1.size-1) , dt1[1:-1] , marker='.')
+    ax = plt.gca()
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_ylim([10**-4 , 10**0])
+    ax.set_xlim([10**0 , 10**4])
+
+    plt.xticks(fontsize= 20)
+    plt.yticks(fontsize= 20)
+
+    plt.xlabel(xlabel , fontsize=20)
+    plt.ylabel("1-CDF" , fontsize=20)
+
+    #plt.title(f"{str(time)},{str(dx)}")
+
+    #plt.savefig(f"{conflict_type}_{parameter_of_interest}_{str(dx)}_{str(time)}.png")
+
+    return None
