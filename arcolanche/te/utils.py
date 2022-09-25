@@ -6,8 +6,6 @@ from shapely import geometry
 from sklearn import neighbors
 from arcolanche import *
 
-from misc.globe import *
-
 from workspace.utils import *
 
 from numpy import *

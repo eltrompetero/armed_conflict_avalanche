@@ -1,6 +1,6 @@
 # ====================================================================================== #
 # Module for analyzing ACLED data.
-# Author: Eddie Lee, edlee@santafe.edu
+# Author: Eddie Lee, edlee@csh.ac.at
 # ====================================================================================== #
 import numpy as np
 from scipy.spatial.distance import pdist
@@ -12,7 +12,7 @@ from scipy.spatial.distance import squareform
 from misc.plot import colorcycle
 import scipy.stats as stats
 from warnings import warn
-from misc.globe import SphereCoordinate, PoissonDiscSphere, haversine, jithaversine
+from voronoi_globe import haversine, jithaversine
 from numba import jit, njit
 import dill as pickle
 import multiprocess as mp
