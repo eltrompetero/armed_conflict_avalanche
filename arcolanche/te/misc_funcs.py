@@ -1,22 +1,26 @@
-from .utils import *
+from shapely.geometry import Point
+from voronoi_globe import load_voronoi
 
 from . import transfer_entropy_func 
 from . import self_loop_entropy_func
 
-from . import data as data_loader
+from .. import data as data_loader
 
 from . import network as net
 #import avalanche_numbering
+
+from .utils import *
 
 
 ###Preparing the data====Start###
 
 
 def conflict_position(conflict_type):
+    '''This script is used to create and then save a geodataframe of all the
+    geographic points where events took place using lattitude and longitude of events
+    from ACLED dataset and the dates on which those events occured
     '''
-    This script is used to create and then save a geodataframe of all the geographic points where events took place using lattitude and longitude of 
-    events from ACLED dataset and the dates on which those events occured
-    '''
+
     data = data_loader.conflict_data_loader(conflict_type)
 
     temp_list = []
@@ -24,7 +28,7 @@ def conflict_position(conflict_type):
         temp_point = Point(data["longitude"][i] , data["latitude"][i])
         temp_list.append(temp_point)
 
-    conflict_event_positions = geopandas.GeoDataFrame(temp_list)
+    conflict_event_positions = gpd.GeoDataFrame(temp_list)
     conflict_event_positions["date"] = data["event_date"]
 
     conflict_event_positions.set_geometry(0 , inplace=True)
@@ -34,9 +38,9 @@ def conflict_position(conflict_type):
 
     return None
 
-
 def conflict_event_polygon_mapping(dx, gridix, conflict_type, progress_bar="n"):
-    print("Finding event to polygon mapping!")
+    """Find event to polygon mapping.
+    """
     
     polygons = load_voronoi(dx, gridix)
     conflict_positions = gpd.read_file(f'generated_data/{conflict_type}/conflict_positions/conflict_positions.shp')
@@ -58,13 +62,14 @@ def conflict_event_polygon_mapping(dx, gridix, conflict_type, progress_bar="n"):
     mapping[:,0] = list(range(len(event_pol_mapping)))
     mapping[:,1] = event_pol_mapping
     mapping = mapping.astype(int)
-
-    np.savetxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv",
+    
+    path = f'generated_data/{conflict_type}/gridix_{gridix}/event_mappings'
+    if not os.path.exists(path):
+        os.makedirs(path)
+    np.savetxt(f'{path}/event_mapping_{str(dx)}.csv',
                mapping,
                delimiter=',',
                fmt='%i')
-
-    print("Done!")
 
 def single_tile_events(dx , gridix , conflict_type):
 
