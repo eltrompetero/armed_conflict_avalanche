@@ -1040,7 +1040,7 @@ def conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold)
     return zones
 
 
-def actor_dict_generator(conflict_type):
+def actor_dict_generator(acled_data):
     """Generates a dictionary containing all unique actors(actor1 and actor2 combined)
         and their corresponding keys.
         
@@ -1055,7 +1055,7 @@ def actor_dict_generator(conflict_type):
         and their corresponding keys. 
     """
     
-    acled_data = data_loader.conflict_data_loader(conflict_type)
+    #acled_data = data_loader.conflict_data_loader(conflict_type)
     acled_data_actors = acled_data[["actor1","actor2"]]
     
     actor1_arr = (acled_data_actors["actor1"]).to_numpy()
@@ -1071,7 +1071,7 @@ def actor_dict_generator(conflict_type):
     return actors_dict
 
 
-def event_actor_counter(event_nums , conflict_type , actors_dict):
+def event_actor_counter(event_nums , conflict_type , actors_dict , acled_data):
     """Finds the actor composition in the list of entered event numbers.
     Here actor1 and actor2 are treated the same.
     
@@ -1099,7 +1099,7 @@ def event_actor_counter(event_nums , conflict_type , actors_dict):
             
         return key_to_return  
     
-    acled_data = data_loader.conflict_data_loader(conflict_type)
+    #acled_data = data_loader.conflict_data_loader(conflict_type)
     acled_data_actors = acled_data[["actor1","actor2"]]
         
     actors_event = acled_data_actors.loc[event_nums].to_numpy()
@@ -1150,7 +1150,7 @@ def events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone):
     return in_zone_events
 
 
-def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone):
+def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,acled_data):
     """Find the actor composition in a given zone for a particular scale and gridix.
 
     Parameters
@@ -1170,9 +1170,9 @@ def zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone):
         occurances of this actor in the avalanches present in entered zone.
     """
     
-    actor_dict = actor_dict_generator(conflict_type)
+    actor_dict = actor_dict_generator(acled_data)
     in_zone_events = events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone)
-    actor_count = event_actor_counter(in_zone_events,conflict_type,actor_dict)
+    actor_count = event_actor_counter(in_zone_events,conflict_type,actor_dict,acled_data)
 
     return actor_count
 
@@ -1198,6 +1198,8 @@ def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,thr
     float
     """
     
+    acled_data = data_loader.conflict_data_loader(conflict_type)
+
     zones = conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold)
     
     sorted_zones = sorted(zones , key=len)
@@ -1206,7 +1208,7 @@ def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,thr
     actor_sets = []
     actor_dicts_list = []
     for index,zone in enumerate(sorted_zones):
-        actor_count = zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone)
+        actor_count = zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,acled_data)
         
         actor_sets.append(set(list(zip(*actor_count))[0]))
         actor_dicts_list.append(dict(zip(list(zip(*actor_count))[0],list(zip(*actor_count))[1])))

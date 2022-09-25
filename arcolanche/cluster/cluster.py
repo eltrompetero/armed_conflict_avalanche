@@ -116,7 +116,7 @@ def polygonize(iter_pairs=None):
         dx, gridix = args
         poissd = pickle.load(open(f'voronoi_grids/{dx}/{str(gridix).zfill(2)}.p', 'rb'))['poissd']
 
-        # identify polygons that are within interesting boundaries
+        # identify polygons that are within reasonable distance of African landmass
         lonlat = poissd.samples.copy()
         for i in range(len(lonlat)):
             lonlat[i] = unwrap_lon((lonlat[i,0]/pi*180 + 330)%360), lonlat[i,1]/pi*180
