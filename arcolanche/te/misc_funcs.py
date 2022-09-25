@@ -35,39 +35,36 @@ def conflict_position(conflict_type):
     return None
 
 
-def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores , progress_bar="y"):
+def conflict_event_polygon_mapping(dx, gridix, conflict_type, progress_bar="n"):
     print("Finding event to polygon mapping!")
+    
+    polygons = load_voronoi(dx, gridix)
+    conflict_positions = gpd.read_file(f'generated_data/{conflict_type}/conflict_positions/conflict_positions.shp')
 
-    polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
-
-    conflict_positions = gpd.read_file(f"generated_data/{conflict_type}/conflict_positions/conflict_positions.shp")
-
-    if(progress_bar == "y"):
-        pandarallel.initialize(nb_workers=cpu_cores , progress_bar=True)
-    else:
-        pandarallel.initialize(nb_workers=cpu_cores , progress_bar=False)
+    pandarallel.initialize(progress_bar=True if progress_bar=='y' else False)
 
     def location(point):
-        ix = np.where(polygons.contains(point))[0]
+        """Return polygon index where conflict event is."""
+        ix = polygons.index[polygons.contains(point)]
+        assert ix.size==1, "Point belongs to multiple polygons."
         return ix[0]
-
 
     event_pol_mapping = conflict_positions["geometry"].parallel_apply(location)
     #event_pol_mapping = conflict_positions["geometry"].apply(location)
 
     event_pol_mapping.to_numpy()
 
-    mapping = np.zeros((len(event_pol_mapping),2))
+    mapping = np.zeros((len(event_pol_mapping),2), dtype=int)
     mapping[:,0] = list(range(len(event_pol_mapping)))
     mapping[:,1] = event_pol_mapping
     mapping = mapping.astype(int)
 
-    np.savetxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , mapping , delimiter=',')
+    np.savetxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv",
+               mapping,
+               delimiter=',',
+               fmt='%i')
 
     print("Done!")
-
-    return None
-
 
 def single_tile_events(dx , gridix , conflict_type):
 
@@ -280,16 +277,11 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
         time_series , time_series_FG = null_model_time_series_generator(time,640,dx,gridix,conflict_type)
         data_bin_array = None
     elif(type_of_events == "data"):
-        time_series_FG = pd.read_csv(f'generated_data/{conflict_type}/gridix_{gridix}/FG_time_series/time_series_1_{dtdx[1]}.csv')
-        time_series = CG_time_series_fast(time_series_FG.values, dtdx[0])
-        time_series = pd.DataFrame(time_series, columns=time_series_FG.columns.astype(int) , index=range(1,len(time_series)+1))
-        #data_bin_array = None
+        time_series_FG,col_label,data_bin_array = FG_time_series(time,dx,gridix,conflict_type)
+        time_series = CG_time_series_fast(time_series_FG,time)
+        time_series = pd.DataFrame(time_series, columns=col_label , index=range(1,len(time_series)+1))
 
-        data_bin = binning(time,dx,gridix,conflict_type)
-        data_bin = data_bin[["polygon_number","days","bins","event_number"]]
-        data_bin_array = np.array(data_bin)
-
-
+        data_bin_array = None
     elif(type_of_events == "randomize_polygons"):
         time_series_FG,col_label,data_bin_array = FG_time_series(dx,gridix,conflict_type,randomize_polygons=True)
         time_series = CG_time_series_fast(time_series_FG,time)
@@ -795,9 +787,9 @@ def FG_time_series(dx,gridix,conflict_type,randomize_polygons=False):
     data_frame = binning(1,dx,gridix,conflict_type)
     
     if(randomize_polygons == False):
-        data_array = np.array(data_frame[["polygon_number","days","bins","event_number"]] , dtype=int)
+        data_array = np.array(data_frame[['polygon_number','days','bins']] , dtype=int)
     elif(randomize_polygons == True):
-        data_array = np.array(data_frame[["polygon_number","days","bins","event_number"]] , dtype=int)
+        data_array = np.array(data_frame[['polygon_number','days','bins']] , dtype=int)
         data_array[:,0] = np.random.permutation(data_array[:,0])   #Randomly changing the polygon where a conflict event occurs
         
     polygon_groups = numpy_indexed.group_by(data_array[:,0]).split_array_as_list(data_array)
@@ -865,7 +857,6 @@ def boxAva_to_eventAva(time , dx , gridix , conflict_type , algo_type , box_ava=
         ava_event.append(ava_event_temp)
         
     return ava_event
-
 
 def CG_time_series_events(time,dx,gridix,conflict_type):
     """Generates a CG time series where instead of 1's we have a list of 
