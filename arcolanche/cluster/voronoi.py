@@ -139,7 +139,7 @@ def check_voronoi_tiles(polygons, iprint=False, parallel=True):
 
     # check overlap with all of africa
     # load africa
-    africa = gpd.read_file(f'data/maps/afr_g2014_2013_0.shp')
+    africa = gpd.read_file(f'data/africa_countries/afr_g2014_2013_0.shp')
     assert africa.crs.name=='WGS 84'
     
     # drop island countries
