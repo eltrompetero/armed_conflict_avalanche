@@ -50,11 +50,11 @@ def create_one_grid(gridix, dx):
 
 def main(gridix):
     """Loop thru Voronoi tessellations starting with coarsest grid of solid angle
-    pi/40, which then forms the basis for a coarse grid to speed up finer grids in
+    pi/20, which then forms the basis for a coarse grid to speed up finer grids in
     nested chain.
     """
 
-    for dx in [40,80,160,320,640,1280]:
+    for dx in [20,40,80,160,320,640,1280]:
         try:
             os.makedirs(f'./voronoi_grids/{dx}')
         except OSError:
