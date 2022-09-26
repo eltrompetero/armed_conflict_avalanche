@@ -13,64 +13,6 @@ from .utils import *
 
 
 ###Preparing the data====Start###
-
-
-def conflict_position(conflict_type):
-    '''This script is used to create and then save a geodataframe of all the
-    geographic points where events took place using lattitude and longitude of events
-    from ACLED dataset and the dates on which those events occured
-    '''
-
-    data = data_loader.conflict_data_loader(conflict_type)
-
-    temp_list = []
-    for i in range(len(data)):
-        temp_point = Point(data["longitude"][i] , data["latitude"][i])
-        temp_list.append(temp_point)
-
-    conflict_event_positions = gpd.GeoDataFrame(temp_list)
-    conflict_event_positions["date"] = data["event_date"]
-
-    conflict_event_positions.set_geometry(0 , inplace=True)
-    conflict_event_positions.rename_geometry('geometry' , inplace=True)
-
-    conflict_event_positions.to_file(f"generated_data/{conflict_type}/conflict_positions/conflict_positions.shp")
-
-    return None
-
-def conflict_event_polygon_mapping(dx, gridix, conflict_type, progress_bar="n"):
-    """Find event to polygon mapping.
-    """
-    
-    polygons = load_voronoi(dx, gridix)
-    conflict_positions = gpd.read_file(f'generated_data/{conflict_type}/conflict_positions/conflict_positions.shp')
-
-    pandarallel.initialize(progress_bar=True if progress_bar=='y' else False)
-
-    def location(point):
-        """Return polygon index where conflict event is."""
-        ix = polygons.index[polygons.contains(point)]
-        assert ix.size==1, "Point belongs to multiple polygons."
-        return ix[0]
-
-    event_pol_mapping = conflict_positions["geometry"].parallel_apply(location)
-    #event_pol_mapping = conflict_positions["geometry"].apply(location)
-
-    event_pol_mapping.to_numpy()
-
-    mapping = np.zeros((len(event_pol_mapping),2), dtype=int)
-    mapping[:,0] = list(range(len(event_pol_mapping)))
-    mapping[:,1] = event_pol_mapping
-    mapping = mapping.astype(int)
-    
-    path = f'generated_data/{conflict_type}/gridix_{gridix}/event_mappings'
-    if not os.path.exists(path):
-        os.makedirs(path)
-    np.savetxt(f'{path}/event_mapping_{str(dx)}.csv',
-               mapping,
-               delimiter=',',
-               fmt='%i')
-
 def single_tile_events(dx , gridix , conflict_type):
 
     conflict_data = data_loader.conflict_data_loader(conflict_type)
@@ -764,11 +706,12 @@ def time_series_generator(time, dx, gridix, conflict_type):
 
     return time_series , neighbor_info_df
 
-def FG_time_series(dx,gridix,conflict_type,randomize_polygons=False):
+def FG_time_series(dt, dx, gridix, conflict_type, randomize_polygons=False):
     """Generates fine grained time series of conflicts.
     
     Parameters
     ----------
+    dt : int
     dx : int
     gridix : int
     conflict_type : str
@@ -789,7 +732,7 @@ def FG_time_series(dx,gridix,conflict_type,randomize_polygons=False):
         dataset.
     """
 
-    data_frame = binning(1,dx,gridix,conflict_type)
+    data_frame = binning(dt,dx,gridix,conflict_type)
     
     if(randomize_polygons == False):
         data_array = np.array(data_frame[['polygon_number','days','bins']] , dtype=int)
