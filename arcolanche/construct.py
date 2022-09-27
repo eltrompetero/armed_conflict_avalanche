@@ -19,10 +19,30 @@ from .data import ACLED2020
 class Avalanche():
     """For constructing causal avalanches.
     """
-    def __init__(self, dt, dx, gridix=0, conflict_type='battles',
+    def __init__(self, dt, dx,
+                 gridix=0,
+                 conflict_type='battles',
                  sig_threshold=95,
                  rng=None,
-                 iprint=False):
+                 iprint=False,
+                 setup=True):
+        """
+        Parameters
+        ----------
+        dt : int
+            Time separation scale.
+        dx : int
+            Inverse distance separation scale.
+        gridix : int, 0
+            Random Voronoi grid index.
+        conflict_type : str, 'battles'
+        sig_threshold : int, 95
+        rng : np.random.RandomState, None
+        iprint : bool, False
+        setup : bool, True
+            If False, don't run causal graph and avalanche construction.
+        """
+
         assert 0<=sig_threshold<100
 
         self.dt = dt
@@ -35,9 +55,11 @@ class Avalanche():
         
         self.polygons = load_voronoi(dx, gridix)
         self.time_series = discretize_conflict_events(dt, dx, gridix, conflict_type)[['t','x']]
-        self.setup_causal_graph()
-        if self.iprint: print("Starting avalanche construction...")
-        self.construct()
+
+        if setup:
+            self.setup_causal_graph()
+            if self.iprint: print("Starting avalanche construction...")
+            self.construct()
     
     def setup_causal_graph(self, shuffles=100):
         """Calculate transfer entropy between neighboring polygons and save it as a
@@ -98,54 +120,66 @@ class Avalanche():
         ava = []  # indices of conflict events
         remaining_ix = set(self.time_series.index)
         to_check = set()
-        checked = set()
-        time_group = self.time_series.groupby('t')
+        checked = []
+        tx_group = self.time_series.groupby(['t','x'])
 
         while remaining_ix:
             ix = remaining_ix.pop()
             to_check.add(ix)
-            ava.append([])
+            ava.append([ix])
+
+            # add all the events sharing the starting time and spatial bin
+            t, x = self.time_series.loc[ix]
+            for i in tx_group.groups[(t,x)]:
+                try:
+                    remaining_ix.remove(i)
+                    ava[-1].append(i)
+                    checked.append(i)
+                except:
+                    pass
+
             while to_check:
-                ava[-1].append(to_check.pop())
-                checked.add(ava[-1][-1])
+                checked.append(to_check.pop())
                 start_ix = ava[-1][-1]
-                t = self.time_series['t'].loc[ava[-1][-1]]
+                t, x = self.time_series.loc[ava[-1][-1]]
 
                 # add successors which must be at the next time step
-                if t+1 in time_group.groups.keys():
-                    df = time_group.get_group(t+1) 
-                    for n in self.causal_graph.neighbors(self.time_series['x'].loc[ava[-1][-1]]):
-                        ix = n==df['x']
-                        if ix.any():
-                            # remove events from being added to another avalanches
-                            for i in df.index[ix]:
-                                try:
-                                    remaining_ix.remove(i)
-                                except:
-                                    pass
-                            # add them to the current avalanche
-                            ava[-1].extend(df.index[ix])
-                            [checked.add(i) for i in df.index[ix]]
-                            # make sure they will be checked themselves for neighbors
+                for n in self.causal_graph.neighbors(x):
+                    if (t+1,n) in tx_group.groups.keys():
+                        # remove events from being added to another avalanches
+                        added = False
+                        for i in tx_group.groups[(t+1,n)]:
+                            try:
+                                remaining_ix.remove(i)
+                                # add them to the current avalanche
+                                ava[-1].append(i)
+                                checked.append(i)
+                                added = True
+                            except:
+                                pass
+                        if added:
+                            checked.pop(-1)
+                            # make sure successor events will be checked themselves for neighbors
+                            # and only need to follow up on one in the group of successors
                             if not ava[-1][-1] in checked:
                                 to_check.add(ava[-1][-1])
 
                 # add predecessors which must be at the previous time step
-                if t-1 in time_group.groups.keys():
-                    df = time_group.get_group(t-1) 
-                    for n in self.causal_graph.predecessors(self.time_series['x'].loc[ava[-1][-1]]):
-                        ix = n==df['x']
-                        if ix.any():
-                            # remove events from being added to another avalanches
-                            for i in df.index[ix]:
-                                try:
-                                    remaining_ix.remove(i)
-                                except:
-                                    pass
-                            # add them to the current avalanche
-                            ava[-1].extend(df.index[ix])
-                            [checked.add(i) for i in df.index[ix]]
-                            # make sure they will be checked themselves for neighbors
+                for n in self.causal_graph.neighbors(x):
+                    if (t-1,n) in tx_group.groups.keys():
+                        # remove events from being added to another avalanches
+                        added = False
+                        for i in tx_group.groups[(t-1,n)]:
+                            try:
+                                remaining_ix.remove(i)
+                                # add them to the current avalanche
+                                ava[-1].append(i)
+                                checked.append(i)
+                                added = True
+                            except:
+                                pass
+                        if added:
+                            checked.pop(-1)
                             if not ava[-1][-1] in checked:
                                 to_check.add(ava[-1][-1])
 
@@ -263,6 +297,10 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles'):
     conflict_ev['t'] = (conflict_ev['event_date']-conflict_ev['event_date'].min()) // np.timedelta64(dt,'D')
     
     conflict_ev = gpd.sjoin(conflict_ev, polygons, how='left', op='within')
+
+    # in rare instances, a conflict event may belong to two polygons, in such a case choose the first one
+    conflict_ev = conflict_ev[~conflict_ev.index.duplicated(keep='first')]
+
     conflict_ev.rename(columns={'index_right':'x'}, inplace=True)
 
     # no need for polygon neighbors column or raw index
