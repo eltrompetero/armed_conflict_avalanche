@@ -1384,3 +1384,60 @@ def common_actors_coeff_calculator_events(time,dx,gridix,conflict_type,type_of_a
         common_actors_coeff = common_actors_coeff/count
 
     return common_actors_coeff
+
+
+def actors_Jaccard_index(time,dx,gridix,conflict_type,type_of_algo,threshold):
+    """Calculates the summation of Jaccard index of conflict zones. Here A and B are the 
+    number of actors in zone 1 and zone 2 which are being compared.
+
+    Parameters
+    ----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str
+    type_of_algo : str
+    
+    Returns
+    -------
+    float
+    """
+
+    acled_data = data_loader.conflict_data_loader(conflict_type)
+
+    zones = conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold)
+
+    sorted_zones = sorted(zones , key=len)
+    sorted_zones.reverse()
+
+    actor_sets = []
+    actor_dicts_list = []
+    for index,zone in enumerate(sorted_zones):
+        actor_count = zone_actor_counter(time,dx,gridix,conflict_type,type_of_algo,zone,acled_data)
+
+        actor_sets.append(set(list(zip(*actor_count))[0]))
+        actor_dicts_list.append(dict(zip(list(zip(*actor_count))[0],list(zip(*actor_count))[1])))
+
+
+    common_actors_coeff = 0
+    count = 0
+    for index in range(len(actor_sets)):
+        for jndex in range(index,len(actor_sets)):
+            if(index == jndex):
+                common_actors_term = 1
+                common_actors_coeff += common_actors_term
+                count += 1
+            else:
+                common_actors_term = len(actor_sets[index].intersection(actor_sets[jndex])) / (len(actor_sets[index]) + len(actor_sets[jndex]) \
+                                                                                             - len(actor_sets[index].intersection(actor_sets[jndex])))
+
+                common_actors_coeff += common_actors_term * 2
+                count += 2
+
+    if(count == 0):
+        common_actors_coeff = 0
+    else:
+        common_actors_coeff = common_actors_coeff/count
+
+    return common_actors_coeff
+
