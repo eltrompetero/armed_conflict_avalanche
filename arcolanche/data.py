@@ -59,8 +59,7 @@ def dyadic_data(region='africa'):
 # Useful quick data access functions. #
 # =================================== #
 class ACLED2020():
-    fname = (f'{DATADR}/1997-01-01-2020-07-23-Eastern_Africa-Middle_Africa-Northern_Africa-'+
-             'Southern_Africa-Western_Africa.csv')
+    fname = (f'{DATADR}/mystery_data.csv')
     if os.path.isfile(fname):
         df = pd.read_csv(fname)
         df.event_date = pd.to_datetime(df.event_date)

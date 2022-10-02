@@ -137,16 +137,17 @@ class Avalanche():
                     checked.append(i)
                 except:
                     pass
-
+            
+            # iterate thru potential sequential/preceding events
             while to_check:
                 checked.append(to_check.pop())
-                start_ix = ava[-1][-1]
-                t, x = self.time_series.loc[ava[-1][-1]]
+                start_ix = checked[-1]
+                t, x = self.time_series.loc[checked[-1]]
 
                 # add successors which must be at the next time step
                 for n in self.causal_graph.neighbors(x):
                     if (t+1,n) in tx_group.groups.keys():
-                        # remove events from being added to another avalanches
+                        # remove events such that they are not added to another avalanche
                         added = False
                         for i in tx_group.groups[(t+1,n)]:
                             try:
@@ -158,14 +159,14 @@ class Avalanche():
                             except:
                                 pass
                         if added:
-                            checked.pop(-1)
                             # make sure successor events will be checked themselves for neighbors
                             # and only need to follow up on one in the group of successors
+                            checked.pop(-1)
                             if not ava[-1][-1] in checked:
                                 to_check.add(ava[-1][-1])
 
                 # add predecessors which must be at the previous time step
-                for n in self.causal_graph.neighbors(x):
+                for n in self.causal_graph.predecessors(x):
                     if (t-1,n) in tx_group.groups.keys():
                         # remove events from being added to another avalanches
                         added = False
@@ -292,7 +293,7 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles'):
     polygons = load_voronoi(dx, gridix)
     df = ACLED2020.battles_df()
     conflict_ev = gpd.GeoDataFrame(df[['event_date','longitude','latitude']],
-                                   geometry=gpd.points_from_xy(df.longitude,df.latitude),
+                                   geometry=gpd.points_from_xy(df.longitude, df.latitude),
                                    crs=polygons.crs)
     conflict_ev['t'] = (conflict_ev['event_date']-conflict_ev['event_date'].min()) // np.timedelta64(dt,'D')
     

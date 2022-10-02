@@ -1,13 +1,27 @@
 # ====================================================================================== #
 # Module for analyzing ACLED data.
-# Author: Eddie Lee, edlee@santafe.edu
+# Author: Eddie Lee, edlee@csh.ac.at
 # ====================================================================================== #
-from .utils import *
-
 from statsmodels.stats.proportion import proportion_confint
 import matplotlib.pyplot as plt
+import cartopy.feature as cfeature
+import cartopy.crs as ccrs
+
+from .utils import *
 
 
+def africa(fig):
+    """Plot map of Africa.
+    """
+
+    ax = fig.add_subplot(111, projection=ccrs.PlateCarree())
+    ax.add_feature(cfeature.COASTLINE)
+    ax.add_feature(cfeature.BORDERS)
+    ax.add_feature(cfeature.OCEAN)
+
+    ax.set_extent(default_extent())
+
+    return ax
 
 def default_extent(degrees=True):
     if degrees:
