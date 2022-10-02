@@ -161,7 +161,7 @@ def track_max_pair_dist(lonlat,
     return maxdist
 
 def _max_pair_dist(lonlat):
-    from misc.globe import max_geodist_pair
+    from voronoi_globe import max_geodist_pair
 
     lonlat = np.unique(lonlat, axis=0)
     if len(lonlat)==1:
@@ -411,7 +411,7 @@ def fast_cluster_diameter(lonlat, n_top=3):
     """
 
     from misc.utils import unravel_utri
-    from misc.globe import haversine
+    from voronoi_globe import haversine
     
     if 1<len(lonlat)<=n_top:
         d=pdist(lonlat/180*np.pi, lambda u,v: haversine(u,v,6370))
