@@ -96,13 +96,13 @@ class CausalGraph(nx.DiGraph):
 
         for poly, (te, te_shuffle) in self.self_poly_te.items():
             if (te>te_shuffle).mean() >= (self.sig_threshold/100):
-                self.add_edge(poly, poly)
+                self.add_edge(poly, poly, weight=te)
             else:
                 self.add_node(poly)
 
         for pair, (te, te_shuffle) in self.pair_poly_te.items():
             if (te>te_shuffle).mean() >= (self.sig_threshold/100):
-                self.add_edge(pair[0], pair[1])
+                self.add_edge(pair[0], pair[1], weight=te)
 
         self.uG = self.to_undirected()
 
