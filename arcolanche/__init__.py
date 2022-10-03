@@ -3,6 +3,7 @@
 # Author: Eddie Lee, edlee@csh.ac.at
 # ====================================================================================== #
 from .data import ACLED2020
+from .construct import Avalanche
 from .utils import *
 from . import pipeline as pipe
 from . import plot as pplot

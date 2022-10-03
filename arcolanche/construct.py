@@ -115,9 +115,13 @@ class Avalanche():
         self.causal_graph.setup(self_edges, pair_edges)
 
     def construct(self):
-        """Construct causal avalanches of conflict events."""
+        """Construct causal avalanches of conflict events. These are not time
+        ordered, but simply a list of the indices of all conflict events that have
+        happened.
+        """
 
         ava = []  # indices of conflict events
+        event_t = []  # time index for each conflict event
         remaining_ix = set(self.time_series.index)
         to_check = set()
         checked = []
@@ -125,15 +129,17 @@ class Avalanche():
 
         while remaining_ix:
             ix = remaining_ix.pop()
+            t, x = self.time_series.loc[ix]
             to_check.add(ix)
             ava.append([ix])
+            event_t.append([t])
 
             # add all the events sharing the starting time and spatial bin
-            t, x = self.time_series.loc[ix]
             for i in tx_group.groups[(t,x)]:
                 try:
                     remaining_ix.remove(i)
                     ava[-1].append(i)
+                    event_t[-1].append(t)
                     checked.append(i)
                 except:
                     pass
@@ -154,6 +160,7 @@ class Avalanche():
                                 remaining_ix.remove(i)
                                 # add them to the current avalanche
                                 ava[-1].append(i)
+                                event_t[-1].append(t)
                                 checked.append(i)
                                 added = True
                             except:
@@ -175,6 +182,7 @@ class Avalanche():
                                 remaining_ix.remove(i)
                                 # add them to the current avalanche
                                 ava[-1].append(i)
+                                event_t[-1].append(t)
                                 checked.append(i)
                                 added = True
                             except:
@@ -186,6 +194,31 @@ class Avalanche():
 
         # conflict avalanches, index is index of conflict event in conflict events DataFrame
         self.avalanches = ava
+        self.event_t = event_t
+
+    def avalanche_events(self, ix):
+        """Time ordered list of events in avalanche.
+
+        Parameters
+        ----------
+        ix : int
+            Avalanche index.
+
+        Returns
+        -------
+        list of twoples
+            Each twople is (t, indices of all events at time t).
+        """
+
+        a = zip(self.event_t[ix], self.avalanches[ix])
+        a = sorted(a, key=lambda i:i[0])
+        a_by_t = {}
+        for t, i in a:
+            if t in a_by_t.keys():
+                a_by_t[t].append(i)
+            else:
+                a_by_t[t] = [i]
+        return a_by_t
 #end Avalanche
 
 
