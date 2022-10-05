@@ -27,7 +27,7 @@ def conflict_position(conflict_type):
         temp_list.append(temp_point)
 
     conflict_event_positions = geopandas.GeoDataFrame(temp_list)
-    conflict_event_positions["date"] = data["EVENT_DATE"]
+    conflict_event_positions["date"] = data["EVENT_DATE"].astype(str)
 
     conflict_event_positions.set_geometry(0 , inplace=True)
     conflict_event_positions.rename_geometry('geometry' , inplace=True)
