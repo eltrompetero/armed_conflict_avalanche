@@ -99,11 +99,11 @@ class CausalGraph(nx.DiGraph):
 
         for poly, (te, te_shuffle) in self.self_poly_te.items():
             if (te>te_shuffle).mean() >= (self.sig_threshold/100):
-                self.add_edge(poly, poly)
+                self.add_edge(poly, poly, weight=te)
 
         for pair, (te, te_shuffle) in self.pair_poly_te.items():
             if (te>te_shuffle).mean() >= (self.sig_threshold/100):
-                self.add_edge(pair[0], pair[1])
+                self.add_edge(pair[0], pair[1], weight=te)
 
         self.uG = self.to_undirected()
 
@@ -135,7 +135,7 @@ class CausalGraph(nx.DiGraph):
             A list of tuples where each tuple contain two nodes which have a link
             between them. 
         """
-        return [i for i in self.edges() if i[0] != i[1]]
+        return [i for i in self.edges(data=True) if i[0] != i[1]]
 
 
     def causal_neighbors(self):
