@@ -8,6 +8,7 @@ from . import data as data_loader
 from . import network as net
 #import avalanche_numbering
 
+from arcolanche.data import *
 
 ###Preparing the data====Start###
 
@@ -17,15 +18,16 @@ def conflict_position(conflict_type):
     This script is used to create and then save a geodataframe of all the geographic points where events took place using lattitude and longitude of 
     events from ACLED dataset and the dates on which those events occured
     '''
-    data = data_loader.conflict_data_loader(conflict_type)
+    data = conflict_data_loader("battles")
+    #data = data_loader.conflict_data_loader(conflict_type)
 
     temp_list = []
     for i in range(len(data)):
-        temp_point = Point(data["longitude"][i] , data["latitude"][i])
+        temp_point = Point(data["LONGITUDE"][i] , data["LATITUDE"][i])
         temp_list.append(temp_point)
 
     conflict_event_positions = geopandas.GeoDataFrame(temp_list)
-    conflict_event_positions["date"] = data["event_date"]
+    conflict_event_positions["date"] = data["EVENT_DATE"]
 
     conflict_event_positions.set_geometry(0 , inplace=True)
     conflict_event_positions.rename_geometry('geometry' , inplace=True)

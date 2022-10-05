@@ -59,12 +59,11 @@ def dyadic_data(region='africa'):
 # Useful quick data access functions. #
 # =================================== #
 class ACLED2020():
-    fname = (f'{DATADR}/1997-01-01-2020-07-23-Eastern_Africa-Middle_Africa-Northern_Africa-'+
-             'Southern_Africa-Western_Africa.csv')
+    fname = (f'{DATADR}/Africa_1997-2022_Sep30.csv')
     if os.path.isfile(fname):
         df = pd.read_csv(fname)
-        df.event_date = pd.to_datetime(df.event_date)
-        df.sort_values('event_date', inplace=True)
+        df.EVENT_DATE = pd.to_datetime(df.EVENT_DATE)
+        df.sort_values('EVENT_DATE', inplace=True)
 
     @classmethod
     def battles_df(cls, pre_covid=True):
@@ -79,13 +78,13 @@ class ACLED2020():
         """
 
         if pre_covid:
-            ix = ((cls.df.event_date>=pd.to_datetime('1997/01/01')) &
-                  (cls.df.event_date<=pd.to_datetime('2019/12/31')))
+            ix = ((cls.df.EVENT_DATE>=pd.to_datetime('1997/01/01')) &
+                  (cls.df.EVENT_DATE<=pd.to_datetime('2019/12/31')))
             df = cls.df.loc[ix]
         else:
             df = cls.df
 
-        return df.loc[df.event_type=='Battles']
+        return df.loc[df.EVENT_TYPE=='Battles'].reset_index()
 
     @classmethod
     def vac_df(cls, pre_covid=True):
@@ -100,13 +99,13 @@ class ACLED2020():
         """
 
         if pre_covid:
-            ix = ((cls.df.event_date>=pd.to_datetime('1997/01/01')) &
-                  (cls.df.event_date<=pd.to_datetime('2019/12/31')))
+            ix = ((cls.df.EVENT_DATE>=pd.to_datetime('1997/01/01')) &
+                  (cls.df.EVENT_DATE<=pd.to_datetime('2019/12/31')))
             df = cls.df.loc[ix]
         else:
             df = cls.df
 
-        return df.loc[df.event_type=='Violence against civilians']
+        return df.loc[df.EVENT_TYPE=='Violence against civilians']
 
     @classmethod
     def riots_and_protests_df(cls, pre_covid=True):
@@ -121,15 +120,18 @@ class ACLED2020():
         """
 
         if pre_covid:
-            ix = ((cls.df.event_date>=pd.to_datetime('1997/01/01')) &
-                  (cls.df.event_date<=pd.to_datetime('2019/12/31')))
+            ix = ((cls.df.EVENT_DATE>=pd.to_datetime('1997/01/01')) &
+                  (cls.df.EVENT_DATE<=pd.to_datetime('2019/12/31')))
             df = cls.df.loc[ix]
         else:
             df = cls.df
 
-        ix = (df.event_type=='Riots') | (df.event_type=='Protests')
+        ix = (df.EVENT_TYPE=='Riots') | (df.EVENT_TYPE=='Protests')
         return df.loc[ix]
 #end ACLED2020
 
 def conflict_data_loader(conflict_type):
-    return pd.read_csv(f'{DATADR}/conflict/data_{conflict_type}.csv')
+    if(conflict_type == "battles"):
+        return ACLED2020.battles_df()
+    else:                                      ##### Add other event types if needed
+        pass 
