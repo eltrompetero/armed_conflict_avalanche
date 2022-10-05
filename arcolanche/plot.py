@@ -10,14 +10,17 @@ import cartopy.crs as ccrs
 from .utils import *
 
 
-def africa(fig):
+def africa(fig=None, ax=None):
     """Plot map of Africa.
     """
+    
+    if not fig is None:
+        ax = fig.add_subplot(111, projection=ccrs.PlateCarree())
 
-    ax = fig.add_subplot(111, projection=ccrs.PlateCarree())
     ax.add_feature(cfeature.COASTLINE)
     ax.add_feature(cfeature.BORDERS)
     ax.add_feature(cfeature.OCEAN)
+    ax.add_feature(cfeature.LAND)
 
     ax.set_extent(default_extent())
 
