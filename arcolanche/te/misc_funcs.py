@@ -108,10 +108,11 @@ def binning(time , dx , gridix , conflict_type):
 
     time_binning = pd.DataFrame({'polygon_number' : time_binning})
 
-    data = data_loader.conflict_data_loader(conflict_type)
-    time_binning["date"] = data["event_date"]
+    data = conflict_data_loader("battles")
+    #data = data_loader.conflict_data_loader(conflict_type)
+    time_binning["date"] = data["EVENT_DATE"]
 
-    day = pd.to_datetime(data["event_date"] , dayfirst=True)  
+    day = pd.to_datetime(data["EVENT_DATE"] , dayfirst=True)  
 
     time_binning["days"] = (day-day.min()).apply(lambda x : x.days)
 
