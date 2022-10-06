@@ -3,7 +3,7 @@
 from scipy.optimize import minimize
 import numpy as np
 from coniii.enumerate import fast_logsumexp
-
+from multiprocess import Pool
 
 
 class NActivationIsing():
@@ -27,6 +27,12 @@ class NActivationIsing():
         self.rng = rng if not rng is None else np.random
         
     def set_params(self, params):
+        """Re-defines self.logZ and self.p using given parameters.
+        
+        Parameters
+        ----------
+        params : ndarray
+        """
         self.params = params
         
         self.logZ = fast_logsumexp(-self.calc_e(self.all_states(), self.params))[0]
@@ -54,13 +60,18 @@ class NActivationIsing():
             return self.all_states()[self.rng.choice(2*self.n, p=self.p)][None,:]
         return self.all_states()[self.rng.choice(2*self.n, p=self.p, size=size)]
     
-    def solve(self, constraints, original_guess=np.zeros(2), max_param_value=20):
+    def solve(self, constraints,
+              original_guess=np.zeros(2),
+              max_param_value=20,
+              J_cost=(0,50)):
         """
         Parameters
         ----------
         constraints : ndarray
         original_guess : ndarray, np.zeros(2)
         max_param_value : float, 20
+        J_cost : twople, (0,50)
+            (mean, std) of coupling cost
 
         Returns
         -------
@@ -71,7 +82,8 @@ class NActivationIsing():
         
         def cost(new_params):
             self.set_params(new_params)
-            return np.linalg.norm(self.calc_observables() - constraints)
+            return (np.linalg.norm(self.calc_observables() - constraints) +
+                    abs(J_cost[0]-new_params[1])/J_cost[1])
         return minimize(cost, original_guess,
                         bounds=[(-max_param_value, max_param_value)]*2)
     
@@ -86,3 +98,84 @@ class NActivationIsing():
 
         return np.vstack(([0]*self.n + [1]*self.n, list(range(self.n)) + list(range(self.n)))).T
 #end NActivationIsing
+
+
+
+def solve_simultaneous_activation(polygons, conf_df):
+    """Simultaneous activation model.
+    """
+
+    tmx = conf_df['t'].max()
+    px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / tmx
+
+    def loop_wrapper(i):
+        """For a given site, get it's typical activation probability along with
+        its pair correlations no. of active neighbors.
+        """
+
+        pi = px.loc[i]
+        pin = 0
+        for t, g in g_by_t.groups.items():
+            n_active = 0
+            g_x = conf_df['x'].loc[g].values
+            for j in polygons['active_neighbors'].loc[i]:
+                if j in g_x:
+                    n_active += 1
+            pin += n_active
+        pin /= tmx
+        n = len(polygons['active_neighbors'].loc[i]) + 1
+
+        # must convert pairwise correlations to {-1,1} basis
+        solver = NActivationIsing(n)
+        constraints = np.array([pi, pin])
+        solver.solve(constraints, max_param_value=10, J_cost=(0, 10))
+        return solver.params
+
+    g_by_t = conf_df.groupby('t')
+    g_by_t.get_group(0);
+    loop_wrapper(polygons.index[0])
+    #with Pool() as pool:
+    #    polygons['params'] = list(pool.map(loop_wrapper, polygons.index))
+
+    # read out parmeters into separate cols
+    polygons['h'] = polygons['params'].apply(lambda i:i[0])
+    polygons['J'] = polygons['params'].apply(lambda i:i[1])
+
+def solve_delayed_activation(polygons, conf_df):
+    tmx = conf_df['t'].max()
+    px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / tmx
+
+    def loop_wrapper(i):
+        """For a given site, get it's typical activation probability along with
+        its pair correlations no. of active neighbors.
+        """
+
+        pi = px.loc[i]
+        pin = 0
+
+        # for each time point, count number of neighbors at t-1, assume that the rest are 0
+        for t, g in g_by_t:
+            n_active = 0
+            if t-1 in g_by_t.groups.keys():
+                for j in polygons['active_neighbors'].loc[i]:
+                    if j in conf_df['x'].loc[g_by_t.groups[t-1]].values:
+                        n_active += 1
+            pin += n_active
+        pin /= tmx
+        n = len(polygons['active_neighbors'].loc[i]) + 1
+
+        # must convert pairwise correlations to {-1,1} basis
+        solver = NActivationIsing(n)
+        constraints = np.array([pi, pin])
+        solver.solve(constraints, max_param_value=10, J_cost=(0, 10))
+        return solver.params
+
+    g_by_t = conf_df.groupby('t')
+    g_by_t.get_group(0);
+    with Pool() as pool:
+        polygons['params'] = list(pool.map(loop_wrapper, polygons.index))
+
+    # read out parmeters into separate cols
+    polygons['h'] = polygons['params'].apply(lambda i:i[0])
+    polygons['J'] = polygons['params'].apply(lambda i:i[1])
+
