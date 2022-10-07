@@ -142,6 +142,17 @@ def solve_simultaneous_activation(polygons, conf_df):
     polygons['J'] = polygons['params'].apply(lambda i:i[1])
 
 def solve_delayed_activation(polygons, conf_df):
+    """Solve for the parameters of a delayed activation model given the data.
+
+    Parameters
+    ----------
+    polygons : pd.DataFrame
+        Updated in place with parameters col 'params' and separately the bias
+        parameter 'h' and activation parameter 'J'.
+    conf_df : pd.DataFrame
+        Conflict events.
+    """
+
     tmx = conf_df['t'].max()
     px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / tmx
 
