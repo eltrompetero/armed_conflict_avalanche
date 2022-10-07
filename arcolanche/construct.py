@@ -97,6 +97,7 @@ class Avalanche():
         """
         
         tmx = self.time_series['t'].max()
+        sample_set_t = np.arange(tmx+1, dtype=int)  # for random sampling
         self_edges = {}
         pair_edges = {}
             
@@ -105,9 +106,12 @@ class Avalanche():
             self.rng.seed()
 
             x, time_series = args
-            vals = [self_te(np.unique(time_series), tmx),[]]
+            uniqt = np.unique(time_series)
+            vals = [self_te(uniqt, tmx),[]]
             for i in range(shuffles):
-                vals[1].append(self_te(np.unique(self.rng.randint(tmx+1, size=time_series.size)), tmx))
+                vals[1].append(self_te(self.rng.choice(sample_set_t,
+                                                       replace=False,
+                                                       size=uniqt.size), tmx))
             return x, vals
 
         with Pool() as pool:
@@ -119,24 +123,26 @@ class Avalanche():
         def loop_wrapper(args):
             pair_edges = []
             x, time_series = args
+            uniqt = np.unique(time_series)
             neighbors = self.polygons['neighbors'].loc[x]
             for n in neighbors:
                 if n in self.time_series['x'].values:
-                    n_time_series = group.get_group(x)
-                    vals = [pair_te(np.unique(time_series), np.unique(n_time_series), tmx),[]]
+                    n_time_series = group.get_group(n)
+                    n_uniqt = np.unique(n_time_series)
+                    vals = [pair_te(uniqt, n_uniqt, tmx),[]]
 
                     for i in range(shuffles):
                         # randomly place each event in any time bin
-                        time_series = self.rng.randint(tmx+1, size=time_series.size)
-                        n_time_series = self.rng.randint(tmx+1, size=n_time_series.size)
-                        vals[1].append(pair_te(np.unique(time_series), np.unique(n_time_series), tmx))
+                        time_series = self.rng.choice(sample_set_t, size=uniqt.size, replace=False)
+                        n_time_series = self.rng.choice(sample_set_t, size=n_uniqt.size, replace=False)
+                        vals[1].append(pair_te(time_series, n_time_series, tmx))
                     pair_edges.append([(x,n), vals])
             return pair_edges
-
+        
         with Pool() as pool:
             pair_edges = dict(list(itertools.chain.from_iterable(pool.map(loop_wrapper, group))))
         if self.iprint: print("Done with pair edges.")
-
+        
         self.causal_graph = CausalGraph(sig_threshold=self.sig_threshold)
         self.causal_graph.setup(self_edges, pair_edges)
 
@@ -251,12 +257,13 @@ class Avalanche():
 
 def pair_te(t1, t2, tmx):
     """Is t1 explained by t2 or just by itself?"""
-    from entropy.entropy import joint_p_mat, bin_states
+
+    from entropy.entropy import bin_states
 
     X = np.zeros((tmx+1, 3), dtype=int)
-    X[t1,0] = 1
-    X[t1-1,1] = 1
-    X[t2,2] = 1
+    X[t1-1,0] = 1 # x_{t+1}
+    X[t1,1] = 1   # x_t
+    X[t2,2] = 1   # y_t
     X = X[:-1]
     X = np.vstack((X, bin_states(3)))
     
@@ -266,14 +273,16 @@ def pair_te(t1, t2, tmx):
     pmat = np.unique(X, axis=0, return_counts=True)[1] - 1  # remove padded states
     pmat = np.vstack((pmat[::2], pmat[1::2])).T / pmat.sum()
     
-    p_terms = np.array([[pmat[0,0], pmat[0].sum() * pmat[:,0].sum()],
-                        [pmat[0,1], pmat[0].sum() * pmat[:,1].sum()],
-                        [pmat[1,0], pmat[1].sum() * pmat[:,0].sum()],
-                        [pmat[1,1], pmat[1].sum() * pmat[:,1].sum()],
-                        [pmat[2,0], pmat[2].sum() * pmat[:,0].sum()],
-                        [pmat[2,1], pmat[2].sum() * pmat[:,1].sum()],
-                        [pmat[3,0], pmat[3].sum() * pmat[:,0].sum()],
-                        [pmat[3,1], pmat[3].sum() * pmat[:,1].sum()]])
+    eps = np.nextafter(0, 1)
+    p_terms = np.array([[pmat[0,0], (pmat[0,0]+pmat[2,0]) * pmat[0].sum()/(eps+pmat[0].sum()+pmat[2].sum())],
+                        [pmat[0,1], (pmat[0,1]+pmat[2,1]) * pmat[0].sum()/(eps+pmat[0].sum()+pmat[2].sum())],
+                        [pmat[1,0], (pmat[1,0]+pmat[3,0]) * pmat[1].sum()/(eps+pmat[1].sum()+pmat[3].sum())],
+                        [pmat[1,1], (pmat[1,1]+pmat[3,1]) * pmat[1].sum()/(eps+pmat[1].sum()+pmat[3].sum())],
+                        [pmat[2,0], (pmat[0,0]+pmat[2,0]) * pmat[2].sum()/(eps+pmat[0].sum()+pmat[2].sum())],
+                        [pmat[2,1], (pmat[0,1]+pmat[2,1]) * pmat[2].sum()/(eps+pmat[0].sum()+pmat[2].sum())],
+                        [pmat[3,0], (pmat[1,0]+pmat[3,0]) * pmat[3].sum()/(eps+pmat[1].sum()+pmat[3].sum())],
+                        [pmat[3,1], (pmat[1,1]+pmat[3,1]) * pmat[3].sum()/(eps+pmat[1].sum()+pmat[3].sum())]])
+
     with warnings.catch_warnings(record=True):
         warnings.simplefilter('always')
         te = np.nansum(p_terms[:,0] * (np.log(p_terms[:,0]) - np.log(p_terms[:,1])))
