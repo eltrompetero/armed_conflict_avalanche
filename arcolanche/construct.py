@@ -97,6 +97,7 @@ class Avalanche():
         """
         
         tmx = self.time_series['t'].max()
+        sample_set_t = np.arange(tmx+1, dtype=int)  # for random sampling
         self_edges = {}
         pair_edges = {}
             
@@ -108,7 +109,7 @@ class Avalanche():
             uniqt = np.unique(time_series)
             vals = [self_te(uniqt, tmx),[]]
             for i in range(shuffles):
-                vals[1].append(self_te(self.rng.choice(np.arange(tmx+1, dtype=int),
+                vals[1].append(self_te(self.rng.choice(sample_set_t,
                                                        replace=False,
                                                        size=uniqt.size), tmx))
             return x, vals
@@ -126,22 +127,22 @@ class Avalanche():
             neighbors = self.polygons['neighbors'].loc[x]
             for n in neighbors:
                 if n in self.time_series['x'].values:
-                    n_time_series = group.get_group(x)
+                    n_time_series = group.get_group(n)
                     n_uniqt = np.unique(n_time_series)
                     vals = [pair_te(uniqt, n_uniqt, tmx),[]]
 
                     for i in range(shuffles):
                         # randomly place each event in any time bin
-                        time_series = self.rng.choice(np.arange(tmx+1, dtype=int), size=uniqt.size)
-                        n_time_series = self.rng.choice(np.arange(tmx+1, dtype=int), size=n_uniqt.size)
+                        time_series = self.rng.choice(sample_set_t, size=uniqt.size, replace=False)
+                        n_time_series = self.rng.choice(sample_set_t, size=n_uniqt.size, replace=False)
                         vals[1].append(pair_te(time_series, n_time_series, tmx))
                     pair_edges.append([(x,n), vals])
             return pair_edges
-
+        
         with Pool() as pool:
             pair_edges = dict(list(itertools.chain.from_iterable(pool.map(loop_wrapper, group))))
         if self.iprint: print("Done with pair edges.")
-
+        
         self.causal_graph = CausalGraph(sig_threshold=self.sig_threshold)
         self.causal_graph.setup(self_edges, pair_edges)
 
