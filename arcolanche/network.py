@@ -43,7 +43,8 @@ def links(time_series, neighbor_info_dataframe,
 
 
 def self_links(time_series, number_of_shuffles=50):
-    """Calculates self loop transfer entropy and identifies polygons with significant self loops assuming a 95% confidence interval.
+    """Calculates self loop transfer entropy and identifies polygons with significant
+    self loops assuming a 95% confidence interval.
 
     Parameters
     ----------
