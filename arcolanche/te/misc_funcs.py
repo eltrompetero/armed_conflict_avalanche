@@ -700,8 +700,9 @@ def ava_numbering(time,dx,gridix,conflict_type,ava_events):
         
     avalanche_data["avalanche_number"] = avalanche_number_arr
 
-    ACLED_data = data_loader.conflict_data_loader(conflict_type)
-    avalanche_data["fatalities"] = ACLED_data["fatalities"]
+    ACLED_data = conflict_data_loader("battles")
+    #ACLED_data = data_loader.conflict_data_loader(conflict_type)
+    avalanche_data["fatalities"] = ACLED_data["FATALITIES"]
     
     return avalanche_data
 
