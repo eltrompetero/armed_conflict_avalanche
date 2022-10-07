@@ -9,6 +9,7 @@ from . import network as net
 #import avalanche_numbering
 
 from arcolanche.data import *
+from voronoi_globe import load_voronoi
 
 ###Preparing the data====Start###
 
@@ -273,11 +274,15 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
 
     dtdx = (time, dx)
 
-    polygons = gpd.read_file(f'voronoi_grids/{dtdx[1]}/borders{str(gridix).zfill(2)}.shp')
-    def neighbors_to_list(neighbor_list):
-        return list(map(int , neighbor_list.replace(' ', '').split(',')))
+    polygons = load_voronoi(dx,gridix)
+
+    #polygons = gpd.read_file(f'voronoi_grids/{dtdx[1]}/borders{str(gridix).zfill(2)}.shp')
+    #def neighbors_to_list(neighbor_list):
+    #    return list(map(int , neighbor_list.replace(' ', '').split(',')))
+
     neighbor_info_df = polygons.drop('geometry' , axis=1)
-    neighbor_info_df['neighbors'] = neighbor_info_df['neighbors'].apply(neighbors_to_list)
+
+    #neighbor_info_df['neighbors'] = neighbor_info_df['neighbors'].apply(neighbors_to_list)
 
     if(type_of_events == "null_reassign"):
         time_series , time_series_FG = null_model_time_series_generator(time,640,dx,gridix,conflict_type)
