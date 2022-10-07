@@ -359,7 +359,7 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles'):
     """
     
     polygons = load_voronoi(dx, gridix)
-    df = ACLED2020.battles_df()
+    df = ACLED2020.battles_df(to_lower=True)
     conflict_ev = gpd.GeoDataFrame(df[['event_date','longitude','latitude']],
                                    geometry=gpd.points_from_xy(df.longitude, df.latitude),
                                    crs=polygons.crs)

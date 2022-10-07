@@ -66,11 +66,13 @@ class ACLED2020():
         df.sort_values('EVENT_DATE', inplace=True)
 
     @classmethod
-    def battles_df(cls, pre_covid=True):
+    def battles_df(cls, pre_covid=True, to_lower=False):
         """
         Parameters
         ----------
         pre_covid : bool, True
+        to_lower : bool, False
+            If True, rename all cols to lower case.
 
         Returns
         -------
@@ -83,7 +85,10 @@ class ACLED2020():
             df = cls.df.loc[ix]
         else:
             df = cls.df
-
+        
+        if to_lower:
+            df.columns = [i.lower() for i in df.columns]
+            return df.loc[df['event_type']=='Battles']
         return df.loc[df['EVENT_TYPE']=='Battles']
 
     @classmethod
