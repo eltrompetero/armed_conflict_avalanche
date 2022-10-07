@@ -25,7 +25,8 @@ class Avalanche():
                  sig_threshold=95,
                  rng=None,
                  iprint=False,
-                 setup=True):
+                 setup=True,
+                 shuffle_null=False):
         """
         Parameters
         ----------
@@ -41,6 +42,7 @@ class Avalanche():
         iprint : bool, False
         setup : bool, True
             If False, don't run causal graph and avalanche construction.
+        shuffle_null : bool, False
         """
 
         assert 0<=sig_threshold<100
@@ -55,12 +57,36 @@ class Avalanche():
         
         self.polygons = load_voronoi(dx, gridix)
         self.time_series = discretize_conflict_events(dt, dx, gridix, conflict_type)[['t','x']]
+        if shuffle_null:
+            if iprint: print("Starting shuffling...")
+            self.randomize()
 
         if setup:
             self.setup_causal_graph()
             if self.iprint: print("Starting avalanche construction...")
             self.construct()
     
+    def randomize(self):
+        """Randomize time index in each polygon.
+        """
+
+        g_by_x = self.time_series.groupby('x')
+        tmx = self.time_series['t'].max()
+
+        randomized_time_series = []
+        for x, thisg in g_by_x:
+            # replace every occurrence of t with a random choice from all possible time bins
+            uniqt = np.unique(thisg['t'])
+            trand = self.rng.choice(np.arange(tmx+1), size=uniqt.size, replace=False)
+            newt = np.zeros(thisg.shape[0], dtype=int)
+            for t_, tr_ in zip(uniqt, trand):
+                newt[thisg['t']==t_] = tr_
+            thisg['t'].values[:] = newt
+            randomized_time_series.append(thisg)
+
+        randomized_time_series = pd.concat(randomized_time_series)
+        self.time_series = randomized_time_series
+
     def setup_causal_graph(self, shuffles=100):
         """Calculate transfer entropy between neighboring polygons and save it as a
         causal network graph.
