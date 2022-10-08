@@ -3,6 +3,7 @@
 # Author: Eddie Lee, edlee@csh.ac.at
 # ====================================================================================== #
 import sys
+
 from .utils import *
 
 # try to find data directory either in cwd or above
@@ -11,48 +12,6 @@ if not os.path.isdir(DATADR):
     DATADR = os.getcwd()+'/data'
 assert os.path.isdir(DATADR), DATADR
 
-
-def dyadic_data(region='africa'):
-    """Load raw data.
-
-    Parameters
-    ----------
-    region : str,'africa'
-        'africa', 'middle east', 'asia'
-    """
-
-    from datetime import datetime
-    
-    if region=='africa':
-        df = pd.read_csv('%s/%s'%(DATADR,'ACLED-Version-7-All-Africa-1997-2016_csv_dyadic-file.csv'),
-                         encoding='latin1')
-        df['EVENT_DATE'] = df['EVENT_DATE'].map(lambda t: datetime.strptime(t,'%d/%m/%Y'))
-    elif region=='asia':
-        df = pd.read_csv('%s/%s'%(DATADR,'Asia_2016-2018_Sept29.csv'))
-        df['EVENT_DATE'] = df['EVENT_DATE'].map(lambda t: datetime.strptime(t,'%Y-%m-%d'))
-    elif region=='middle east':
-        df = pd.read_csv('%s/%s'%(DATADR,'MiddleEast_2016-2018_Sep29-1.csv'))
-        df['EVENT_DATE'] = df['EVENT_DATE'].map(lambda t: datetime.strptime(t,'%d-%B-%Y'))
-    else:
-        raise NotImplementedError
-
-    # Standardize col names
-    if 'ASSOC_ACTOR_1' in df.columns:
-        df.rename(columns={'ASSOC_ACTOR_1':'ALLY_ACTOR_1'}, inplace=True)
-    if 'ASSOC_ACTOR_2' in df.columns:
-        df.rename(columns={'ASSOC_ACTOR_2':'ALLY_ACTOR_2'}, inplace=True)
-    df['ACTOR1'].fillna('', inplace=True)
-    df['ACTOR2'].fillna('', inplace=True)
-    df['ALLY_ACTOR_1'].fillna('', inplace=True)
-    df['ALLY_ACTOR_2'].fillna('', inplace=True)
-
-    # make all event types lower case since there are inconsistencies in capitalization
-    df['EVENT_TYPE']=df['EVENT_TYPE'].map(lambda x:x.lower())
-
-    df['LATITUDE'].values[:] = pd.to_numeric(df['LATITUDE'])
-    df['LONGITUDE'].values[:] = pd.to_numeric(df['LONGITUDE'])
-
-    return df
 
 
 # =================================== #

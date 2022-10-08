@@ -1,5 +1,5 @@
 # ====================================================================================== #
-# Module for analyzing ACLED data.
+# Module for analyzing conflict ACLED data and model.
 # Author: Eddie Lee, edlee@csh.ac.at
 # ====================================================================================== #
 import numpy as np
@@ -10,7 +10,6 @@ from datetime import datetime
 from itertools import combinations, chain
 from scipy.spatial.distance import squareform
 from misc.plot import colorcycle
-import scipy.stats as stats
 from warnings import warn
 from voronoi_globe import haversine, jithaversine
 from numba import jit, njit
@@ -24,10 +23,6 @@ from rasterstats import zonal_stats, gen_zonal_stats
 import rasterio
 from threadpoolctl import threadpool_limits
 from multiprocess import Pool
-
-DEFAULTDR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/py'
-DATADR = os.path.expanduser('~')+'/Dropbox/Research/armed_conflict2/data'
-
 
 
 
