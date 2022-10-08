@@ -41,7 +41,8 @@ def conflict_position(conflict_type):
 def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores , progress_bar="y"):
     print("Finding event to polygon mapping!")
 
-    polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
+    polygons = load_voronoi(dx,gridix)
+    #polygons = gpd.read_file(f'voronoi_grids/{dx}/borders{str(gridix).zfill(2)}.shp')
 
     conflict_positions = gpd.read_file(f"generated_data/{conflict_type}/conflict_positions/conflict_positions.shp")
 
@@ -52,7 +53,7 @@ def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores , pro
 
     def location(point):
         ix = np.where(polygons.contains(point))[0]
-        return ix[0]
+        return polygons.index[ix[0]]
 
 
     event_pol_mapping = conflict_positions["geometry"].parallel_apply(location)
