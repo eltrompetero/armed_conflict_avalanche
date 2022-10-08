@@ -1067,10 +1067,10 @@ def actor_dict_generator(acled_data):
     """
     
     #acled_data = data_loader.conflict_data_loader(conflict_type)
-    acled_data_actors = acled_data[["actor1","actor2"]]
+    acled_data_actors = acled_data[["ACTOR1","ACTOR2"]]
     
-    actor1_arr = (acled_data_actors["actor1"]).to_numpy()
-    actor2_arr = (acled_data_actors["actor2"]).to_numpy()
+    actor1_arr = (acled_data_actors["ACTOR1"]).to_numpy()
+    actor2_arr = (acled_data_actors["ACTOR2"]).to_numpy()
     
     actors_arr = np.concatenate((actor1_arr,actor2_arr))
     actors_arr = np.unique(actors_arr)
@@ -1113,7 +1113,7 @@ def event_actor_counter(event_nums , actors_dict , acled_data):
         return key_to_return  
     
     #acled_data = data_loader.conflict_data_loader(conflict_type)
-    acled_data_actors = acled_data[["actor1","actor2"]]
+    acled_data_actors = acled_data[["ACTOR1","ACTOR2"]]
         
     actors_event = acled_data_actors.loc[event_nums].to_numpy()
     actors_event = actors_event.reshape(actors_event.shape[0]*actors_event.shape[1])
@@ -1141,7 +1141,7 @@ def events_in_zone(time,dx,gridix,conflict_type,type_of_algo,zone):
     Returns
     -------
     list
-        A list of all the events that are in  aparticular zone.
+        A list of all the events that are in a particular zone.
     """
     
     box_path = f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/{type_of_algo}_ava_box_{str(time)}_{str(dx)}.csv"
@@ -1215,7 +1215,8 @@ def common_actors_coeff_calculator(time,dx,gridix,conflict_type,type_of_algo,thr
     float
     """
     
-    acled_data = data_loader.conflict_data_loader(conflict_type)
+    acled_data = conflict_data_loader("battles")
+    #acled_data = data_loader.conflict_data_loader(conflict_type)
 
     zones = conflict_zone_generator(time,dx,gridix,conflict_type,type_of_algo,threshold)
     
