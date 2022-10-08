@@ -35,8 +35,8 @@ def links(time_series, neighbor_info_dataframe,
         for i, row in neighbor_info_dataframe.iterrows():
             for n in row['neighbors']:
                 # only consider pairs of polygons that appear in the time series
-                if row['index'] in time_series.columns and n in time_series.columns:
-                    yield (row['index'], n)
+                if neighbor_info_dataframe.index[row["index"]] in time_series.columns and n in time_series.columns:
+                    yield (neighbor_info_dataframe.index[row["index"]], n)
     
     pair_poly_te = iter_polygon_pair(polygon_pair_gen(),
                                      number_of_shuffles, 
