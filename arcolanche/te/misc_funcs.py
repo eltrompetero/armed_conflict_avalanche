@@ -764,12 +764,11 @@ def duration_for_box_avas(avalanches):
 
 
 def time_series_generator(time, dx, gridix, conflict_type):
-    polygons = gpd.read_file(f'voronoi_grids/{str(dx)}/borders{str(gridix).zfill(2)}.shp')
+    
+    polygons = load_voronoi(dx,gridix)
+    #polygons = gpd.read_file(f'voronoi_grids/{str(dx)}/borders{str(gridix).zfill(2)}.shp')
 
-    def neighbors_to_list(neighbor_list):
-        return list(map(int , neighbor_list.replace(' ', '').split(',')))
     neighbor_info_df = polygons.drop('geometry' , axis=1)
-    neighbor_info_df['neighbors'] = neighbor_info_df['neighbors'].apply(neighbors_to_list)
 
     time_series_FG = pd.read_csv(f'generated_data/{conflict_type}/gridix_{gridix}/FG_time_series/time_series_1_{str(dx)}.csv')
     time_series = CG_time_series_fast(time_series_FG.values, time)
