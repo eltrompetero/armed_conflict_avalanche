@@ -10,8 +10,14 @@ import cartopy.crs as ccrs
 from .utils import *
 
 
-def africa(fig=None, ax=None):
+def africa(fig=None, ax=None, ocean=True):
     """Plot map of Africa.
+
+    Parameters
+    ----------
+    fig : pyplot.Figure, None
+    ax : pyplot.Axes, Noen
+    ocean : bool, True
     """
     
     if not fig is None:
@@ -19,7 +25,7 @@ def africa(fig=None, ax=None):
 
     ax.add_feature(cfeature.COASTLINE)
     ax.add_feature(cfeature.BORDERS)
-    ax.add_feature(cfeature.OCEAN)
+    if ocean: ax.add_feature(cfeature.OCEAN)
     ax.add_feature(cfeature.LAND)
 
     ax.set_extent(default_extent())
