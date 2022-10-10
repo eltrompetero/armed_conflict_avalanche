@@ -21,7 +21,7 @@ def solve_simultaneous_activation(polygons, conf_df):
 
         pi = px.loc[i]
         pin = 0
-        for t, g in g_by_t.groups.items():
+        for t,g in g_by_t.groups.items():
             n_active = 0
             g_x = conf_df['x'].loc[g].values
             for j in polygons['active_neighbors'].loc[i]:
@@ -214,6 +214,14 @@ class MarkovSimulator():
         self.conf_df = discretize_conflict_events(*dtdx, gridix=gridix)
         
     def simulate(self, T, save_every=10):
+        """Simulate time series with single-step Markov chain.
+
+        Parameters
+        ----------
+        T : int
+        save_every : int, 10
+        """
+
         polygons = self.polygons
         
         s = dict(zip(polygons.index, [0]*len(polygons)))

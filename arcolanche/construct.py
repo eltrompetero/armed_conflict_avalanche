@@ -258,8 +258,6 @@ class Avalanche():
 def pair_te(t1, t2, tmx):
     """Is t1 explained by t2 or just by itself?"""
 
-    from entropy.entropy import bin_states
-
     X = np.zeros((tmx+1, 3), dtype=int)
     X[t1-1,0] = 1 # x_{t+1}
     X[t1,1] = 1   # x_t
