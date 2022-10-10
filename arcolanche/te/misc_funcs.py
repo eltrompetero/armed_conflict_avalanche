@@ -271,7 +271,7 @@ def convert_back_to_regular_form(a , valid_polygons):
 
 
 ###TE Avalanches and required functions===Start###
-def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_events):
+def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_events , number_of_shuffles):
 
     dtdx = (time, dx)
 
@@ -320,8 +320,8 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
 
 
     # Calculate transfer entropies and shuffles for pairs and self
-    self_poly_te = net.self_links(time_series)
-    pair_poly_te = net.links(time_series, neighbor_info_df)
+    self_poly_te = net.self_links(time_series, number_of_shuffles)
+    pair_poly_te = net.links(time_series, neighbor_info_df, number_of_shuffles)
 
     G = net.CausalGraph()
     G.setup(self_poly_te,pair_poly_te)
