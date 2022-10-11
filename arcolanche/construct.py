@@ -96,6 +96,7 @@ class Avalanche():
         shuffles : int, 100
         """
         
+        assert shuffles > 0
         tmx = self.time_series['t'].max()
         sample_set_t = np.arange(tmx+1, dtype=int)  # for random sampling
         self_edges = {}
@@ -145,8 +146,8 @@ class Avalanche():
             pair_edges = dict(list(itertools.chain.from_iterable(pool.map(loop_wrapper, group, chunksize=100))))
         if self.iprint: print("Done with pair edges.")
         
-        self.causal_graph = CausalGraph(sig_threshold=self.sig_threshold)
-        self.causal_graph.setup(self_edges, pair_edges)
+        self.causal_graph = CausalGraph()
+        self.causal_graph.setup(self_edges, pair_edges, sig_threshold=self.sig_threshold)
 
     def construct(self):
         """Construct causal avalanches of conflict events. These are not time
@@ -311,7 +312,7 @@ def self_te(t, tmx):
         te = np.nansum([p11 * np.log(p11/p1**2),
                         p10 * np.log(p10/p1/p0),
                         p01 * np.log(p01/p0/p1),
-                        p00 * np.log(p00/p0**2)]) / np.log(2)
+                        p00 * np.log(p00/p0**2)])
     return te
 
 def _self_probabilities(t, tmx):
