@@ -115,12 +115,14 @@ class Avalanche():
             return x, vals
 
         with Pool() as pool:
-            self_edges = dict(pool.map(loop_wrapper, self.time_series.groupby('x')['t']))
+            self_edges = dict(pool.map(loop_wrapper, self.time_series.groupby('x')['t'], chunksize=10))
         if self.iprint: print("Done with self edges.")
 
         # cell 2 cell edges
         group = self.time_series.groupby('x')['t']
         def loop_wrapper(args):
+            self.rng.seed()
+
             pair_edges = []
             x, time_series = args
             uniqt = np.unique(time_series)
@@ -140,7 +142,7 @@ class Avalanche():
             return pair_edges
         
         with Pool() as pool:
-            pair_edges = dict(list(itertools.chain.from_iterable(pool.map(loop_wrapper, group))))
+            pair_edges = dict(list(itertools.chain.from_iterable(pool.map(loop_wrapper, group, chunksize=100))))
         if self.iprint: print("Done with pair edges.")
         
         self.causal_graph = CausalGraph(sig_threshold=self.sig_threshold)
