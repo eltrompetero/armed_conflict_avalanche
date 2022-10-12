@@ -297,7 +297,7 @@ def self_te(t, tmx):
     Parameters
     ----------
     t : ndarray
-        Assuming only unique values.
+        Assuming only unique and ordered values.
     tmx : int
 
     Returns
@@ -305,14 +305,14 @@ def self_te(t, tmx):
     float
     """
     
-    (p11, p01, p10, p00), (p1, p0) = _self_probabilities(t, tmx)
+    (p11, p01, p10, p00), (p1_past, p1_fut) = _self_probabilities(t, tmx)
 
     with warnings.catch_warnings(record=True):
         warnings.simplefilter('always')
-        te = np.nansum([p11 * np.log(p11/p1**2),
-                        p10 * np.log(p10/p1/p0),
-                        p01 * np.log(p01/p0/p1),
-                        p00 * np.log(p00/p0**2)])
+        te = np.nansum([p11 * (np.log(p11) - np.log(p1_past) - np.log(p1_fut)),
+                        p10 * (np.log(p10) - np.log(p1_past) - np.log(1-p1_fut)),
+                        p01 * (np.log(p01) - np.log(1-p1_past) - np.log(p1_fut)),
+                        p00 * (np.log(p00) - np.log(1-p1_past) - np.log(1-p1_fut))])
     return te
 
 def _self_probabilities(t, tmx):
@@ -322,6 +322,7 @@ def _self_probabilities(t, tmx):
     t_comp = np.delete(np.arange(tmx+1), t)
     
     # use intersections to count possible outcomes
+    # the past is the first var, the future is the second var
     p11 = np.in1d(t+1, t, assume_unique=True).sum()
     p01 = np.in1d(t_comp+1, t, assume_unique=True).sum()
     p10 = np.in1d(t+1, t_comp, assume_unique=True).sum()
@@ -333,11 +334,18 @@ def _self_probabilities(t, tmx):
     p01 /= norm
     p10 /= norm
     p00 /= norm
+    
+    if t[0]==0:
+        p1_fut = (t.size-1) / tmx
+    else:
+        p1_fut = t.size / tmx
 
-    p1 = t.size / tmx
-    p0 = 1-p1
+    if t[-1]==tmx:
+        p1_past = (t.size-1) / tmx
+    else:
+        p1_past = t.size / tmx
 
-    return (p11, p01, p10, p00), (p1, p0)
+    return (p11, p01, p10, p00), (p1_past, p1_fut)
 
 @cache
 def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles'):
