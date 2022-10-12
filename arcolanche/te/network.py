@@ -125,9 +125,13 @@ class CausalGraph(nx.DiGraph):
         return self_loop_node_list
 
 
-    def edges_no_self(self):
+    def edges_no_self(self,info=True):
         """Outputs a list of tuples where each tuple contains node index which has a
          causal link between them.
+
+        info: bool , True
+            The edge attribute returned in 3-tuple (u, v, ddict[data]). If True, 
+            return edge attribute dict in 3-tuple (u, v, ddict). If False, return 2-tuple (u, v).
 
         Returns
         -------
@@ -135,7 +139,7 @@ class CausalGraph(nx.DiGraph):
             A list of tuples where each tuple contain two nodes which have a link
             between them. 
         """
-        return [i for i in self.edges(data=True) if i[0] != i[1]]
+        return [i for i in self.edges(data=info) if i[0] != i[1]]
 
 
     def causal_neighbors(self):
