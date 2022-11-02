@@ -324,7 +324,7 @@ def avalanche_creation_fast_te(time , dx  , gridix , conflict_type , type_of_eve
     pair_poly_te = net.links(time_series, neighbor_info_df, number_of_shuffles)
 
     G = net.CausalGraph()
-    G.setup(self_poly_te,pair_poly_te)
+    G.setup(self_poly_te,pair_poly_te,sig_threshold=95)
     
     # To create neighbors_arr that avalanches_te requires i.e
     # a array of array where every array contains successive neighbors of valid polygons
@@ -606,7 +606,7 @@ def data_bin_extracter(time_series_FG,time):
 def avalanche_te(time_series_arr , neighbors):
     """This function geenrates avalanches using time series and information about
     neighbors of each polygon. The neighbor array contains self loop details and
-    also information about isloated nodes. Isolated nodes have empty neighbor arrays.
+    also information about isolated nodes. Isolated nodes have empty neighbor arrays.
     
     Input preparation code-
     time_series_arr = time_series.to_numpy()
