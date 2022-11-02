@@ -155,9 +155,9 @@ class Avalanche():
         happened.
         """
 
-        ava = []  # indices of conflict events
+        ava = []  # indices of conflict events grouped into avalanches
         event_t = []  # time index for each conflict event
-        remaining_ix = set(self.time_series.index)
+        remaining_ix = set(self.time_series.index)  # events to consider
         to_check = set()
         checked = []
         tx_group = self.time_series.groupby(['t','x'])
