@@ -697,12 +697,13 @@ def ava_numbering(time,dx,gridix,conflict_type,ava_events):
 
     avalanche_data = binning(time,dx,gridix,conflict_type)
     avalanche_data["avalanche_number"] = 0
-    avalanche_number_arr = np.array(avalanche_data["avalanche_number"])
+    avalanche_number_dict = dict.fromkeys(avalanche_data.index , 0)
 
     for ava,index in zip(ava_events,range(len(ava_events))):
-        avalanche_number_arr[ava] = index
+        for event in ava:
+            avalanche_number_dict[event] = index
 
-    avalanche_data["avalanche_number"] = avalanche_number_arr
+    avalanche_data["avalanche_number"] = avalanche_number_dict.values()
 
     ACLED_data = ACLED2020.battles_df()
     avalanche_data["fatalities"] = ACLED_data["FATALITIES"]
