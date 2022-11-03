@@ -123,6 +123,7 @@ def binning(time , dx , gridix , conflict_type):
     time_binning["bins"] = bins
 
     time_binning["event_number"] = data.index
+    time_binning.set_index(data.index , inplace=True)
 
     #time_binning.to_csv(f"data_{conflict_type}/time_bins_{str(time)}_{str(dx)}.csv")
 
