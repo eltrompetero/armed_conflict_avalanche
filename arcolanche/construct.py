@@ -225,7 +225,7 @@ class Avalanche():
                                 to_check.add(ava[-1][-1])
 
         # conflict avalanches, index is index of conflict event in conflict events DataFrame
-        self.avalanches = ava
+        self.avalanches = ava    ##### The event number here are the default index in ACLED dataset
         self.event_t = event_t
 
     def avalanche_events(self, ix):
