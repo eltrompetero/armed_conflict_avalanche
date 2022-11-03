@@ -106,14 +106,15 @@ def binning(time , dx , gridix , conflict_type):
     #print("Creating time bins!")
 
     time_binning = np.loadtxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",") #this var is named time_binning because later it will become time_binning. Right now it is event_mappings.
+    time_binning = time_binning.astype(int)
     time_binning = time_binning[:,1]
 
     time_binning = pd.DataFrame({'polygon_number' : time_binning})
 
     data = ACLED2020.battles_df()
-    time_binning["date"] = data["EVENT_DATE"]
+    time_binning["date"] = data["EVENT_DATE"].reset_index()["EVENT_DATE"]
 
-    day = pd.to_datetime(data["EVENT_DATE"] , dayfirst=True)
+    day = pd.to_datetime(data["EVENT_DATE"].reset_index()["EVENT_DATE"] , dayfirst=True)
 
     time_binning["days"] = (day-day.min()).apply(lambda x : x.days)
 
