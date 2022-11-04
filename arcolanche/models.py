@@ -58,9 +58,10 @@ def solve_delayed_activation(polygons, conf_df):
     conf_df : pd.DataFrame
         Conflict events.
     """
-
+    
+    tmn = conf_df['t'].min()
     tmx = conf_df['t'].max()
-    px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / tmx
+    px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / (tmx-tmn+1)
 
     def loop_wrapper(i):
         """For a given site, get it's typical activation probability along with
@@ -78,7 +79,7 @@ def solve_delayed_activation(polygons, conf_df):
                     if j in conf_df['x'].loc[g_by_t.groups[t-1]].values:
                         n_active += 1
             pin += n_active
-        pin /= tmx
+        pin /= (tmx-tmn+1)
         n = len(polygons['active_neighbors'].loc[i]) + 1
 
         # must convert pairwise correlations to {-1,1} basis
@@ -88,7 +89,7 @@ def solve_delayed_activation(polygons, conf_df):
         return solver.params
 
     g_by_t = conf_df.groupby('t')
-    g_by_t.get_group(0);
+    g_by_t.get_group(conf_df['t'].iloc[0]);  # prep
     with Pool() as pool:
         polygons['params'] = list(pool.map(loop_wrapper, polygons.index))
 
@@ -214,7 +215,7 @@ class MarkovSimulator():
         self.conf_df = discretize_conflict_events(*dtdx, gridix=gridix)
         
     def simulate(self, T, save_every=10):
-        """Simulate time series with single-step Markov chain.
+        """Simulate time series with single-step Markov chain using the 'model' column in polygons.
 
         Parameters
         ----------
@@ -260,18 +261,21 @@ class MarkovSimulator():
         """
 
         self.polygons['index'] = self.polygons.index
+        tmn = self.conf_df['t'].min()
+        tmx = self.conf_df['t'].max()
+
         # for every pair of neighbors, count how many times they appear together
         g_by_x = self.conf_df.groupby('x')
         def _pair_corr(poly):
             i = poly['index']
             pij = []
-            time_series = np.zeros((self.conf_df['t'].max()+1, 2), dtype=int)
-            time_series[g_by_x.get_group(poly['index'])['t'].unique(),0] = 1
+            time_series = np.zeros((tmx-tmn+1, 2), dtype=int)
+            time_series[g_by_x.get_group(poly['index'])['t'].unique()-tmn,0] = 1
 
             # we could also check inactive neighbors
             for j in poly['active_neighbors']:
                 time_series[:,1] = 0  # reset
-                time_series[g_by_x.get_group(j)['t'].unique(),1] = 1
+                time_series[g_by_x.get_group(j)['t'].unique()-tmn,1] = 1
                 pij.append((frozenset((i,j)), np.prod(time_series,axis=1).mean()))
             return pij
 
@@ -294,21 +298,23 @@ class MarkovSimulator():
         """
         
         assert dt>=1
-
+        
         self.polygons['index'] = self.polygons.index
+        tmx = self.conf_df['t'].max()
+        tmn = self.conf_df['t'].min()
 
         # for every pair of neighbors, count how many times they appear together
         g_by_x = self.conf_df.groupby('x')
         def _pair_corr(poly):
             i = poly['index']
             pij = []
-            time_series = np.zeros((self.conf_df['t'].max()+1, 2), dtype=int)
-            time_series[g_by_x.get_group(poly['index'])['t'].unique(),0] = 1
+            time_series = np.zeros((tmx-tmn+1, 2), dtype=int)
+            time_series[g_by_x.get_group(poly['index'])['t'].unique()-tmn,0] = 1
 
             # we could also check inactive neighbors
             for j in poly['active_neighbors']:
                 time_series[:,1] = 0  # reset
-                time_series[g_by_x.get_group(j)['t'].unique(),1] = 1
+                time_series[g_by_x.get_group(j)['t'].unique()-tmn,1] = 1
                 pij.append(((i,j), (time_series[dt:,0]*time_series[:-dt,1]).mean()))
             return pij
 
