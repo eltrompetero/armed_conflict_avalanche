@@ -3,12 +3,14 @@
 # Author : Eddie Lee, Niraj Kushwaha
 # ====================================================================================== #
 import networkx as nx
+from .transfer_entropy_func import *
+from .self_loop_entropy_func import *
 
 from .utils import *
 
 
 def links(time_series, neighbor_info_dataframe,
-          number_of_shuffles=50):
+          number_of_shuffles):
     """Calculates transfer entropy and identifies significant links between Voronoi
     neighbors assuming a 95% confidence interval.
 
@@ -16,7 +18,7 @@ def links(time_series, neighbor_info_dataframe,
     ----------
     time_series : pd.DataFrame
     neighbor_info_dataframe : pd.DataFrame
-    number_of_shuffles : int, 50
+    number_of_shuffles : int
     
     Returns
     -------
@@ -30,11 +32,11 @@ def links(time_series, neighbor_info_dataframe,
     # calculate transfer entropy between pairs of tiles
     def polygon_pair_gen():
         """Pairs of legitimate neighboring polygons."""
-        for i, row in neighbor_info_dataframe.iterrows():
+        for pol_index, row in neighbor_info_dataframe.iterrows():
             for n in row['neighbors']:
                 # only consider pairs of polygons that appear in the time series
-                if row['index'] in time_series.columns and n in time_series.columns:
-                    yield (row['index'], n)
+                if pol_index in time_series.columns and n in time_series.columns:
+                    yield (pol_index, n)
     
     pair_poly_te = iter_polygon_pair(polygon_pair_gen(),
                                      number_of_shuffles, 
@@ -42,14 +44,14 @@ def links(time_series, neighbor_info_dataframe,
     return pair_poly_te
 
 
-def self_links(time_series, number_of_shuffles=50):
+def self_links(time_series, number_of_shuffles):
     """Calculates self loop transfer entropy and identifies polygons with significant
     self loops assuming a 95% confidence interval.
 
     Parameters
     ----------
     time_series : pd.DataFrame
-    number_of_shuffles : int, 50
+    number_of_shuffles : int
     
     Returns
     -------

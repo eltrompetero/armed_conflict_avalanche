@@ -1,7 +1,7 @@
 from .utils import *
 
-from . import transfer_entropy_func
-from . import self_loop_entropy_func
+from .. import transfer_entropy_func
+from .. import self_loop_entropy_func
 
 from .. import network as net
 #import avalanche_numbering

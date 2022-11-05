@@ -10,9 +10,11 @@ from functools import cache
 import warnings
 import itertools
 
-from .network import CausalGraph
+from .network import *
 from .utils import *
 from .data import ACLED2020
+from .transfer_entropy_func import *
+from .self_loop_entropy_func import *
 
 
 
@@ -57,6 +59,7 @@ class Avalanche():
         
         self.polygons = load_voronoi(dx, gridix)
         self.time_series = discretize_conflict_events(dt, dx, gridix, conflict_type)[['t','x']]
+        self.time_series_CG_generator()
         if shuffle_null:
             if iprint: print("Starting shuffling...")
             self.randomize()
@@ -95,59 +98,29 @@ class Avalanche():
         ----------
         shuffles : int, 100
         """
-        
-        assert shuffles > 0
-        tmx = self.time_series['t'].max()
-        sample_set_t = np.arange(tmx+1, dtype=int)  # for random sampling
-        self_edges = {}
-        pair_edges = {}
-            
-        # self edges
-        def loop_wrapper(args):
-            self.rng.seed()
 
-            x, time_series = args
-            uniqt = np.unique(time_series)
-            vals = [self_te(uniqt, tmx),[]]
-            for i in range(shuffles):
-                vals[1].append(self_te(self.rng.choice(sample_set_t,
-                                                       replace=False,
-                                                       size=uniqt.size), tmx))
-            return x, vals
-
-        with Pool() as pool:
-            self_edges = dict(pool.map(loop_wrapper, self.time_series.groupby('x')['t'], chunksize=10))
-        if self.iprint: print("Done with self edges.")
-
-        # cell 2 cell edges
-        group = self.time_series.groupby('x')['t']
-        def loop_wrapper(args):
-            self.rng.seed()
-
-            pair_edges = []
-            x, time_series = args
-            uniqt = np.unique(time_series)
-            neighbors = self.polygons['neighbors'].loc[x]
-            for n in neighbors:
-                if n in self.time_series['x'].values:
-                    n_time_series = group.get_group(n)
-                    n_uniqt = np.unique(n_time_series)
-                    vals = [pair_te(uniqt, n_uniqt, tmx),[]]
-
-                    for i in range(shuffles):
-                        # randomly place each event in any time bin
-                        time_series = self.rng.choice(sample_set_t, size=uniqt.size, replace=False)
-                        n_time_series = self.rng.choice(sample_set_t, size=n_uniqt.size, replace=False)
-                        vals[1].append(pair_te(time_series, n_time_series, tmx))
-                    pair_edges.append([(x,n), vals])
-            return pair_edges
-        
-        with Pool() as pool:
-            pair_edges = dict(list(itertools.chain.from_iterable(pool.map(loop_wrapper, group, chunksize=100))))
-        if self.iprint: print("Done with pair edges.")
+        self_edges = self_links(self.time_series_CG_matrix, number_of_shuffles=shuffles)
+        pair_edges = links(self.time_series_CG_matrix, self.polygons.drop('geometry' , axis=1), number_of_shuffles=shuffles)
         
         self.causal_graph = CausalGraph()
         self.causal_graph.setup(self_edges, pair_edges, sig_threshold=self.sig_threshold)
+
+    def time_series_CG_generator(self):
+        """Generates a coarse-grained (depending on dt and dx) time series matrix for the 
+        whole dataset.
+        """
+        
+        time_series_unique = self.time_series.drop_duplicates()
+        
+        col_labels = np.sort(np.unique(time_series_unique["x"].to_numpy()))
+        time_series_CG_matrix = np.zeros((time_series_unique["t"].max()+1 , len(col_labels)))
+        
+        pol_index_mapping_dict = dict(zip(col_labels,range(len(col_labels))))
+        
+        for t,x in time_series_unique.values:
+            time_series_CG_matrix[t,pol_index_mapping_dict[x]] = 1
+            
+        self.time_series_CG_matrix = pd.DataFrame(time_series_CG_matrix , columns=col_labels , dtype=int)
 
     def construct(self):
         """Construct causal avalanches of conflict events. These are not time
