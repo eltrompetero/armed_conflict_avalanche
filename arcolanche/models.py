@@ -47,7 +47,7 @@ def solve_simultaneous_activation(polygons, conf_df):
     polygons['h'] = polygons['params'].apply(lambda i:i[0])
     polygons['J'] = polygons['params'].apply(lambda i:i[1])
 
-def solve_delayed_activation(polygons, conf_df):
+def solve_delayed_activation(polygons, conf_df, K_cost_inverse_weight=10):
     """Solve for the parameters of a delayed activation model given the data.
 
     Parameters
@@ -57,11 +57,13 @@ def solve_delayed_activation(polygons, conf_df):
         parameter 'h' and activation parameter 'J'.
     conf_df : pd.DataFrame
         Conflict events.
+    K_cost_inverse_weight : float, 10
     """
     
     tmn = conf_df['t'].min()
     tmx = conf_df['t'].max()
-    px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / (tmx-tmn+1)
+    # corr w/ self in the future
+    px = conf_df.groupby('x')['t'].unique().apply(lambda i:self_corr(i-tmn, tmx-tmn))
 
     def loop_wrapper(i):
         """For a given site, get it's typical activation probability along with
@@ -85,7 +87,7 @@ def solve_delayed_activation(polygons, conf_df):
         # must convert pairwise correlations to {-1,1} basis
         solver = NActivationIsing(n)
         constraints = np.array([pi, pin])
-        solver.solve(constraints, max_param_value=10, J_cost=(0, 10))
+        solver.solve(constraints, max_param_value=10, K_cost=(0, K_cost_inverse_weight))
         return solver.params
 
     g_by_t = conf_df.groupby('t')
@@ -97,7 +99,17 @@ def solve_delayed_activation(polygons, conf_df):
     polygons['h'] = polygons['params'].apply(lambda i:i[0])
     polygons['J'] = polygons['params'].apply(lambda i:i[1])
 
-
+def self_corr(t, norm):
+    """
+    Parameters
+    ----------
+    t : np.ndarray
+        Unique times at which activity was observed. Min possible is assumed to be 0.
+    norm : int
+        Normalization constant.
+    """
+    
+    return np.intersect1d(t[t>0]-1, t).size / norm
 
 # ======= #
 # Classes #
@@ -123,12 +135,15 @@ class NActivationIsing():
         self.rng = rng if not rng is None else np.random
         
     def set_params(self, params):
-        """Re-defines self.logZ and self.p using given parameters.
+        """Re-defines self.logZ and self.p using given parameters. These are the log
+        partition function and the probability distribution over all configurations
+        defined in the model.
         
         Parameters
         ----------
         params : ndarray
         """
+
         self.params = params
         
         self.logZ = fast_logsumexp(-self.calc_e(self.all_states(), self.params))[0]
@@ -138,6 +153,15 @@ class NActivationIsing():
         return -self.params[0]*s[:,0] - self.params[1]*s[:,1:].sum(1)
 
     def calc_observables(self):
+        """Calculate ensemble averaged observables using the probability distribution.
+
+        Returns
+        -------
+        np.ndarray
+            Consists of two elements (activation probability of center spin, typical
+            number of active neighbors)
+        """
+
         return np.array([self.p[self.n:].sum(), self.p[self.n:].dot(np.arange(self.n))])
 
     def sample(self, size=1):
@@ -159,14 +183,14 @@ class NActivationIsing():
     def solve(self, constraints,
               original_guess=np.zeros(2),
               max_param_value=20,
-              J_cost=(0,50)):
+              K_cost=(0,50)):
         """
         Parameters
         ----------
         constraints : ndarray
         original_guess : ndarray, np.zeros(2)
         max_param_value : float, 20
-        J_cost : twople, (0,50)
+        K_cost : twople, (0,50)
             (mean, std) of coupling cost
 
         Returns
@@ -179,12 +203,12 @@ class NActivationIsing():
         def cost(new_params):
             self.set_params(new_params)
             return (np.linalg.norm(self.calc_observables() - constraints) +
-                    abs(J_cost[0]-new_params[1])/J_cost[1])
+                    abs(K_cost[0] - new_params[1])/K_cost[1])
         return minimize(cost, original_guess,
                         bounds=[(-max_param_value, max_param_value)]*2)
     
     def all_states(self):
-        """All possible configuration in this model.
+        """All possible configurations in this model.
         
         Returns
         -------
