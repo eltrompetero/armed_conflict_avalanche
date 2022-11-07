@@ -748,7 +748,7 @@ def sites_for_box_avas(avalanches):
     """Input avalanches in box form"""
     sites = []
     for ava in avalanches:
-        sites.append(len(unique(list(zip(*ava))[0])))
+        sites.append(len(np.unique(list(zip(*ava))[0])))
     return sites , "Sites"    #returns dt and xlabel
 
 def duration_for_box_avas(avalanches):
@@ -757,7 +757,7 @@ def duration_for_box_avas(avalanches):
     This calculates duration in bin units or the coarse grained duration (temporal analogous to sites)"""
     duration = []
     for ava in avalanches:
-        duration.append(len(unique(list(zip(*ava))[1])))
+        duration.append(len(np.unique(list(zip(*ava))[1])))
     return duration , "Duration"
 
 

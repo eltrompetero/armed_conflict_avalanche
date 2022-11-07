@@ -24,7 +24,7 @@ def sites(avalanche_data):
     for i in range(len(t)):
         tl = t.get(i).to_list()
         tl = avalanche_data["polygon_number"].loc[tl]
-        tl = len(unique(tl))
+        tl = len(np.unique(tl))
         sites.append(tl)
     dt = pd.DataFrame(sites)
     #dt = sites
