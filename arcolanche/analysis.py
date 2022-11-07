@@ -39,7 +39,7 @@ class ConflictZones():
         self.iprint = iprint
 
         self.box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
-                            f"{type_of_algo}_ava_box_{str(dt)}_{str(dx)}.p")
+                            f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
 
         with open(self.box_path,"rb") as f:
             ava = pickle.load(f)
