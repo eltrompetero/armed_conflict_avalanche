@@ -150,7 +150,7 @@ class NActivationIsing():
         self.p = np.exp(-self.calc_e(self.all_states(), self.params) - self.logZ)
         
     def calc_e(self, s, params):
-        return -self.params[0]*s[:,0] - self.params[1]*s[:,1:].sum(1)
+        return -s[:,0] * (self.params[0]*s[:,1] + self.params[1]*s[:,2])
 
     def calc_observables(self):
         """Calculate ensemble averaged observables using the probability distribution.
@@ -161,8 +161,12 @@ class NActivationIsing():
             Consists of two elements (activation probability of center spin, typical
             number of active neighbors)
         """
-
-        return np.array([self.p[self.n:].sum(), self.p[self.n:].dot(np.arange(self.n))])
+        
+        # b/c we know the ordering of the states and which contribute 0 to the observable, there is no need to
+        # iterate explicitly over them
+        return np.array([self.p[3*self.n:].sum(),
+                         (self.p[2*self.n:3*self.n].dot(np.arange(self.n)) +
+                          self.p[3*self.n:4*self.n].dot(np.arange(self.n)))])
 
     def sample(self, size=1):
         """Sample from possible states using full probability distribution.
@@ -177,13 +181,14 @@ class NActivationIsing():
         """
 
         if size==1:
-            return self.all_states()[self.rng.choice(2*self.n, p=self.p)][None,:]
-        return self.all_states()[self.rng.choice(2*self.n, p=self.p, size=size)]
+            return self.all_states()[self.rng.choice(4*self.n, p=self.p)][None,:]
+        return self.all_states()[self.rng.choice(4*self.n, p=self.p, size=size)]
     
     def solve(self, constraints,
               original_guess=np.zeros(2),
               max_param_value=20,
-              K_cost=(0,50)):
+              K_cost=(0,50),
+              set_params=True):
         """
         Parameters
         ----------
@@ -192,6 +197,7 @@ class NActivationIsing():
         max_param_value : float, 20
         K_cost : twople, (0,50)
             (mean, std) of coupling cost
+        set_params : bool, True
 
         Returns
         -------
@@ -204,19 +210,40 @@ class NActivationIsing():
             self.set_params(new_params)
             return (np.linalg.norm(self.calc_observables() - constraints) +
                     abs(K_cost[0] - new_params[1])/K_cost[1])
-        return minimize(cost, original_guess,
-                        bounds=[(-max_param_value, max_param_value)]*2)
+        sol = minimize(cost, original_guess,
+                       bounds=[(-max_param_value, max_param_value)]*2)
+
+        if set_params:
+            self.set_params(sol['x'])
+        return sol
     
+    def up_states(self):
+        """All possible configurations in this model given that the center spin at
+        t+1 is held at 1.
+        
+        Returns
+        -------
+        ndarray
+            First col is center spin. Second col is number of active neighbors. First
+            set of states correspond to setting center spin to 0, and second set when
+            it is 1.
+        """
+
+        return np.vstack(([1]*(self.n*2), [0]*self.n + [1]*self.n, list(range(self.n)) + list(range(self.n)))).T
+
     def all_states(self):
         """All possible configurations in this model.
         
         Returns
         -------
         ndarray
-            First col is center spin. Second col is number of active neighbors.
+            First col is center spin at t+1. Second col center spin at t. Third col
+            is number of active neighbors. First set of states correspond to setting
+            center spin to 0, and second set when it is 1.
         """
 
-        return np.vstack(([0]*self.n + [1]*self.n, list(range(self.n)) + list(range(self.n)))).T
+        inner_states = np.vstack(([0]*self.n + [1]*self.n, list(range(self.n)) + list(range(self.n))))
+        return np.vstack(([0]*(2*self.n) + [1]*(2*self.n), np.hstack((inner_states, inner_states)))).T
 #end NActivationIsing
 
 
@@ -238,13 +265,13 @@ class MarkovSimulator():
         
         self.conf_df = discretize_conflict_events(*dtdx, gridix=gridix)
         
-    def simulate(self, T, save_every=10):
+    def simulate(self, T, save_every=1):
         """Simulate time series with single-step Markov chain using the 'model' column in polygons.
 
         Parameters
         ----------
         T : int
-        save_every : int, 10
+        save_every : int, 1
         """
 
         polygons = self.polygons
