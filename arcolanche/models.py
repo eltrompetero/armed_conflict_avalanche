@@ -115,6 +115,109 @@ def self_corr(t, norm):
 # ======= #
 # Classes #
 # ======= #
+class NThreshold():
+    def __init__(self, n, params=None, rng=None):
+        """Spin with a bias for activation and activation based on neighbors in
+        previous time step.
+
+        Parameters
+        ----------
+        int : n
+            Number of spins, 1 + no. of neighbors.
+        params : ndarray, None
+        rng : np.random.RandomState, None
+            Uses np.random if None.
+        """
+
+        self.n = n
+        if not params is None:
+            assert params.size==2 and params.ndim==1
+            self.set_params(params)
+        else:
+            self.set_params(np.zeros(2))
+        self.rng = rng if not rng is None else np.random
+        
+    def set_params(self, params):
+        """Re-defines self.logZ and self.p using given parameters.
+        
+        Parameters
+        ----------
+        params : ndarray
+        """
+        self.params = params
+        
+        self.logZ = fast_logsumexp(-self.calc_e(self.all_states(), self.params))[0]
+        self.p = np.exp(-self.calc_e(self.all_states(), self.params) - self.logZ)
+        
+    def calc_e(self, s, params):
+        return -self.params[0]*s[:,0] - self.params[1]*s[:,1]
+
+    def calc_observables(self):
+        """Typical activation prob and typical no. of neighbors active in previous
+        time step.
+        """
+
+        return np.array([self.p[self.n:].sum(),
+                         self.p.dot(np.concatenate((np.arange(self.n), np.arange(self.n))))])
+        return np.array([self.p[self.n:].sum(), self.p[self.n:].dot(np.arange(self.n))])
+
+    def sample(self, size=1):
+        """Sample from possible states using full probability distribution.
+
+        Parameters
+        ----------
+        size : int, 1
+
+        Returns
+        -------
+        ndarray
+        """
+
+        if size==1:
+            return self.all_states()[self.rng.choice(2*self.n, p=self.p)][None,:]
+        return self.all_states()[self.rng.choice(2*self.n, p=self.p, size=size)]
+    
+    def solve(self, constraints,
+              original_guess=np.zeros(2),
+              max_param_value=20,
+              K_cost=(0,50)):
+        """
+        Parameters
+        ----------
+        constraints : ndarray
+        original_guess : ndarray, np.zeros(2)
+        max_param_value : float, 20
+        K_cost : twople, (0,50)
+            (mean, std) of coupling cost
+
+        Returns
+        -------
+        dict
+        """
+
+        assert max_param_value > 0
+        
+        def cost(new_params):
+            self.set_params(new_params)
+            return (np.linalg.norm(self.calc_observables() - constraints) +
+                    abs(K_cost[0]-new_params[1])/K_cost[1])
+        return minimize(cost, original_guess,
+                        bounds=[(-max_param_value, max_param_value)]*2)
+    
+    def all_states(self):
+        """All possible configuration in this model.
+        
+        Returns
+        -------
+        ndarray
+            First col is center spin. Second col is number of active neighbors.
+        """
+
+        return np.vstack(([0]*self.n + [1]*self.n, list(range(self.n))*2)).T
+#end NThreshold
+
+
+
 class NActivationIsing():
     def __init__(self, n, params=None, rng=None):
         """
@@ -277,8 +380,44 @@ class MarkovSimulator():
         
         self.conf_df = discretize_conflict_events(*dtdx, gridix=gridix)
         self.rng = rng if not rng is None else np.random
+       
+    def simulate_NThreshold(self, T, save_every=1):
+        """Simulate time series with single-step Markov chain using the 'model' column in polygons.
+
+        Parameters
+        ----------
+        T : int
+        save_every : int, 1
+        """
+
+        polygons = self.polygons
         
-    def simulate(self, T, save_every=1):
+        s = dict(zip(polygons.index, [0]*len(polygons)))
+        history = np.zeros((T//save_every, len(polygons)), dtype=int)
+
+        def new_state(poly):
+            # use the number of active neighbors to condition on whether or not site is active
+            n_active = len([True for n in poly['active_neighbors'] if s[n]])
+            p_active = poly['model'].p[poly['n']+n_active]
+            p_inactive = poly['model'].p[n_active]
+            p_active /= p_active + p_inactive
+
+            if np.random.rand() < p_active:
+                return 1
+            else:
+                return 0
+
+        polygons['s'] = np.zeros(len(polygons), dtype=int)
+        for t in range(T):
+            # for each cell, iterate it one time step
+            polygons['s'] = polygons.apply(new_state, axis=1)
+
+            if (t%save_every)==0:
+                history[t//save_every,:] = polygons['s'].values
+
+        self.history = pd.DataFrame(history, columns=polygons.index)
+
+    def simulate_NActivationIsing(self, T, save_every=1):
         """Simulate time series with single-step Markov chain using the 'model' column in polygons.
 
         Parameters
