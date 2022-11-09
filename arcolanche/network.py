@@ -109,7 +109,7 @@ class CausalGraph(nx.DiGraph):
 
         self.uG = self.to_undirected()
 
-    def self_loop_list(self):
+    def self_loop_list(self,info=False):
         """Outputs a list of all nodes which have a self loop.
 
         Returns
@@ -119,9 +119,9 @@ class CausalGraph(nx.DiGraph):
         """
 
         self_loop_node_list = []
-        for i in self.edges:
+        for i in self.edges(data=info):
             if(i[0] == i[1]):
-                self_loop_node_list.append(i[0])
+                self_loop_node_list.append((i[0],i[2]))
 
         return self_loop_node_list
 
