@@ -121,7 +121,10 @@ class CausalGraph(nx.DiGraph):
         self_loop_node_list = []
         for i in self.edges(data=info):
             if(i[0] == i[1]):
-                self_loop_node_list.append((i[0],i[2]))
+                if(info):
+                    self_loop_node_list.append((i[0],i[2]))
+                else:
+                    self_loop_node_list.append(i[0])
 
         return self_loop_node_list
 
