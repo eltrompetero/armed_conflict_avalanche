@@ -1,11 +1,25 @@
+# ====================================================================================== #
+# Simulating and solving for models of conflict time series.
 # Author : Eddie Lee, edlee@csh.ac.at
-
+# ====================================================================================== #
 from scipy.optimize import minimize
 from coniii.enumerate import fast_logsumexp
+import swifter 
+from swifter import set_defaults
 
 from .construct import discretize_conflict_events
 from .utils import *
 
+
+set_defaults(
+    npartitions=None,
+    dask_threshold=1,
+    scheduler="processes",
+    progress_bar=False,
+    progress_bar_desc=None,
+    allow_dask_on_strings=False,
+    force_parallel=False,
+)
 
 def solve_simultaneous_activation(polygons, conf_df):
     """Simultaneous activation model.
@@ -99,6 +113,125 @@ def solve_delayed_activation(polygons, conf_df, K_cost_inverse_weight=10):
     polygons['h'] = polygons['params'].apply(lambda i:i[0])
     polygons['J'] = polygons['params'].apply(lambda i:i[1])
 
+def solve_NThreshold1(polygons, conf_df, K_cost_inverse_weight=10, n_cpus=None):
+    """Solve for the parameters of a delayed activation NThreshold model given the data.
+    Model solutions saved into polygons DataFrame.
+
+    Parameters
+    ----------
+    polygons : pd.DataFrame
+        Updated in place with parameters col 'params' and separately the bias
+        parameter 'h' and activation parameter 'K'.
+    conf_df : pd.DataFrame
+        Conflict events.
+    K_cost_inverse_weight : float, 10
+        Inverse weight for prior on coupling K.
+    n_cpus : int, None
+        Multiprocess unless this is 1.
+    """
+    
+    tmn = conf_df['t'].min()
+    tmx = conf_df['t'].max()
+    px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / (tmx-tmn+1)
+
+    def loop_wrapper(i):
+        """For a given site, get it's typical activation probability along with
+        its pair correlations no. of active neighbors.
+        """
+
+        pi = px.loc[i]
+        pin = 0
+
+        # for each time point, count number of neighbors at t-1, assume that the rest are 0
+        for t, g in g_by_t:
+            n_active = 0
+            if t-1 in g_by_t.groups.keys():
+                for j in polygons['active_neighbors'].loc[i]:
+                    if j in conf_df['x'].loc[g_by_t.groups[t-1]].values:
+                        n_active += 1
+            pin += n_active
+        pin /= tmx - tmn
+        n = len(polygons['active_neighbors'].loc[i]) + 1
+
+        # must convert pairwise correlations to {-1,1} basis
+        solver = NThreshold1(n)
+        constraints = np.array([pi, pin])
+        solver.solve(constraints, max_param_value=10, K_cost=(0, K_cost_inverse_weight))
+        return solver.params, constraints
+
+    g_by_t = conf_df.groupby('t')
+    g_by_t.get_group(conf_df['t'].iloc[0]);  # cache to memory
+
+    if n_cpus==1:
+        polygons['params'], polygons['constraints'] = list(zip(*[loop_wrapper(i) for i in polygons.index]))
+    else:
+        with Pool(n_cpus) as pool:
+            polygons['params'], polygons['constraints'] = list(zip(*pool.map(loop_wrapper, polygons.index,
+                                                                             chunksize=20)))
+
+    polygons['n'] = polygons['active_neighbors'].apply(lambda i: len(i)+1)
+    polygons['model'] = [NThreshold1(i['n'], params=np.array([i['params'][0], i['params'][1]]))
+                         for _,i in polygons.iterrows()]
+
+def solve_NThreshold2(polygons, conf_df, K_cost_inverse_weight=10, n_cpus=None):
+    """Solve for the parameters of a delayed activation NThreshold model given the data.
+    Model solutions saved into polygons DataFrame.
+
+    Parameters
+    ----------
+    polygons : pd.DataFrame
+        Updated in place with parameters col 'params' and separately the bias
+        parameter 'h' and activation parameter 'K'.
+    conf_df : pd.DataFrame
+        Conflict events.
+    K_cost_inverse_weight : float, 10
+        Inverse weight for prior on coupling K.
+    n_cpus : int, None
+        Multiprocess unless this is 1.
+    """
+    
+    tmn = conf_df['t'].min()
+    tmx = conf_df['t'].max()
+    px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / (tmx-tmn+1)
+
+    def loop_wrapper(i):
+        """For a given site, get it's typical activation probability along with
+        its pair correlations no. of active neighbors.
+        """
+
+        pi = px.loc[i]
+        pin = 0
+
+        # for each time point, count number of neighbors at t-1 only if the center
+        # site is active
+        for t, g in g_by_t:
+            n_active = 0
+            if i in g['x'].values and t-1 in g_by_t.groups.keys():
+                for j in polygons['active_neighbors'].loc[i]:
+                    if j in conf_df['x'].loc[g_by_t.groups[t-1]].values:
+                        n_active += 1
+            pin += n_active
+        pin /= tmx - tmn
+        n = len(polygons['active_neighbors'].loc[i]) + 1
+
+        # must convert pairwise correlations to {-1,1} basis
+        solver = NThreshold2(n)
+        constraints = np.array([pi, pin])
+        solver.solve(constraints, max_param_value=10, K_cost=(0, K_cost_inverse_weight))
+        return solver.params, constraints
+
+    g_by_t = conf_df.groupby('t')
+    g_by_t.get_group(conf_df['t'].iloc[0]);  # cache to memory
+    if n_cpus==1:
+        polygons['params'], polygons['constraints'] = list(zip(*[loop_wrapper(i) for i in polygons.index]))
+    else:
+        with Pool(n_cpus) as pool:
+            polygons['params'], polygons['constraints'] = list(zip(*pool.map(loop_wrapper, polygons.index,
+                                                                             chunksize=20)))
+    polygons['n'] = polygons['active_neighbors'].apply(lambda i: len(i)+1)
+    polygons['model'] = [NThreshold2(i['n'], params=np.array([i['params'][0], i['params'][1]]))
+                         for _,i in polygons.iterrows()]
+
 def self_corr(t, norm):
     """Probability of an active state following an active state.
 
@@ -111,6 +244,8 @@ def self_corr(t, norm):
     """
     
     return np.intersect1d(t-1, t).size / norm
+
+
 
 # ======= #
 # Classes #
@@ -149,17 +284,10 @@ class NThreshold():
         self.logZ = fast_logsumexp(-self.calc_e(self.all_states(), self.params))[0]
         self.p = np.exp(-self.calc_e(self.all_states(), self.params) - self.logZ)
         
-    def calc_e(self, s, params):
-        return -self.params[0]*s[:,0] - self.params[1]*s[:,1]
+    def si(self):
+        """Activation probability of center spin."""
 
-    def calc_observables(self):
-        """Typical activation prob and typical no. of neighbors active in previous
-        time step.
-        """
-
-        return np.array([self.p[self.n:].sum(),
-                         self.p.dot(np.concatenate((np.arange(self.n), np.arange(self.n))))])
-        return np.array([self.p[self.n:].sum(), self.p[self.n:].dot(np.arange(self.n))])
+        return self.p[self.n:].sum()
 
     def sample(self, size=1):
         """Sample from possible states using full probability distribution.
@@ -215,6 +343,35 @@ class NThreshold():
 
         return np.vstack(([0]*self.n + [1]*self.n, list(range(self.n))*2)).T
 #end NThreshold
+
+
+class NThreshold1(NThreshold):
+    def calc_e(self, s, params):
+        return -self.params[0]*s[:,0] - self.params[1]*s[:,1]
+
+    def calc_observables(self):
+        """Typical activation prob and typical no. of neighbors active in previous
+        time step.
+        """
+
+        return np.array([self.p[self.n:].sum(),
+                         self.p.dot(np.concatenate((np.arange(self.n), np.arange(self.n))))])
+#end NThreshold1
+
+
+
+class NThreshold2(NThreshold):
+    def calc_e(self, s, params):
+        return -self.params[0]*s[:,0] - self.params[1]*s[:,0]*s[:,1]
+
+    def calc_observables(self):
+        """Typical activation prob and typical no. of neighbors active in previous
+        time step.
+        """
+
+        return np.array([self.p[self.n:].sum(),
+                         self.p[self.n:].dot(np.arange(self.n))])
+#end NThreshold2
 
 
 
@@ -382,43 +539,52 @@ class MarkovSimulator():
         self.rng = rng if not rng is None else np.random
        
     def simulate_NThreshold(self, T, save_every=1):
-        """Simulate time series with single-step Markov chain using the 'model' column in polygons.
+        """Simulate time series with single-step Markov chain using the 'model'
+        column in polygons.
 
         Parameters
         ----------
         T : int
         save_every : int, 1
         """
-
-        polygons = self.polygons
         
-        s = dict(zip(polygons.index, [0]*len(polygons)))
-        history = np.zeros((T//save_every, len(polygons)), dtype=int)
+        polygons = self.polygons
+        s = dict(zip(polygons.index, [0]*len(polygons)))  # current state of each polygon as {0,1}
+        new_s = dict(zip(polygons.index, [0]*len(polygons)))  # next state of each polygon
 
-        def new_state(poly):
-            # use the number of active neighbors to condition on whether or not site is active
-            n_active = len([True for n in poly['active_neighbors'] if s[n]])
-            p_active = poly['model'].p[poly['n']+n_active]
-            p_inactive = poly['model'].p[n_active]
+        # read in cols of polygons for use in faster loop
+        neighbors = dict(polygons['active_neighbors'])
+        model = dict(polygons['model'])
+        n = dict(polygons['n'])
+        history = []
+
+        def new_state(i):
+            # probability of a state being active depends on the no. of active
+            # neighbors; once that is fixed then there are two possibilities, it is
+            # up or it is down and these must be normalized to unity
+            n_active = len([True for n in neighbors[i] if s[n]])
+            p_active = model[i].p[n[i]+n_active]
+            p_inactive = model[i].p[n_active]
             p_active /= p_active + p_inactive
 
             if np.random.rand() < p_active:
                 return 1
-            else:
-                return 0
+            return 0
 
-        polygons['s'] = np.zeros(len(polygons), dtype=int)
         for t in range(T):
             # for each cell, iterate it one time step
-            polygons['s'] = polygons.apply(new_state, axis=1)
+            for i in polygons.index:
+                new_s[i] = new_state(i)
 
             if (t%save_every)==0:
-                history[t//save_every,:] = polygons['s'].values
+                history.append(list(new_s.values()))
+            s = new_s.copy()
 
         self.history = pd.DataFrame(history, columns=polygons.index)
 
     def simulate_NActivationIsing(self, T, save_every=1):
-        """Simulate time series with single-step Markov chain using the 'model' column in polygons.
+        """Simulate time series with single-step Markov chain using the 'model'
+        column in polygons.
 
         Parameters
         ----------
@@ -448,18 +614,17 @@ class MarkovSimulator():
             else:
                 return 0
 
-        polygons['s'] = np.zeros(len(polygons), dtype=int)
         for t in range(T):
             # for each cell, iterate it one time step
-            polygons['s'] = polygons.apply(new_state, axis=1)
+            s = dict(polygons.apply(new_state, axis=1))
 
             if (t % save_every)==0:
-                history[t//save_every,:] = polygons['s'].values
+                history[t//save_every,:] = list(s.values())
 
         self.history = pd.DataFrame(history, columns=polygons.index)
 
     def calc_pij(self):
-        """Pair correlation between adjacent sites (t,t).
+        """Pair correlation between adjacent sites at same time t.
 
         Returns
         -------
@@ -480,7 +645,7 @@ class MarkovSimulator():
             time_series = np.zeros((tmx-tmn+1, 2), dtype=int)
             time_series[g_by_x.get_group(poly['index'])['t'].unique()-tmn,0] = 1
 
-            # we could also check inactive neighbors
+            # we could also check inactive neighbors, but they are not checked below
             for j in poly['active_neighbors']:
                 time_series[:,1] = 0  # reset
                 time_series[g_by_x.get_group(j)['t'].unique()-tmn,1] = 1
