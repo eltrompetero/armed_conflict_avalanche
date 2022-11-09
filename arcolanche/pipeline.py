@@ -3,6 +3,9 @@
 # Author: Eddie Lee, edlee@santafe.edu
 # ====================================================================================== #
 from .utils import *
+from .construct import Avalanche
+from .data import ACLED2020
+from workspace.utils import save_pickle
 
 
 
@@ -151,6 +154,181 @@ def loglog_fit_err_bars(x, y, fit_params, show_plot=False):
     r=np.random.choice(x, p=p, size=1_000_000)
 
     if show_plot:
-        return (np.percentile(r,2.5), np.percentile(r,97.5)), (fig,ax)
-    return np.percentile(r,2.5), np.percentile(r,97.5)
+        return (np.np.percentile(r,2.5), np.np.percentile(r,97.5)), (fig,ax)
+    return np.np.percentile(r,2.5), np.np.percentile(r,97.5)
+
+def scaling_relations(dtdx=(64,320), gridix=3):
+    """Prepare cache files for power law scaling, dynamical scaling, and exponent
+    relations check.
+    """
+
+    from misc.stats import DiscretePowerLaw, PowerLaw, loglog_fit
+    from voronoi_globe import max_geodist_pair, latlon2angle
+    from warnings import catch_warnings, simplefilter
+    
+    # load data
+    conf_df = ACLED2020.battles_df(to_lower=True)
+
+    ava = Avalanche(*dtdx, gridix=gridix)
+
+    # extract scaling variables
+    R = np.array([len(i) for i in ava.avalanches])
+    F = np.array([sum([conf_df['fatalities'].loc[i] for i in a]) for a in ava.avalanches])
+    N = np.array([np.unique(ava.time_series['x'].loc[a]).size for a in ava.avalanches])
+    T = np.array([(conf_df['event_date'].loc[a].max()-conf_df['event_date'].loc[a].min()).days
+                   for a in ava.avalanches])
+
+    L = []
+    for a in ava.avalanches:
+        latlon = np.unique(conf_df[['latitude','longitude']].loc[a].values, axis=0)
+        if len(latlon)>1:
+            L.append(max_geodist_pair(latlon2angle(latlon),
+                                      return_dist=True)[1])
+        else:
+            L.append(0)
+    L = np.array(L) * 6371
+
+    # fit power laws
+    pl_params = {}
+    pl_params['F'] = DiscretePowerLaw.max_likelihood(F[F>1], lower_bound_range=(2, 100))
+    pl_params['R'] = DiscretePowerLaw.max_likelihood(R[R>1], lower_bound_range=(2, 100))
+    pl_params['N'] = DiscretePowerLaw.max_likelihood(N[N>1], lower_bound_range=(2, 100))
+    pl_params['T'] = DiscretePowerLaw.max_likelihood(T[T>1], lower_bound_range=(2, 100))
+    pl_params['L'] = PowerLaw.max_likelihood(L[L>0], lower_bound_range=(1e2, 1e3))
+    
+    # fit dynamical scaling exponents
+    dyn_params = {}
+    ix = (T>=pl_params['T'][1]) & (F>=pl_params['F'][1])
+    dyn_params['F'] = loglog_fit(T[ix], F[ix])
+    ix = (T>=pl_params['T'][1]) & (R>=pl_params['R'][1])
+    dyn_params['R'] = loglog_fit(T[ix], R[ix])
+    ix = (T>=pl_params['T'][1]) & (N>=pl_params['N'][1])
+    dyn_params['N'] = loglog_fit(T[ix], N[ix])
+    ix = (T>=pl_params['T'][1]) & (L>=pl_params['L'][1])
+    dyn_params['L'] = loglog_fit(T[ix], L[ix])
+    
+    # check exponent relations
+    exp_relations = {}
+    exp_relations['F'] = pl_params['T'][0] - 1, dyn_params['F'][0] * (pl_params['F'][0]-1)
+    exp_relations['R'] = pl_params['T'][0] - 1, dyn_params['R'][0] * (pl_params['R'][0]-1)
+    exp_relations['N'] = pl_params['T'][0] - 1, dyn_params['N'][0] * (pl_params['N'][0]-1)
+    exp_relations['L'] = pl_params['T'][0] - 1, dyn_params['L'][0] * (pl_params['L'][0]-1) 
+    
+    # compute fit errs
+    errs = {}
+    dpl = DiscretePowerLaw(*pl_params['F'])
+    ks = dpl.ksval(F[F>=pl_params['F'][1]])
+
+    F_above = F[F>=pl_params['F'][1]]
+    F_below = F[(F>1)&(F<pl_params['F'][1])]
+    pval, ks_sample, (alpha, lb) = dpl.clauset_test(F_above, ks,
+                                                    lower_bound_range=(2,100), 
+                                                    samples_below_cutoff=F_below,
+                                                    return_all=True)
+
+    errs['F'] = pval, alpha.std(), (np.percentile(alpha, 5), np.percentile(alpha, 95))
+
+    dpl = DiscretePowerLaw(*pl_params['R'])
+    ks = dpl.ksval(R[R>=pl_params['R'][1]])
+
+    R_above = R[R>=pl_params['R'][1]]
+    R_below = R[(R>1)&(R<pl_params['R'][1])]
+    pval, ks_sample, (alpha, lb) = dpl.clauset_test(R_above, ks,
+                                                    lower_bound_range=(2,100), 
+                                                    samples_below_cutoff=R_below,
+                                                    return_all=True)
+
+    errs['R'] = pval, alpha.std(), (np.percentile(alpha, 5), np.percentile(alpha, 95))
+
+    dpl = DiscretePowerLaw(*pl_params['N'])
+    ks = dpl.ksval(N[N>=pl_params['N'][1]])
+
+    N_above = N[N>=pl_params['N'][1]]
+    N_below = N[(N>1)&(N<pl_params['N'][1])]
+    pval, ks_sample, (alpha, lb) = dpl.clauset_test(N_above, ks,
+                                                    lower_bound_range=(2,100), 
+                                                    samples_below_cutoff=N_below,
+                                                    return_all=True)
+
+    errs['N'] = pval, alpha.std(), (np.percentile(alpha, 5), np.percentile(alpha, 95))
+
+    dpl = DiscretePowerLaw(*pl_params['T'])
+    ks = dpl.ksval(T[T>=pl_params['T'][1]])
+
+    T_above = T[T>=pl_params['T'][1]]
+    T_below = T[(T>1)&(T<pl_params['T'][1])]
+    pval, ks_sample, (alpha, lb) = dpl.clauset_test(T_above, ks,
+                                                    lower_bound_range=(2,100), 
+                                                    samples_below_cutoff=T_below,
+                                                    return_all=True)
+
+    errs['T'] = pval, alpha.std(), (np.percentile(alpha, 5), np.percentile(alpha, 95))
+
+    dpl = PowerLaw(*pl_params['L'])
+    ks = dpl.ksval(L[L>=pl_params['L'][1]])
+
+    L_above = L[L>=pl_params['L'][1]]
+    L_below = L[(L>0)&(L<pl_params['L'][1])]
+    with catch_warnings(record=True):
+        simplefilter('always')
+        pval, ks_sample, (alpha, lb) = dpl.clauset_test(L_above, ks,
+                                                        lower_bound_range=(1e2,1e3), 
+                                                        samples_below_cutoff=L_below,
+                                                        return_all=True)
+
+    errs['L'] = pval, alpha.std(), (np.percentile(alpha, 5), np.percentile(alpha, 95))
+    
+    # calculate exponent bounds error rel_err_bars
+    rel_err_bars = []
+
+    ix = (T>=pl_params['T'][1]) & (F>=pl_params['F'][1])
+    samp = []
+    T_ = T[ix]
+    F_ = F[ix]
+    for i in range(1000):
+        randix = np.random.randint(T_.size, size=T_.size)
+        samp.append(loglog_fit(T_[randix], F_[randix])[0])
+
+    bds = exponent_bounds(errs['T'][2], errs['F'][2],
+                          (np.percentile(samp, 5), np.percentile(samp, 95)))[0]
+    rel_err_bars.append((exp_relations['F'][1] + 1 - bds[0], bds[1] - exp_relations['F'][1] - 1))
+
+    ix = (T>=pl_params['T'][1]) & (R>=pl_params['R'][1])
+    samp = []
+    T_ = T[ix]
+    R_ = R[ix]
+    for i in range(1000):
+        randix = np.random.randint(T_.size, size=T_.size)
+        samp.append(loglog_fit(T_[randix], R_[randix])[0])
+
+    bds = exponent_bounds(errs['T'][2], errs['R'][2],
+                          (np.percentile(samp, 5), np.percentile(samp, 95)))[0]
+    rel_err_bars.append((exp_relations['R'][1] + 1 - bds[0], bds[1] - exp_relations['R'][1] - 1))
+
+    ix = (T>=pl_params['T'][1]) & (N>=pl_params['N'][1])
+    samp = []
+    T_ = T[ix]
+    N_ = N[ix]
+    for i in range(1000):
+        randix = np.random.randint(T_.size, size=T_.size)
+        samp.append(loglog_fit(T_[randix], N_[randix])[0])
+
+    bds = exponent_bounds(errs['T'][2], errs['N'][2],
+                          (np.percentile(samp, 5), np.percentile(samp, 95)))[0]
+    rel_err_bars.append((exp_relations['N'][1] + 1 - bds[0], bds[1] - exp_relations['N'][1] - 1))
+
+    ix = (T>=pl_params['T'][1]) & (L>=pl_params['L'][1])
+    samp = []
+    T_ = T[ix]
+    L_ = L[ix]
+    for i in range(1000):
+        randix = np.random.randint(T_.size, size=T_.size)
+        samp.append(loglog_fit(T_[randix], L_[randix])[0])
+
+    bds = exponent_bounds(errs['T'][2], errs['L'][2],
+                          (np.percentile(samp, 5), np.percentile(samp, 95)))[0]
+    rel_err_bars.append((exp_relations['L'][1] + 1 - bds[0], bds[1] - exp_relations['L'][1] - 1))
+    rel_err_bars = np.vstack(rel_err_bars).T
+
+    save_pickle(['errs','pl_params','exp_relations','rel_err_bars'], 'cache/scaling_relations.p', True)
 
