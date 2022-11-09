@@ -330,5 +330,6 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     rel_err_bars.append((exp_relations['L'][1] + 1 - bds[0], bds[1] - exp_relations['L'][1] - 1))
     rel_err_bars = np.vstack(rel_err_bars).T
 
-    save_pickle(['errs','pl_params','exp_relations','rel_err_bars'], 'cache/scaling_relations.p', True)
+    save_pickle(['F','R','N','L','T','errs','pl_params','exp_relations','rel_err_bars'],
+                'cache/scaling_relations.p', True)
 
