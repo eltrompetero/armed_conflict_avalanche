@@ -595,17 +595,23 @@ class MarkovSimulator():
         polygons = self.polygons  # DataFrame of Voronoi cells
         
         s = dict(zip(polygons.index, [0]*len(polygons)))  # current state of each polygon as {0,1}
-        history = np.zeros((T//save_every, len(polygons)), dtype=int)  # save history to return
+        new_s = dict(zip(polygons.index, [0]*len(polygons)))  # next state of each polygon as {0,1}
 
-        def new_state(poly):
+        # read in cols of polygons for use in faster loop
+        neighbors = dict(polygons['active_neighbors'])
+        model = dict(polygons['model'])
+        n = dict(polygons['n'])
+        history = []  # save history to return
+
+        def new_state(i):
             # use the number of active neighbors to condition on whether or not site is active
-            n_active = len([True for n in poly['active_neighbors'] if s[n]])
-            if not poly['s']:  # when center spin is 0 in previous time step
-                p_inactive = poly['model'].p[n_active]
-                p_active = poly['model'].p[poly['n']*2+n_active]
+            n_active = len([True for n in neighbors[i] if s[n]])
+            if not s[i]:  # when center spin is 0 in previous time step
+                p_inactive = model[i].p[n_active]
+                p_active = model[i].p[n[i]*2+n_active]
             else:  # when center spin is 1 in previous time step
-                p_inactive = poly['model'].p[poly['n']+n_active]
-                p_active = poly['model'].p[poly['n']*3+n_active]
+                p_inactive = model[i].p[n[i]+n_active]
+                p_active = model[i].p[n[i]*3+n_active]
 
             p_active /= p_active + p_inactive
 
@@ -616,10 +622,12 @@ class MarkovSimulator():
 
         for t in range(T):
             # for each cell, iterate it one time step
-            s = dict(polygons.apply(new_state, axis=1))
+            for i in polygons.index:
+                new_s[i] = new_state(i)
 
             if (t % save_every)==0:
-                history[t//save_every,:] = list(s.values())
+                history.append(list(s.values()))
+            s = new_s.copy()
 
         self.history = pd.DataFrame(history, columns=polygons.index)
 
