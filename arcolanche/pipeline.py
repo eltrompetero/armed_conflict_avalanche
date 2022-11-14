@@ -258,7 +258,7 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     T_above = T[T>=pl_params['T'][1]]
     T_below = T[(T>1)&(T<pl_params['T'][1])]
     pval, ks_sample, (alpha, lb) = dpl.clauset_test(T_above, ks,
-                                                    lower_bound_range=(2,100), 
+                                                    lower_bound_range=(2,200), 
                                                     samples_below_cutoff=T_below,
                                                     return_all=True)
 
@@ -330,6 +330,6 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     rel_err_bars.append((exp_relations['L'][1] + 1 - bds[0], bds[1] - exp_relations['L'][1] - 1))
     rel_err_bars = np.vstack(rel_err_bars).T
 
-    save_pickle(['F','R','N','L','T','errs','pl_params','exp_relations','rel_err_bars'],
+    save_pickle(['F','R','N','L','T','errs','pl_params','exp_relations','rel_err_bars','dyn_params'],
                 'cache/scaling_relations.p', True)
 
