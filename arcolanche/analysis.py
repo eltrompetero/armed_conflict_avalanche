@@ -50,13 +50,13 @@ class ConflictZones():
 
 
 
-    def common_actors_coeff_calculator(self, weighted=False):
+    def common_actors_coeff_calculator(self, weighted=True):
         """Calculates the summation of ratio of common actors and sum of number of actors in
         each pair of conflict zones.
 
         Parameters
         ----------
-        weighted : bool , False
+        weighted : bool , True
 
         Returns
         -------
