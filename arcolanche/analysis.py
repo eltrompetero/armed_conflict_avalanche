@@ -99,23 +99,50 @@ class ConflictZones():
 
                 for jndex in range(index,len(actor_sets)):
                     if(index == jndex):
-                        common_actors_term = 1
+                        common_actors_term = 1   #### If we want diagnoals to be one ####
                         common_actors_coeff += common_actors_term
                         count += 1
+
+                        #### If we want diagonals to not be one ####
+                        #weights_term = 0
+                        #for actor in primary_zone_actors:
+                        #    if(actor in primary_zone_actors):
+                        #        weights_term += (primary_zones[actor]/primary_zone_counts) * \
+                        #                             (primary_zones[actor]/primary_zone_counts)
+#
+                        #common_actors_term = (2 * weights_term) / (len(primary_zone_actors)+len(primary_zone_actors))
+                        #common_actors_coeff += common_actors_term
+                        #count += 1
+
+
+                        #### Not considering diagonal terms at all
+                        #pass
                     else:
                         secondary_zones = actor_dicts_list[jndex]
                         secondary_zone_actors = secondary_zones.keys()
                         secondary_zone_counts = sum(list(secondary_zones.values()))
 
+                        #weights_term = 0
+                        #for actor in primary_zone_actors:
+                        #    if(actor in secondary_zone_actors):
+                        #        weights_term += (primary_zones[actor]/primary_zone_counts) * \
+                        #                             (secondary_zones[actor]/secondary_zone_counts)
+#
+                        #common_actors_term = (2 * weights_term) / (len(primary_zone_actors)+len(secondary_zone_actors))
+                        #common_actors_coeff += common_actors_term
+                        #count += 2
+
+
+                        ##### Only similarity term (getting rid of the extra normalization)
                         weights_term = 0
                         for actor in primary_zone_actors:
                             if(actor in secondary_zone_actors):
                                 weights_term += (primary_zones[actor]/primary_zone_counts) * \
                                                      (secondary_zones[actor]/secondary_zone_counts)
 
-                        common_actors_term = (2 * weights_term) / (len(primary_zone_actors)+len(secondary_zone_actors))
+                        common_actors_term =  weights_term
                         common_actors_coeff += common_actors_term
-                        count += 2
+                        count += 2                        
 
 
 
