@@ -538,7 +538,7 @@ class MarkovSimulator():
         self.conf_df = discretize_conflict_events(*dtdx, gridix=gridix)
         self.rng = rng if not rng is None else np.random
        
-    def simulate_NThreshold(self, T, save_every=1):
+    def simulate_NThreshold(self, T, save_every=1, s0=None):
         """Simulate time series with single-step Markov chain using the 'model'
         column in polygons.
 
@@ -546,10 +546,16 @@ class MarkovSimulator():
         ----------
         T : int
         save_every : int, 1
+        s0 : ndarray or list
+            Initial state at which to start simulation.
         """
         
         polygons = self.polygons
-        s = dict(zip(polygons.index, [0]*len(polygons)))  # current state of each polygon as {0,1}
+        if s0 is None:
+            s0 = [0]*len(polygons)
+        else:
+            assert set(s0) <= frozenset((0,1))
+        s = dict(zip(polygons.index, s0))  # current state of each polygon as {0,1}
         new_s = dict(zip(polygons.index, [0]*len(polygons)))  # next state of each polygon
 
         # read in cols of polygons for use in faster loop
@@ -577,7 +583,7 @@ class MarkovSimulator():
                 new_s[i] = new_state(i)
 
             if (t%save_every)==0:
-                history.append(list(new_s.values()))
+                history.append(list(s.values()))
             s = new_s.copy()
 
         self.history = pd.DataFrame(history, columns=polygons.index)
