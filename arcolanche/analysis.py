@@ -206,6 +206,64 @@ class ConflictZones():
         return common_actors_coeff
 
 
+    def similarity_score(self):
+        """Calculates the similarity score. Here A and B are the
+        number of actors in zone 1 and zone 2 which are being compared.
+        Parameters
+        ----------
+        time : int
+        dx : int
+        gridix : int
+        conflict_type : str
+        type_of_algo : str
+
+        Returns
+        -------
+        float
+        """
+
+        zones = self.generator()
+
+        sorted_zones = sorted(zones , key=len)
+        sorted_zones.reverse()
+
+        actor_sets = []
+        actor_dicts_list = []
+        for index,zone in enumerate(sorted_zones):
+            actor_count = self.zone_actor_counter(zone)
+
+            actor_sets.append(set(list(zip(*actor_count))[0]))
+            actor_dicts_list.append(dict(zip(list(zip(*actor_count))[0],list(zip(*actor_count))[1])))
+
+        common_actors_coeff = 0
+        count = 0
+        for index in range(len(actor_sets)):
+            for jndex in range(index,len(actor_sets)):
+                if(index == jndex):
+                    common_actors_term = 1
+                    common_actors_coeff += common_actors_term
+                    count += 1
+                else:
+                    intersection_actors = actor_sets[index].intersection(actor_sets[jndex])
+                    intersection_events_index = sum([actor_dicts_list[index].get(key) for key in intersection_actors])
+                    intersection_events_jndex = sum([actor_dicts_list[jndex].get(key) for key in intersection_actors])
+
+                    total_events_index = sum(actor_dicts_list[index].values())
+                    total_events_jndex = sum(actor_dicts_list[jndex].values())
+
+                    common_actors_term = (intersection_events_index*intersection_events_jndex) / (total_events_index*total_events_jndex)
+
+                    common_actors_coeff += common_actors_term * 2
+                    count += 2
+
+        if(count == 0):
+            common_actors_coeff = 0
+        else:
+            common_actors_coeff = common_actors_coeff/count
+
+        return common_actors_coeff
+
+
 
 
     def generator(self):
