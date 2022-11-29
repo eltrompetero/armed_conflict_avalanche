@@ -75,7 +75,7 @@ class ACLED2020():
         return df.loc[df.EVENT_TYPE=='Violence against civilians']
 
     @classmethod
-    def riots_and_protests_df(cls, pre_covid=True, to_lower=True):
+    def riots_and_protests_df(cls, pre_covid=True, to_lower=False):
         """
         Parameters
         ----------
