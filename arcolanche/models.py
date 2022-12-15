@@ -232,6 +232,69 @@ def solve_NThreshold2(polygons, conf_df, K_cost_inverse_weight=10, n_cpus=None):
     polygons['model'] = [NThreshold2(i['n'], params=np.array([i['params'][0], i['params'][1]]))
                          for _,i in polygons.iterrows()]
 
+def solve_NThreshold3(polygons, conf_df, K_cost_inverse_weight=10, n_cpus=None):
+    """Solve for the parameters of a delayed activation NThreshold3 model given the
+    data.  Model solutions saved into polygons DataFrame.
+
+    Parameters
+    ----------
+    polygons : pd.DataFrame
+        Updated in place with parameters col 'params' and separately the bias
+        parameter 'h' and activation parameter 'K'.
+    conf_df : pd.DataFrame
+        Conflict events.
+    K_cost_inverse_weight : float, 10
+        Inverse weight for prior on coupling K.
+    n_cpus : int, None
+        Multiprocess unless this is 1.
+    """
+    
+    tmn = conf_df['t'].min()
+    tmx = conf_df['t'].max()
+    px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / (tmx-tmn+1)
+
+    def loop_wrapper(i):
+        """For a given site, get it's typical activation probability along with
+        its pair correlations no. of active neighbors.
+        """
+
+        pi = px.loc[i]
+        pin = 0
+
+        # for each time point, count number of neighbors at t-1 only if the center
+        # site is active
+        for t, g in g_by_t:
+            n_active = 0
+            if i in g['x'].values and t-1 in g_by_t.groups.keys():
+                # check if center site was in the past at t-1
+                if i in conf_df['x'].loc[g_by_t.groups[t-1]].values:
+                    n_active += 1
+                # check if each neighbor site j was in the past at t-1
+                for j in polygons['active_neighbors'].loc[i]:
+                    if j in conf_df['x'].loc[g_by_t.groups[t-1]].values:
+                        n_active += 1
+            pin += n_active
+        pin /= tmx - tmn
+        n = len(polygons['active_neighbors'].loc[i]) + 1
+
+        # must convert pairwise correlations to {-1,1} basis
+        solver = NThreshold3(n)
+        constraints = np.array([pi, pin])
+        solver.solve(constraints, max_param_value=10, K_cost=(0, K_cost_inverse_weight))
+        return solver.params, constraints
+
+    g_by_t = conf_df.groupby('t')
+    g_by_t.get_group(conf_df['t'].iloc[0]);  # cache to memory
+    if n_cpus==1:
+        polygons['params'], polygons['constraints'] = list(zip(*[loop_wrapper(i) for i in polygons.index]))
+    else:
+        with Pool(n_cpus) as pool:
+            polygons['params'], polygons['constraints'] = list(zip(*pool.map(loop_wrapper, polygons.index,
+                                                                             chunksize=20)))
+    polygons['n'] = polygons['active_neighbors'].apply(lambda i: len(i)+1)
+    polygons['model'] = [NThreshold3(i['n'], params=np.array([i['params'][0], i['params'][1]]))
+                         for _,i in polygons.iterrows()]
+
 def self_corr(t, norm):
     """Probability of an active state following an active state.
 
@@ -372,6 +435,52 @@ class NThreshold2(NThreshold):
         return np.array([self.p[self.n:].sum(),
                          self.p[self.n:].dot(np.arange(self.n))])
 #end NThreshold2
+
+
+
+class NThreshold3(NThreshold):
+    # remember self.n is 1+no_of_neighbors, so the full set of possible "neighbors"
+    # in the past is self.n+1
+    def si(self):
+        """Activation probability of center spin."""
+        return self.p[self.n+1:].sum()
+
+    def sample(self, size=1):
+        """Sample from possible states using full probability distribution.
+
+        Parameters
+        ----------
+        size : int, 1
+
+        Returns
+        -------
+        ndarray
+        """
+        if size==1:
+            return self.all_states()[self.rng.choice(2*self.n+2, p=self.p)][None,:]
+        return self.all_states()[self.rng.choice(2*self.n+2, p=self.p, size=size)]
+    
+    def all_states(self):
+        """All possible configuration in this model.
+        
+        Returns
+        -------
+        ndarray
+            First col is center spin at t+1. Second col is number of active neighbors
+            at t.
+        """
+        return np.vstack(([0]*(self.n+1) + [1]*(self.n+1), list(range(self.n+1))*2)).T
+
+    def calc_e(self, s, params):
+        return -self.params[0]*s[:,0] - self.params[1]*s[:,1]
+
+    def calc_observables(self):
+        """Typical activation prob and typical no. of neighbors active in previous
+        time step.
+        """
+        return np.array([self.p[self.n+1:].sum(),
+                         self.p.dot(np.concatenate((np.arange(self.n+1), np.arange(self.n+1))))])
+#end NThreshold3
 
 
 
@@ -566,9 +675,61 @@ class MarkovSimulator():
 
         def new_state(i):
             # probability of a state being active depends on the no. of active
-            # neighbors; once that is fixed then there are two possibilities, it is
-            # up or it is down and these must be normalized to unity
+            # neighbors; once that is fixed then there are two possibilities, it is up or
+            # it is down and these must be normalized to unity
             n_active = len([True for n in neighbors[i] if s[n]])
+            p_active = model[i].p[n[i]+n_active]
+            p_inactive = model[i].p[n_active]
+            p_active /= p_active + p_inactive
+
+            if np.random.rand() < p_active:
+                return 1
+            return 0
+
+        for t in range(T):
+            # for each cell, iterate it one time step
+            for i in polygons.index:
+                new_s[i] = new_state(i)
+
+            if (t%save_every)==0:
+                history.append(list(s.values()))
+            s = new_s.copy()
+
+        self.history = pd.DataFrame(history, columns=polygons.index)
+
+    def simulate_NThreshold3(self, T, save_every=1, s0=None):
+        """Simulate time series with single-step Markov chain using the 'model'
+        column in polygons.
+
+        Parameters
+        ----------
+        T : int
+        save_every : int, 1
+        s0 : ndarray or list
+            Initial state at which to start simulation.
+        """
+        
+        polygons = self.polygons
+        if s0 is None:
+            s0 = [0]*len(polygons)
+        else:
+            assert set(s0) <= frozenset((0,1))
+        s = dict(zip(polygons.index, s0))  # current state of each polygon as {0,1}
+        new_s = dict(zip(polygons.index, [0]*len(polygons)))  # next state of each polygon
+
+        # read in cols of polygons for use in faster loop
+        neighbors = dict(polygons['active_neighbors'])
+        model = dict(polygons['model'])
+        n = dict(polygons['n'])
+        history = []
+
+        def new_state(i):
+            # probability of a state being active depends on the no. of active
+            # neighbors (can include self); once that is fixed then there are two
+            # possibilities, it is up or it is down and these must be normalized to
+            # unity
+            n_active = len([True for n in neighbors[i] if s[n]])
+            if s[i]: n_active += 1
             p_active = model[i].p[n[i]+n_active]
             p_inactive = model[i].p[n_active]
             p_active /= p_active + p_inactive
