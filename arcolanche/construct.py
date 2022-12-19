@@ -26,7 +26,8 @@ class Avalanche():
                  rng=None,
                  iprint=False,
                  setup=True,
-                 shuffle_null=False):
+                 shuffle_null=False,
+                 par=True):
         """
         Parameters
         ----------
@@ -43,8 +44,9 @@ class Avalanche():
         setup : bool, True
             If False, don't run causal graph and avalanche construction.
         shuffle_null : bool, False
+        par : bool, True
+            If False, don't use multiprocess.
         """
-
         assert 0<=sig_threshold<100
 
         self.dt = dt
@@ -54,6 +56,7 @@ class Avalanche():
         self.sig_threshold = sig_threshold
         self.rng = rng or np.random
         self.iprint = iprint
+        self.par = par
         
         self.polygons = load_voronoi(dx, gridix)
         self.time_series = discretize_conflict_events(dt, dx, gridix, conflict_type)[['t','x']]
@@ -69,7 +72,6 @@ class Avalanche():
     def randomize(self):
         """Randomize time index in each polygon.
         """
-
         g_by_x = self.time_series.groupby('x')
         tmx = self.time_series['t'].max()
 
@@ -114,9 +116,13 @@ class Avalanche():
                                                        replace=False,
                                                        size=uniqt.size), tmx))
             return x, vals
+        
+        if self.par:
+            with Pool() as pool:
+                self_edges = dict(pool.map(loop_wrapper, self.time_series.groupby('x')['t'], chunksize=10))
+        else:
+            self_edges = dict([loop_wrapper(i) for i in self.time_series.groupby('x')['t']])
 
-        with Pool() as pool:
-            self_edges = dict(pool.map(loop_wrapper, self.time_series.groupby('x')['t'], chunksize=10))
         if self.iprint: print("Done with self edges.")
 
         # cell 2 cell edges
@@ -142,8 +148,11 @@ class Avalanche():
                     pair_edges.append([(x,n), vals])
             return pair_edges
         
-        with Pool() as pool:
-            pair_edges = dict(list(itertools.chain.from_iterable(pool.map(loop_wrapper, group, chunksize=100))))
+        if self.par:
+            with Pool() as pool:
+                pair_edges = dict(list(itertools.chain.from_iterable(pool.map(loop_wrapper, group, chunksize=100))))
+        else:
+            pair_edges = dict(list(itertools.chain.from_iterable([loop_wrapper(i) for i in group])))
         if self.iprint: print("Done with pair edges.")
         
         self.causal_graph = CausalGraph()

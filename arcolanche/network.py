@@ -83,7 +83,6 @@ class CausalGraph(nx.DiGraph):
             Keys are twoples. Values are TE and TE shuffles.
         sig_threshold : float, 95
         """
-
         assert 0<=sig_threshold<=100 and isinstance(sig_threshold, int)
         self.self_poly_te = self_poly_te
         self.pair_poly_te = pair_poly_te
@@ -94,7 +93,6 @@ class CausalGraph(nx.DiGraph):
     def build_causal(self):
         """Build causal network using self.sig_threshold.
         """
-
         for poly, (te, te_shuffle) in self.self_poly_te.items():
             if (te>te_shuffle).mean() >= (self.sig_threshold/100):
                 self.add_edge(poly, poly, weight=te)
@@ -115,7 +113,6 @@ class CausalGraph(nx.DiGraph):
         list
             A list of all nodes which have a self loop.
         """
-
         self_loop_node_list = []
         for i in self.edges:
             if(i[0] == i[1]):
@@ -123,13 +120,16 @@ class CausalGraph(nx.DiGraph):
 
         return self_loop_node_list
 
-
     def edges_no_self(self,info=False):
         """Outputs a list of tuples where each tuple contains node index which has a
-         causal link between them.
+        causal link between them.
+
+        Parameters
+        ----------
         info: bool , False
             The edge attribute returned in 3-tuple (u, v, ddict[data]). If True, 
             return edge attribute dict in 3-tuple (u, v, ddict). If False, return 2-tuple (u, v).
+
         Returns
         -------
         list
@@ -137,7 +137,6 @@ class CausalGraph(nx.DiGraph):
             between them. 
         """
         return [i for i in self.edges(data=info) if i[0] != i[1]]
-
 
     def causal_neighbors(self):
         """Outputs a dict where keys are node index and values are list of
