@@ -72,7 +72,7 @@ class ACLED2020():
         if to_lower:
             df.columns = [i.lower() for i in df.columns]
             return df.loc[df['event_type']=='Violence against civilians']
-        return df.loc[df.EVENT_TYPE=='Violence against civilians']
+        return df.loc[df['EVENT_TYPE']=='Violence against civilians']
 
     @classmethod
     def riots_and_protests_df(cls, pre_covid=True, to_lower=False):
@@ -96,6 +96,6 @@ class ACLED2020():
         if to_lower:
             df.columns = [i.lower() for i in df.columns]
             return df.loc[(df['event_type']=='Riots') | (df['event_type']=='Protests')]
-        ix = (df.EVENT_TYPE=='Riots') | (df.EVENT_TYPE=='Protests')
+        ix = (df['EVENT_TYPE']=='Riots') | (df['EVENT_TYPE']=='Protests')
         return df.loc[ix]
 #end ACLED2020
