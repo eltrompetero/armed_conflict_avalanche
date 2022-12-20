@@ -46,8 +46,12 @@ class ConflictZones():
         self.ava_box = ava["ava_box"]
         self.ava_event = ava["ava_event"]
 
-        self.acled_data = ACLED2020.battles_df()
-
+        if(conflict_type == "battles"):
+            self.acled_data = ACLED2020.battles_df()
+        elif(conflict_type == "VAC"):
+            self.acled_data = ACLED2020.vac_df()
+        elif(conflict_type == "RP"):
+            self.acled_data = ACLED2020.riots_and_protests_df()
 
 
     def common_actors_coeff_calculator(self, weighted=True):

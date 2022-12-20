@@ -1,7 +1,8 @@
 from .utils import *
+import pandas as pd
 
 
-def power_law_fitting_discrete(time , dx , gridix , observed_data , xlabel , plot , KS_plot):
+def power_law_fitting_discrete(observed_data, plot , KS_plot):
     #print("Calculating power law fit!")
 
     def alpha_estimator(observed_data , xmin):
@@ -23,7 +24,7 @@ def power_law_fitting_discrete(time , dx , gridix , observed_data , xlabel , plo
         observed_data = [i for i in observed_data if i >= xmin]
         
         dt = np.array(observed_data)
-        dt = bincount(dt)
+        dt = np.bincount(dt)
         dt = dt/dt.sum()             #For Normalization
         dt[dt == 0] = np.nan
         dt = pd.DataFrame(dt)
