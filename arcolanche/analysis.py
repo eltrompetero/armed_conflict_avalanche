@@ -430,6 +430,8 @@ class ConflictZones():
         actors_event = acled_data_actors.loc[event_nums].to_numpy()
         actors_event = actors_event.reshape(actors_event.shape[0]*actors_event.shape[1])
 
+        actors_event = actors_event[~pd.isnull(actors_event)]
+
         actor_count = []
         for actor_group in numpy_indexed.group_by(actors_event).split_array_as_list(actors_event):
             actor_count.append((actor_dict_lookup(actor_group[0]),len(actor_group)))
