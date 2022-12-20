@@ -20,7 +20,12 @@ def conflict_position(conflict_type):
     This script is used to create and then save a geodataframe of all the geographic points where events took place using lattitude and longitude of
     events from ACLED dataset and the dates on which those events occured
     '''
-    data = ACLED2020.battles_df()
+    if(conflict_type == "battles"):
+        data = ACLED2020.battles_df()
+    elif(conflict_type == "VAC"):
+        data = ACLED2020.vac_df()
+    elif(conflict_type == "RP"):
+        data = ACLED2020.riots_and_protests_df()
 
     temp_list = []
     for i in range(len(data)):
@@ -75,7 +80,12 @@ def conflict_event_polygon_mapping(dx , gridix , conflict_type , cpu_cores , pro
 
 def single_tile_events(dx , gridix , conflict_type):
 
-    conflict_data = ACLED2020.battles_df()
+    if(conflict_type == "battles"):
+        conflict_data = ACLED2020.battles_df()
+    elif(conflict_type == "VAC"):
+        conflict_data = ACLED2020.vac_df()
+    elif(conflict_type == "RP"):
+        conflict_data = ACLED2020.riots_and_protests_df()
 
     event_mappings = np.loadtxt(f"generated_data/{conflict_type}/gridix_{gridix}/event_mappings/event_mapping_{str(dx)}.csv" , delimiter=",")
     event_mappings = event_mappings[:,1]
