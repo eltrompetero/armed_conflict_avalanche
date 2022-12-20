@@ -111,7 +111,13 @@ def binning(time , dx , gridix , conflict_type):
 
     time_binning = pd.DataFrame({'polygon_number' : time_binning})
 
-    data = ACLED2020.battles_df()
+    if(conflict_type == "battles"):
+        data = ACLED2020.battles_df()
+    elif(conflict_type == "VAC"):
+        data = ACLED2020.vac_df()
+    elif(conflict_type == "RP"):
+        data = ACLED2020.riots_and_protests_df()
+
     time_binning["date"] = data["EVENT_DATE"].reset_index()["EVENT_DATE"]
 
     day = pd.to_datetime(data["EVENT_DATE"].reset_index()["EVENT_DATE"] , dayfirst=True)
@@ -705,7 +711,13 @@ def ava_numbering(time,dx,gridix,conflict_type,ava_events):
 
     avalanche_data["avalanche_number"] = avalanche_number_dict.values()
 
-    ACLED_data = ACLED2020.battles_df()
+    if(conflict_type == "battles"):
+        ACLED_data = ACLED2020.battles_df()
+    elif(conflict_type == "VAC"):
+        ACLED_data = ACLED2020.vac_df()
+    elif(conflict_type == "RP"):
+        ACLED_data = ACLED2020.riots_and_protests_df()
+
     avalanche_data["fatalities"] = ACLED_data["FATALITIES"]
 
     return avalanche_data
