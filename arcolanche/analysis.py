@@ -355,6 +355,9 @@ class ConflictZones():
         actor1_arr = (acled_data_actors["ACTOR1"]).to_numpy()
         actor2_arr = (acled_data_actors["ACTOR2"]).to_numpy()
 
+        actor1_arr = actor1_arr[~pd.isnull(actor1_arr)]
+        actor2_arr = actor2_arr[~pd.isnull(actor2_arr)]
+
         actors_arr = np.concatenate((actor1_arr,actor2_arr))
         actors_arr = np.unique(actors_arr)
 
