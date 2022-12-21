@@ -354,6 +354,14 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles'):
                                    crs=polygons.crs)
     conflict_ev['t'] = (conflict_ev['event_date']-conflict_ev['event_date'].min()) // np.timedelta64(dt,'D')
     
+    # in rare cases a conflict event may exactly fall on polygon's line and therefore it is not "within" any polygon
+    nan_finder = gpd.sjoin(conflict_ev, polygons, how='left', op='within')   ## If a conflict event is exactly on top of a polygon line, it gets a nan value
+    nan_finder = np.isnan(nan_finder["index"])
+
+    for row,data in nan_finder.iteritems():
+        if(data):
+            conflict_ev.loc[row,"geometry"] = conflict_ev.loc[[row]]["geometry"].translate(xoff=0.01)[row]  ## Perturb the conflict event location by a small amount
+            
     conflict_ev = gpd.sjoin(conflict_ev, polygons, how='left', op='within')
 
     # in rare instances, a conflict event may belong to two polygons, in such a case choose the first one
