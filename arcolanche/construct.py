@@ -28,7 +28,8 @@ class Avalanche():
                  rng=None,
                  iprint=False,
                  setup=True,
-                 shuffle_null=False):
+                 shuffle_null=False,
+                 year_range=False):
         """
         Parameters
         ----------
@@ -45,6 +46,10 @@ class Avalanche():
         setup : bool, True
             If False, don't run causal graph and avalanche construction.
         shuffle_null : bool, False
+        year_range : tuple , False
+            If a tuple is passed, the first element of the tuple is taken
+            to be the lower cutoff of year and second element is upper
+            cutoff.
         """
 
         assert 0<=sig_threshold<100
@@ -56,9 +61,10 @@ class Avalanche():
         self.sig_threshold = sig_threshold
         self.rng = rng or np.random
         self.iprint = iprint
+        self.year_range = year_range
         
         self.polygons = load_voronoi(dx, gridix)
-        self.time_series = discretize_conflict_events(dt, dx, gridix, conflict_type)[['t','x']]
+        self.time_series = discretize_conflict_events(dt, dx, gridix, conflict_type, year_range)[['t','x']]
         self.time_series_CG_generator()
         if shuffle_null:
             if iprint: print("Starting shuffling...")
@@ -321,7 +327,7 @@ def _self_probabilities(t, tmx):
     return (p11, p01, p10, p00), (p1_past, p1_fut)
 
 @cache
-def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles'):
+def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_range=False):
     """Merged GeoDataFrame for conflict events of a certain type into the Voronoi
     cells. Time discretized.
 
@@ -333,6 +339,7 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles'):
     dx : int
     gridix : int, 0
     conflict_type : str, 'battles'
+    year_range : tuple, False
 
     Returns
     -------
@@ -343,11 +350,11 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles'):
     polygons = load_voronoi(dx, gridix)
     
     if(conflict_type == "battles"):
-        df = ACLED2020.battles_df(to_lower=True)
+        df = ACLED2020.battles_df(to_lower=True,year_range=year_range)
     elif(conflict_type == "RP"):
-        df = ACLED2020.riots_and_protests_df(to_lower=True)
+        df = ACLED2020.riots_and_protests_df(to_lower=True,year_range=year_range)
     elif(conflict_type == "VAC"):
-        df = ACLED2020.vac_df(to_lower=True)
+        df = ACLED2020.vac_df(to_lower=True,year_range=year_range)
 
     conflict_ev = gpd.GeoDataFrame(df[['event_date','longitude','latitude']],
                                    geometry=gpd.points_from_xy(df.longitude, df.latitude),
