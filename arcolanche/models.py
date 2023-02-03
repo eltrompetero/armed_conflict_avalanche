@@ -25,7 +25,6 @@ set_defaults(
 def solve_simultaneous_activation(polygons, conf_df):
     """Simultaneous activation model.
     """
-
     tmx = conf_df['t'].max()
     px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / tmx
 
@@ -137,7 +136,6 @@ def solve_NThreshold1(polygons, conf_df, K_cost_inverse_weight=10, n_cpus=None):
     n_cpus : int, None
         Multiprocess unless this is 1.
     """
-    
     tmn = conf_df['t'].min()
     tmx = conf_df['t'].max()
     px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / (tmx-tmn+1)
@@ -197,7 +195,6 @@ def solve_NThreshold2(polygons, conf_df, K_cost_inverse_weight=10, n_cpus=None):
     n_cpus : int, None
         Multiprocess unless this is 1.
     """
-    
     tmn = conf_df['t'].min()
     tmx = conf_df['t'].max()
     px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / (tmx-tmn+1)
@@ -385,6 +382,81 @@ def solve_NThreshold4(polygons, conf_df, K_cost_inverse_weight=10, n_cpus=None):
     polygons['n'] = polygons['active_neighbors'].apply(lambda i: len(i)+1)
     polygons['model'] = [NThreshold4(i['n'],
                                      params=np.array([i['params'][0], i['params'][1], i['params'][2]]))
+                         for _,i in polygons.iterrows()]
+    return polygons
+
+def solve_NThreshold5(polygons, conf_df, K_cost_inverse_weight=10, n_cpus=None):
+    """Solve for the parameters of a delayed activation NThreshold5 model given the
+    data.  Model solutions saved into polygons DataFrame.
+
+    Parameters
+    ----------
+    polygons : pd.DataFrame
+        Updated in place with parameters col 'params' and separately the bias
+        parameter 'h' and activation parameter 'K'.
+    conf_df : pd.DataFrame
+        Conflict events.
+    K_cost_inverse_weight : float, 10
+        Inverse weight for prior on coupling K.
+    n_cpus : int, None
+        Multiprocess unless this is 1.
+    """
+    tmn = conf_df['t'].min()
+    tmx = conf_df['t'].max()
+    px = conf_df.groupby('x')['t'].unique().apply(lambda i:len(i)) / (tmx-tmn+1)
+
+    def loop_wrapper(i):
+        """For a given site, get it's typical activation probability along with
+        its pair correlations no. of active neighbors.
+        """
+        pi = px.loc[i]
+        pii = 0
+        pij = dict([(j,0) for j in polygons['active_neighbors'].loc[i]])
+
+        # for each time point, count number of neighbors at t-1 only if the center
+        # site is active
+        for t, g in g_by_t:
+            i_active = 0
+            n_active = 0
+            if i in g['x'].values and t-1 in g_by_t.groups.keys():
+                # check if self was active in past t-1
+                if i in conf_df['x'].loc[g_by_t.groups[t-1]].values:
+                    pii += 1
+
+                # check if each neighbor site j was in the past at t-1
+                for j in polygons['active_neighbors'].loc[i]:
+                    if j in conf_df['x'].loc[g_by_t.groups[t-1]].values:
+                        pij[j] += 1
+        pii /= tmx - tmn
+        for j in pij.keys():
+            pij[j] /= tmx - tmn
+        n = len(polygons['active_neighbors'].loc[i]) + 1
+
+        # must convert pairwise correlations to {-1,1} basis
+        solver = NThreshold5(n)
+        constraints = np.concatenate(([pi, pii],list(pij.values())))
+        sol = solver.solve(constraints, K_cost=(0, K_cost_inverse_weight))
+        solver.set_params(sol['x'])
+        # when sol is non-convergent, try Powell algorithm
+        if np.linalg.norm(solver.calc_observables() - constraints) > 1e-3:
+            sol = solver.solve(constraints,
+                               max_param_value=20,
+                               K_cost=(0, K_cost_inverse_weight),
+                               method='powell')
+        return solver.params, constraints
+
+    g_by_t = conf_df.groupby('t')
+    g_by_t.get_group(conf_df['t'].iloc[0])  # cache to memory
+    if n_cpus==1:
+        output = list(zip(*[loop_wrapper(i) for i in polygons.index]))
+    else:
+        with Pool(n_cpus) as pool:
+            output = list(zip(*pool.map(loop_wrapper, polygons.index, chunksize=20)))
+    polygons['params'] = output[0]
+    polygons['constraints'] = output[1]
+
+    polygons['n'] = polygons['active_neighbors'].apply(lambda i: len(i)+1)
+    polygons['model'] = [NThreshold5(i['n'], params=i['params'])
                          for _,i in polygons.iterrows()]
     return polygons
 
@@ -690,6 +762,112 @@ class NThreshold4(NThreshold):
 
 
 
+class NThreshold5(NThreshold):
+    """Model where there is a separate interaction for t+1 with the center site at t
+    and each possible neighbor. There is also a separate bias for activity.
+    """
+    def __init__(self, n, params=None, rng=None):
+        """Spin with a bias for activation and activation based on neighbors in
+        previous time step.
+
+        Parameters
+        ----------
+        int : n
+            Number of spins, 1 + no. of neighbors.
+        params : ndarray, None
+        rng : np.random.RandomState, None
+            Uses np.random if None.
+        """
+        assert n<10, "Not designed for large systems."
+        self.n = n
+        if not params is None:
+            assert params.size==(n+1) and params.ndim==1
+            self.set_params(params)
+        else:
+            self.set_params(np.zeros(n+1))
+        self.rng = rng if not rng is None else np.random
+ 
+    # remember self.n is 1+no_of_neighbors
+    def si(self):
+        """Activation probability of center spin in the future."""
+        return self.p[2**self.n:].sum()
+
+    def sample(self, size=1):
+        """Sample from possible states using full probability distribution.
+
+        Parameters
+        ----------
+        size : int, 1
+
+        Returns
+        -------
+        ndarray
+        """
+        if size==1:
+            return self.all_states()[self.rng.choice(2**self.n, p=self.p)][None,:]
+        return self.all_states()[self.rng.choice(2**self.n, p=self.p, size=size)]
+    
+    def all_states(self):
+        """All possible configuration in this model.
+        
+        Returns
+        -------
+        ndarray
+            First col is center spin at t+1. Second col is self in the past.
+            Remaining cols are neighbors.
+        """
+        return bin_states(self.n+1)
+
+    def calc_e(self, s, params):
+        #return -(self.params[0] + (s[:,1:]*2.-1).dot(self.params[1:])) * (s[:,0]*2.-1)
+        return -(self.params[0] + s[:,1:].dot(self.params[1:])) * s[:,0]
+
+    def calc_observables(self):
+        """Typical activation prob and typical no. of neighbors active in previous
+        time step.
+        """
+        n = self.n
+        all_states = self.all_states()
+        return np.insert(((self.p[2**(n-1):]*all_states[2**(n-1):,0])[:,None]*all_states[2**(n-1):,1:]).sum(0),
+                         0,
+                         self.si())
+
+    def solve(self, constraints,
+              original_guess=None,
+              max_param_value=20,
+              K_cost=(0,50),
+              **solver_kw):
+        """
+        Parameters
+        ----------
+        constraints : ndarray
+        original_guess : ndarray, np.zeros(self.n)
+        max_param_value : float, 20
+        K_cost : twople, (0,50)
+            (mean, std) of coupling cost
+        **solver_kw
+
+        Returns
+        -------
+        dict
+        """
+        assert max_param_value > 0
+        original_guess = np.zeros(self.n+1) if original_guess is None else original_guess
+        assert len(original_guess)==(self.n+1)
+        
+        def cost(new_params):
+            self.set_params(new_params)
+            cost = (np.linalg.norm(self.calc_observables() - constraints) +
+                    (np.abs(K_cost[0]-new_params[2:])/K_cost[1]).sum())
+            return cost
+        return minimize(cost, original_guess,
+                        bounds=[(-max_param_value, max_param_value)]*(self.n+1),
+                        **solver_kw)
+#end NThreshold5
+
+
+
+
 class NActivationIsing():
     def __init__(self, n, params=None, rng=None):
         """
@@ -888,6 +1066,61 @@ class MarkovSimulator():
                     p_inactive = model[i].p[n_active]
             else:
                 raise NotImplementedError
+            p_active /= p_active + p_inactive
+
+            if np.random.rand() < p_active:
+                return 1
+            return 0
+
+        for t in range(T):
+            # for each cell, iterate it one time step
+            for i in polygons.index:
+                new_s[i] = new_state(i)
+
+            if (t%save_every)==0:
+                history.append(list(s.values()))
+            s = new_s.copy()
+
+        self.history = pd.DataFrame(history, columns=polygons.index)
+
+    def simulate_NThreshold5(self, T, save_every=1, s0=None):
+        """Simulate time series with single-step Markov chain using the 'model'
+        column in polygons.
+
+        Parameters
+        ----------
+        T : int
+        save_every : int, 1
+        s0 : ndarray or list
+            Initial state at which to start simulation.
+        """
+        polygons = self.polygons
+        if s0 is None:
+            s0 = [0]*len(polygons)
+        else:
+            assert set(s0) <= frozenset((0,1))
+        s = dict(zip(polygons.index, s0))  # current state of each polygon as {0,1}
+        new_s = dict(zip(polygons.index, [0]*len(polygons)))  # next state of each polygon
+
+        # read in cols of polygons for use in faster loop
+        neighbors = dict(polygons['active_neighbors'])
+        model = dict(polygons['model'])
+        n = dict(polygons['n'])
+        history = []
+
+        def new_state(i):
+            # probability of a state being active depends on the no. of active
+            # neighbors; once that is fixed then there are two possibilities, it is up or
+            # it is down and these must be normalized to unity
+            n_active = np.array([True if s[n] else False for n in neighbors[i]])
+            # this should give the relative index accounting for the neighbors
+            counter = int(n_active.dot(2**np.arange(len(n_active), dtype=int)[::-1]).sum())
+            if s[i]:
+                p_inactive = model[i].p[2**(n[i]-1)+counter]
+                p_active = model[i].p[2**(n[i]-1)*3+counter]
+            else:
+                p_inactive = model[i].p[counter]
+                p_active = model[i].p[2**n[i]+counter]
             p_active /= p_active + p_inactive
 
             if np.random.rand() < p_active:

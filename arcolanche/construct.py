@@ -388,7 +388,11 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles'):
     # in rare instances, a conflict event may belong to two polygons, in such a case choose the first one
     conflict_ev = conflict_ev[~conflict_ev.index.duplicated(keep='first')]
 
+    # ignore conflicts on islands
+    conflict_ev = conflict_ev.loc[~conflict_ev['index_right'].isna()]
+
     conflict_ev.rename(columns={'index_right':'x'}, inplace=True)
+    conflict_ev['x'] = conflict_ev['x'].astype(int)
 
     # no need for polygon neighbors column or raw index
     return conflict_ev.drop(['neighbors','index'], axis=1)
