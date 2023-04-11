@@ -504,6 +504,18 @@ def z_fine_calulator(values_matrix,filter_cutoff):
     
     return z_fine , t_range_fine , x_range_fine
 
+def z_fine_calulator_2(values_matrix):
+    interp = interpolation_scipy(values_matrix)
+    
+    t_range = np.arange(values_matrix.shape[1])
+    x_range = np.arange(values_matrix.shape[0])
+    
+    t_range_fine = np.linspace(t_range[0],t_range[-1] , 1000)
+    x_range_fine = np.linspace(x_range[0],x_range[-1],1000)
+    z_fine  = interp(x_range_fine , t_range_fine)
+    
+    return z_fine , t_range_fine , x_range_fine
+
 def interpolation_scipy(values_matrix):
     t_range = np.arange(values_matrix.shape[1])
     x_range = np.arange(values_matrix.shape[0])
@@ -649,3 +661,122 @@ def actor_similarity_plot(conflict_type):
     ax.yaxis.set_label_position('right')
 
     ax.tick_params(width=3,length=5)
+
+def mesoscale_plot(conflict_type):
+    """Plot mesoscale.
+    
+    Parameter
+    ---------
+    conflict_type : str, "battles"
+    
+    Returns
+    -------
+    None
+    
+    Displays the mesoscale.
+    """
+    fig, ax = plt.subplots(figsize=(10,10))
+
+    initial_index = 0
+    threshold_list = []
+    for gridix in range(1,21):
+        initial_index += 1
+
+        load_pickle(f"mesoscale_data/similarity_matrix_{gridix}_{conflict_type}.p")
+        load_pickle(f"mesoscale_data/data_used_{gridix}_{conflict_type}.p")
+
+        actor_similarity = -np.log10(actor_similarity)
+
+        actor_similarity_threshold = (max(actor_similarity.flatten())-min(actor_similarity.flatten())) / 2
+        threshold_list.append(10**-actor_similarity_threshold)
+
+        z_fine_data , t_range_fine , x_range_fine = z_fine_calulator(data_used,0.75)
+        z_fine_actor , t_range_fine , x_range_fine = z_fine_calulator(actor_similarity,actor_similarity_threshold)
+
+        a = np.where(np.logical_and(z_fine_actor==1,z_fine_data==1))
+
+        b = np.empty(z_fine_actor.shape)
+        b[:] = 0
+        b[a] = 1
+
+
+
+        if(initial_index == 1):
+            weighted_contour = np.zeros(actor_similarity.shape)
+
+            temp_matrix = np.zeros(actor_similarity.shape)
+            temp_matrix[(actor_similarity > actor_similarity_threshold) & (data_used > 0.75)] = 1
+
+            weighted_contour += temp_matrix
+        else:
+            temp_matrix = np.zeros(actor_similarity.shape)
+            temp_matrix[(actor_similarity > actor_similarity_threshold) & (data_used > 0.75)] = 1
+
+            weighted_contour += temp_matrix
+
+
+    ax.imshow(np.flip(weighted_contour,axis=0), interpolation="bicubic",  cmap="Purples" , aspect="auto")
+
+    ax.xaxis.tick_top()
+    ax.xaxis.set_label_position('top')
+    ax.xaxis.labelpad = 15
+
+    plt.xlim([-0.5,len(time_list)-0.5])
+    plt.ylim([-0.5,len(dx_list)-0.5])
+
+
+    positionsy = [0,6,12]
+    labelsy = [22,175,1450]
+    positionsy = [0,4,8,12]
+    labelsy = [22,87,349,1450]
+
+    positionsx = [0,3,6,9]
+    labelsx = ['$2^{0}$','$2^{3}$','$2^{6}$','$2^{9}$']
+    labelsx = ['1','8','64','512']
+
+    plt.xticks(positionsx , labelsx , fontsize=30)
+    plt.yticks(positionsy , labelsy , fontsize=30)
+    plt.xticks(positionsx , [] , fontsize=30)
+    plt.yticks(positionsy , [] , fontsize=30)
+
+
+    ax.tick_params(width=2,length=20)
+
+
+    radius = 0.4
+    width = 0.3
+    height = 0.4
+
+    # top left
+    box = Ellipse((0, 12), width=width , height=height, fc='red', ec='red', lw=2.5)
+    ax.add_patch(box)
+    # bottom left
+    box = Ellipse((2, 2), width=width , height=height, fc='orange', ec='orange', lw=2.5)
+    ax.add_patch(box)
+    # top right
+    box = Ellipse((7, 11), width=width , height=height, fc='blue', ec='blue', lw=2.5)
+    ax.add_patch(box)
+    # bottom right
+    box = Ellipse((8, 1), width=width , height=height, fc='magenta', ec='magenta', lw=2.5)
+    ax.add_patch(box)
+    # main
+    box = Ellipse((6, 4), width=width , height=height, fc='g', ec='g', lw=2.5)
+    ax.add_patch(box)
+
+    ax.patch.set_alpha(0)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+
+    t_range = np.arange((weighted_contour/20).shape[1])
+    x_range = np.arange((weighted_contour/20).shape[0])
+
+    a,b,c = z_fine_calulator_2((weighted_contour/20))
+    contr = ax.contour(b,c,np.flip(a,axis=0) ,
+                       linewidths=1 ,
+                       levels=[0.5,0.9] ,
+                       colors=["indigo","white"])
+    ax.clabel(contr, inline=True, fontsize=20)
