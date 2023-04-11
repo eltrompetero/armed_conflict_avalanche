@@ -417,3 +417,57 @@ def actor_similarity_generator(conflict_type):
         
         save_pickle(["actors_ratio"],f"temp/similarity_score_{gridix}_{conflict_type}.p", True)
 
+def data_used_generator(conflict_type):
+    """Calculates data used matrix for a given conflict type.
+    Only avalanches with number of spatial or temporal bin > 1 are
+    considered valid and used in calculation.
+    
+    Parameter
+    ---------
+    conflict_type : str, "battles"
+    
+    Returns
+    -------
+    None
+    
+    Saves pickles of data used matrix.
+    """
+
+    def data_used_wrapper(args):
+        time,dx,gridix,conflict_type = args
+        
+        box_path = f"avalanches/{conflict_type}/gridix_{gridix}/te/te_ava_{str(time)}_{str(dx)}.p"
+        with open(box_path,"rb") as f:
+            ava = pickle.load(f)
+        ava_box = ava["ava_box"]
+        ava_event = ava["ava_event"]
+        
+        if(conflict_type == "battles"):
+            ACLED_data = ACLED2020.battles_df()
+        elif(conflict_type == "VAC"):
+            ACLED_data = ACLED2020.vac_df()
+        elif(conflict_type == "RP"):
+            ACLED_data = ACLED2020.riots_and_protests_df()
+
+        events_used = 0
+        for num in range(len(ava_box)):
+            if(len(ava_box[num]) != 1):
+                events_used += len(ava_event[num])
+        
+        return events_used / len(ACLED_data)
+
+    for gridix in range(1,21):
+        dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
+        time_list = [1,2,4,8,16,32,64,128,256,512]
+        
+        dxdt = list(product(time_list,dx_list,[gridix],[conflict_type]))
+        
+        data_used = np.zeros((len(dx_list),len(time_list)))
+                
+        with Pool() as pool:
+            output = list(pool.map(data_used_wrapper , dxdt))
+        
+        for i,(j,k) in zip(range(len(dxdt)),product(range(len(time_list)),range(len(dx_list)))):
+            data_used[k][j] = output[i]
+        
+        save_pickle(["data_used"],f"temp/data_used_{gridix}_{conflict_type}.p", True)
