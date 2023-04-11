@@ -14,6 +14,9 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 import scipy
+import geopandas
+from voronoi_globe.interface import load_voronoi
+import random
 
 
 
@@ -781,3 +784,103 @@ def mesoscale_plot(conflict_type):
                        levels=[0.5,0.9] ,
                        colors=["indigo","white"])
     ax.clabel(contr, inline=True, fontsize=20)
+
+def set_ax(country):
+    if(country == "Nigeria"):
+        return np.array([0.5535987755982988+330/180*np.pi, 
+                         0.895006094968746698+330/180*np.pi,
+                         0.0553981633974483, 
+                         0.3203047484373349])*180/np.pi
+    elif(country == "Somalia"):
+        return np.array([1.135987755982988+330/180*np.pi,
+                         1.4406094968746698+330/180*np.pi,
+                         -0.033981633974483,
+                         0.2203047484373349])*180/np.pi
+    elif(country == "Egypt"):
+        return np.array([0.9535987755982988+330/180*np.pi, 
+                         1.156094968746698+330/180*np.pi,
+                         0.370853981633974483, 
+                         0.5603047484373349])*180/np.pi
+    elif(country == "Sierra Leone"):
+        return np.array([0.235987755982988+330/180*np.pi, 
+                         0.4506094968746698+330/180*np.pi,
+                         0.0553981633974483, 
+                         0.2203047484373349])*180/np.pi
+    elif(country == "Libya"):
+        return np.array([0.3735987755982988+330/180*np.pi,
+                         1.0406094968746698+330/180*np.pi,
+                         0.3700853981633974483, 
+                         0.7203047484373349])*180/np.pi
+    elif(country == "Kenya"):
+        return np.array([1.035987755982988+330/180*np.pi,
+                         1.2806094968746698+330/180*np.pi,
+                         -0.09281633974483,
+                         0.1203047484373349])*180/np.pi
+    elif(country == "Uganda"):
+        return np.array([1.01987755982988+330/180*np.pi,
+                         1.1506094968746698+330/180*np.pi,
+                         -0.03281633974483,
+                         0.0903047484373349])*180/np.pi
+    elif(country == "Democratic Republic of the Congo"):
+        return np.array([0.913755982988+330/180*np.pi,
+                         1.1506094968746698+330/180*np.pi,
+                         -0.1081633974483,
+                         0.103047484373349])*180/np.pi
+    else:
+        return np.array([0.05235987755982988+330/180*np.pi, 
+                      1.6406094968746698+330/180*np.pi,
+                      -0.5853981633974483, 
+                      0.6203047484373349])*180/np.pi
+    
+def conflict_zones_figure(time,dx,gridix,conflict_type="battles"):
+    """Displays a figure of conflict zones at given time,dx and gridix
+    for a given conflict type.
+    
+    Paramemters
+    -----------
+    time : int
+    dx : int
+    gridix : int
+    conflict_type : str, "battles"
+    
+    Returns
+    -------
+    None
+    
+    Displays conflict zones.
+    """
+
+    polygons = load_voronoi(dx,gridix)
+
+    acled_data = ACLED2020.battles_df()
+    location_data_arr = np.array(acled_data[["LONGITUDE","LATITUDE"]])
+
+    conflict_zones = ConflictZones(time,dx,threshold=1,gridix=gridix,conflict_type=conflict_type)
+
+    zones = conflict_zones.generator()
+
+    sorted_zones = sorted(zones , key=len)
+    sorted_zones.reverse()
+
+    world = geopandas.read_file(geopandas.datasets.get_path('naturalearth_lowres'))
+    world = world[['continent', 'geometry']]
+
+    continents = world.dissolve(by='continent')
+
+    africa = gpd.GeoDataFrame(continents["geometry"]["Africa"] , geometry=0)
+
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(projection=ccrs.PlateCarree())
+
+    for index in range(len(sorted_zones)):
+        color_tuple = (random.uniform(0,1) , random.uniform(0,1) , random.uniform(0,1))
+        if(len(sorted_zones[index]) < 5):
+            gpd.clip(polygons.loc[sorted_zones[index]],continents["geometry"]["Africa"]) \
+                .plot(ax=ax , facecolor=color_tuple , alpha=0.2)           
+        else:
+            gpd.clip(polygons.loc[sorted_zones[index]],continents["geometry"]["Africa"]) \
+                .plot(ax=ax , facecolor=color_tuple)
+
+
+    africa.plot(ax=ax , facecolor="none" , edgecolor="black" , linewidth=6)
+    ax.set_extent(set_ax("Full"))
