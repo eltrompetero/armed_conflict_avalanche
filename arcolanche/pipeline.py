@@ -485,3 +485,96 @@ def data_used_generator(conflict_type):
             os.makedirs(path)        
 
         save_pickle(["data_used"],f"mesoscale_data/data_used_{gridix}_{conflict_type}.p", True)
+
+def z_fine_calulator(values_matrix,filter_cutoff):
+    interp = interpolation_scipy(values_matrix)
+    
+    t_range = np.arange(values_matrix.shape[1])
+    x_range = np.arange(values_matrix.shape[0])
+    
+    t_range_fine = np.linspace(t_range[0],t_range[-1] , 1000)
+    x_range_fine = np.linspace(x_range[0],x_range[-1],1000)
+    z_fine  = interp(x_range_fine , t_range_fine)
+    
+    ix = (z_fine < filter_cutoff)
+    
+    z_fine[ix] = 0
+    z_fine[z_fine != 0] = 1
+    z_fine[z_fine == 0] = np.nan
+    
+    return z_fine , t_range_fine , x_range_fine
+
+def interpolation_scipy(values_matrix):
+    t_range = np.arange(values_matrix.shape[1])
+    x_range = np.arange(values_matrix.shape[0])
+    
+    interpolation = scipy.interpolate.RectBivariateSpline(x_range , t_range , values_matrix)
+    
+    return interpolation
+
+def data_used_plot(conflict_type):
+    """Plot contour plot of percentage of data used.
+    
+    Parameter
+    ---------
+    conflict_type : str, "battles"
+    
+    Returns
+    -------
+    None
+    
+    Displays the contour plot of percentage of data used.
+    """
+
+    fig, ax = plt.subplots(figsize=(10,10))
+    cb_ax = fig.add_axes([.12, -0.005, .785, .05])
+
+    yaxis_label = r"length scale $b$ (km)"
+    xaxis_label = r"time scale $a$ (days)"
+
+    for gridix in [5]:
+        load_pickle(f"mesoscale_data/data_used_{gridix}_{conflict_type}.p")
+
+        z_fine_data , t_range_fine , x_range_fine = z_fine_calulator(data_used,0.75)
+
+        a = np.where(z_fine_data==1)
+
+        b = np.empty(z_fine_data.shape)
+        b[:] = 0
+        b[a] = 1
+
+        cax = ax.imshow(data_used , interpolation="bicubic" , cmap=plt.cm.Blues, vmin=0 , vmax=1 , aspect="auto")
+        contr = ax.contour(t_range_fine,x_range_fine, b , linewidths=5 , colors='w')
+
+        cbar = fig.colorbar(cax, cax=cb_ax, orientation='horizontal', fraction=.2)
+        cbar.ax.set_title(r"% data involved $\Phi$", pad=35 , fontsize=60, y=-5)
+        cbar.ax.set_xticks([0,.5,1])
+        cbar.ax.set_xticklabels(labels=[0,.5,1] ,fontsize=60)
+        cbar.ax.tick_params(pad=15)
+
+    positionsx = [0,3,6,9]
+    labelsx = [1,8,64,512]
+
+
+    positionsy = [0,4,8,12]
+    labelsy = reversed([22,88,352,1408])
+
+    ax.xaxis.labelpad = 15
+    ax.set_xticklabels(labelsx, fontsize=60)
+    ax.set_yticklabels(labelsy, fontsize=60)
+    ax.set(xticks=positionsx,
+           yticks=positionsy,
+           xlabel=xaxis_label, ylabel=yaxis_label);
+
+    ax.set_xlabel(xaxis_label, fontsize=60, labelpad=35)
+    ax.set_ylabel(yaxis_label , fontsize=60, labelpad=33)
+    ax.tick_params(axis='both', which='major', pad=30)
+    ax.tick_params(axis='both', which='minor', pad=30)
+
+    ax.set_xlim([0,9])
+    ax.set_ylim([12,0])
+
+    ax.xaxis.tick_top()
+    ax.xaxis.set_label_position('top')
+
+    ax.tick_params(width=3,length=5)
