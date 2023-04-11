@@ -11,6 +11,8 @@ from .construct import discretize_conflict_events
 from itertools import product
 from .analysis import ConflictZones
 import os
+import matplotlib.pyplot as plt
+import scipy
 
 
 
