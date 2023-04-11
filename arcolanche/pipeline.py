@@ -5,10 +5,11 @@
 from .utils import *
 from .construct import Avalanche
 from .data import ACLED2020
-from workspace.utils import save_pickle
+from workspace.utils import save_pickle, load_pickle
 from multiprocess import Pool
 from .construct import discretize_conflict_events
 from itertools import product
+from .analysis import ConflictZones
 
 
 
@@ -349,7 +350,7 @@ def generate_avalanches(conflict_type="battles"):
     
     Saves pickles of avalanches in both box and event form. 
     """
-    
+
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
     gridix_list = range(1,21)
@@ -358,8 +359,6 @@ def generate_avalanches(conflict_type="battles"):
 
     def looper(args):
         dx,time,gridix = args
-
-        print(dx,time,gridix)
 
         ava = Avalanche(time,dx,gridix,conflict_type=conflict_type)
 
@@ -376,3 +375,45 @@ def generate_avalanches(conflict_type="battles"):
 
     with Pool() as pool:
         pool.map(looper , dx_time_gridix)
+
+def actor_similarity_generator(conflict_type):
+    """Calculates actor similarity matrix for a given conflict type.
+    
+    Parameter
+    ---------
+    conflict_type : str, "battles"
+    
+    Returns
+    -------
+    None
+    
+    Saves pickles of actor similarity matrix.
+    """
+
+    def actor_ratio_loop_wrapper(args):
+        time,dx,threshold,gridix,conflict_type = args
+
+        cz = ConflictZones(time,dx,threshold=threshold,gridix=gridix,conflict_type=conflict_type)
+
+        return cz.similarity_score()
+
+    for gridix in range(1,21):
+        dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
+        time_list = [1,2,4,8,16,32,64,128,256,512]
+ 
+        threshold = [1]
+
+        actors_ratio = np.zeros((len(dx_list),len(time_list)))
+
+        dxdt = list(product(time_list,dx_list,threshold,[gridix],[conflict_type]))
+
+        with Pool() as pool:
+            output = list(pool.map(actor_ratio_loop_wrapper , dxdt))
+
+        for i,(j,k) in zip(range(len(dxdt)),product(range(len(time_list)),range(len(dx_list)))):
+            actors_ratio[k][j] = output[i]
+
+        np.savetxt(f"temp/similarity_score_{str(gridix[0])}_{conflict_type[0]}.csv" , actors_ratio , delimiter=",")
+        
+        save_pickle(["actors_ratio"],f"temp/similarity_score_{gridix}_{conflict_type}.p", True)
+

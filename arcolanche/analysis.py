@@ -23,6 +23,8 @@ class ConflictZones():
         type_of_algo : str
             Specify the avalanche type (te/st/null/null_reassign)
         threshold : int
+            Only conflict zones with number of spatial bins > threshold are considered to be
+            valid and used in similarity coefficient calculation.
         gridix : int, 0
             Random Voronoi grid index.
         conflict_type : str, 'battles'
