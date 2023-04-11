@@ -10,6 +10,7 @@ from multiprocess import Pool
 from .construct import discretize_conflict_events
 from itertools import product
 from .analysis import ConflictZones
+import os
 
 
 
@@ -368,6 +369,11 @@ def generate_avalanches(conflict_type="battles"):
 
         discretize_conflict_events.cache_clear()
 
+        path = f"avalanches/{conflict_type}/gridix_{gridix}/te"
+        isExist = os.path.exists(path)
+        if not isExist:
+            os.makedirs(path)
+
         save_pickle(["ava_box","ava_event"] ,\
                     f"avalanches/{conflict_type}/gridix_{gridix}/te/te_ava_{str(time)}_{str(dx)}.p" ,\
                     True)
@@ -403,7 +409,7 @@ def actor_similarity_generator(conflict_type):
  
         threshold = [1]
 
-        actors_ratio = np.zeros((len(dx_list),len(time_list)))
+        actor_similarity = np.zeros((len(dx_list),len(time_list)))
 
         dxdt = list(product(time_list,dx_list,threshold,[gridix],[conflict_type]))
 
@@ -411,11 +417,14 @@ def actor_similarity_generator(conflict_type):
             output = list(pool.map(actor_ratio_loop_wrapper , dxdt))
 
         for i,(j,k) in zip(range(len(dxdt)),product(range(len(time_list)),range(len(dx_list)))):
-            actors_ratio[k][j] = output[i]
-
-        np.savetxt(f"temp/similarity_score_{str(gridix[0])}_{conflict_type[0]}.csv" , actors_ratio , delimiter=",")
+            actor_similarity[k][j] = output[i]
         
-        save_pickle(["actors_ratio"],f"temp/similarity_score_{gridix}_{conflict_type}.p", True)
+        path = "mesoscale_data"
+        isExist = os.path.exists(path)
+        if not isExist:
+            os.makedirs(path)
+
+        save_pickle(["actor_similarity"],f"mesoscale_data/similarity_matrix_{gridix}_{conflict_type}.p", True)
 
 def data_used_generator(conflict_type):
     """Calculates data used matrix for a given conflict type.
@@ -469,5 +478,10 @@ def data_used_generator(conflict_type):
         
         for i,(j,k) in zip(range(len(dxdt)),product(range(len(time_list)),range(len(dx_list)))):
             data_used[k][j] = output[i]
-        
-        save_pickle(["data_used"],f"temp/data_used_{gridix}_{conflict_type}.p", True)
+
+        path = "mesoscale_data"
+        isExist = os.path.exists(path)
+        if not isExist:
+            os.makedirs(path)        
+
+        save_pickle(["data_used"],f"mesoscale_data/data_used_{gridix}_{conflict_type}.p", True)
