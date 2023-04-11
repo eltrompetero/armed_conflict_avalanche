@@ -12,6 +12,7 @@ from itertools import product
 from .analysis import ConflictZones
 import os
 import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
 import scipy
 
 
@@ -744,8 +745,6 @@ def mesoscale_plot(conflict_type):
 
     ax.tick_params(width=2,length=20)
 
-
-    radius = 0.4
     width = 0.3
     height = 0.4
 
