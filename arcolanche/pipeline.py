@@ -6,6 +6,9 @@ from .utils import *
 from .construct import Avalanche
 from .data import ACLED2020
 from workspace.utils import save_pickle
+from multiprocess import Pool
+from .construct import discretize_conflict_events
+from itertools import product
 
 
 
@@ -333,3 +336,43 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     save_pickle(['F','R','N','L','T','errs','pl_params','exp_relations','rel_err_bars','dyn_params'],
                 f'cache/scaling_relations_{dtdx[0]}_{dtdx[1]}_{gridix}.p', True)
 
+def generate_avalanches(conflict_type="battles"):
+    """Generates causal conflict avalanches for a given conflict type.
+    
+    Parameter
+    ---------
+    conflict_type : str, "battles"
+    
+    Returns
+    -------
+    None
+    
+    Saves pickles of avalanches in both box and event form. 
+    """
+    
+    time_list = [1,2,4,8,16,32,64,128,256,512]
+    dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
+    gridix_list = range(1,21)
+
+    dx_time_gridix = list(product(dx_list,time_list,gridix_list))
+
+    def looper(args):
+        dx,time,gridix = args
+
+        print(dx,time,gridix)
+
+        ava = Avalanche(time,dx,gridix,conflict_type=conflict_type)
+
+        ava_box = [[tuple(i) for i in ava.time_series.loc[a].drop_duplicates()\
+                    .values[:,::-1]] for a in ava.avalanches]
+        ava_event = ava.avalanches
+
+        discretize_conflict_events.cache_clear()
+
+        save_pickle(["ava_box","ava_event"] ,\
+                    f"avalanches/{conflict_type}/gridix_{gridix}/te/te_ava_{str(time)}_{str(dx)}.p" ,\
+                    True)
+
+
+    with Pool() as pool:
+        pool.map(looper , dx_time_gridix)
