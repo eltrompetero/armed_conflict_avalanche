@@ -341,12 +341,27 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles'):
     """
     
     polygons = load_voronoi(dx, gridix)
-    df = ACLED2020.battles_df(to_lower=True)
+    
+    if(conflict_type == "battles"):
+        df = ACLED2020.battles_df(to_lower=True)
+    elif(conflict_type == "RP"):
+        df = ACLED2020.riots_and_protests_df(to_lower=True)
+    elif(conflict_type == "VAC"):
+        df = ACLED2020.vac_df(to_lower=True)
+
     conflict_ev = gpd.GeoDataFrame(df[['event_date','longitude','latitude']],
                                    geometry=gpd.points_from_xy(df.longitude, df.latitude),
                                    crs=polygons.crs)
     conflict_ev['t'] = (conflict_ev['event_date']-conflict_ev['event_date'].min()) // np.timedelta64(dt,'D')
     
+    # in rare cases a conflict event may exactly fall on polygon's line and therefore it is not "within" any polygon
+    nan_finder = gpd.sjoin(conflict_ev, polygons, how='left', op='within')   ## If a conflict event is exactly on top of a polygon line, it gets a nan value
+    nan_finder = np.isnan(nan_finder["index"])
+
+    for row,data in nan_finder.iteritems():
+        if(data):
+            conflict_ev.loc[row,"geometry"] = conflict_ev.loc[[row]]["geometry"].translate(xoff=0.01)[row]  ## Perturb the conflict event location by a small amount
+            
     conflict_ev = gpd.sjoin(conflict_ev, polygons, how='left', op='within')
 
     # in rare instances, a conflict event may belong to two polygons, in such a case choose the first one

@@ -43,21 +43,25 @@ class ConflictZones():
         self.ava_box = ava["ava_box"]
         self.ava_event = ava["ava_event"]
 
-        self.acled_data = ACLED2020.battles_df()
+        if(conflict_type == "battles"):
+            self.acled_data = ACLED2020.battles_df()
+        elif(conflict_type == "VAC"):
+            self.acled_data = ACLED2020.vac_df()
+        elif(conflict_type == "RP"):
+            self.acled_data = ACLED2020.riots_and_protests_df()
 
-    def common_actors_coeff_calculator(self, weighted=False):
+    def common_actors_coeff_calculator(self, weighted=True):
         """Calculates the summation of ratio of common actors and sum of number of actors in
         each pair of conflict zones.
 
         Parameters
         ----------
-        weighted : bool , False
+        weighted : bool , True
 
         Returns
         -------
         float
         """
-
         zones = self.generator()
 
         sorted_zones = sorted(zones , key=len)
@@ -94,23 +98,50 @@ class ConflictZones():
 
                 for jndex in range(index,len(actor_sets)):
                     if(index == jndex):
-                        common_actors_term = 1
+                        common_actors_term = 1   #### If we want diagnoals to be one ####
                         common_actors_coeff += common_actors_term
                         count += 1
+
+                        #### If we want diagonals to not be one ####
+                        #weights_term = 0
+                        #for actor in primary_zone_actors:
+                        #    if(actor in primary_zone_actors):
+                        #        weights_term += (primary_zones[actor]/primary_zone_counts) * \
+                        #                             (primary_zones[actor]/primary_zone_counts)
+#
+                        #common_actors_term = (2 * weights_term) / (len(primary_zone_actors)+len(primary_zone_actors))
+                        #common_actors_coeff += common_actors_term
+                        #count += 1
+
+
+                        #### Not considering diagonal terms at all
+                        #pass
                     else:
                         secondary_zones = actor_dicts_list[jndex]
                         secondary_zone_actors = secondary_zones.keys()
                         secondary_zone_counts = sum(list(secondary_zones.values()))
 
+                        #weights_term = 0
+                        #for actor in primary_zone_actors:
+                        #    if(actor in secondary_zone_actors):
+                        #        weights_term += (primary_zones[actor]/primary_zone_counts) * \
+                        #                             (secondary_zones[actor]/secondary_zone_counts)
+#
+                        #common_actors_term = (2 * weights_term) / (len(primary_zone_actors)+len(secondary_zone_actors))
+                        #common_actors_coeff += common_actors_term
+                        #count += 2
+
+
+                        ##### Only similarity term (getting rid of the extra normalization)
                         weights_term = 0
                         for actor in primary_zone_actors:
                             if(actor in secondary_zone_actors):
                                 weights_term += (primary_zones[actor]/primary_zone_counts) * \
                                                      (secondary_zones[actor]/secondary_zone_counts)
 
-                        common_actors_term = (2 * weights_term) / (len(primary_zone_actors)+len(secondary_zone_actors))
+                        common_actors_term =  weights_term
                         common_actors_coeff += common_actors_term
-                        count += 2
+                        count += 2                        
 
 
 
@@ -120,6 +151,118 @@ class ConflictZones():
             common_actors_coeff = common_actors_coeff/count
 
         return common_actors_coeff
+
+
+    def actors_Jaccard_index(self):
+        """Calculates the summation of Jaccard index of conflict zones. Here A and B are the
+        number of actors in zone 1 and zone 2 which are being compared.
+        Parameters
+        ----------
+        time : int
+        dx : int
+        gridix : int
+        conflict_type : str
+        type_of_algo : str
+
+        Returns
+        -------
+        float
+        """
+
+        zones = self.generator()
+
+        sorted_zones = sorted(zones , key=len)
+        sorted_zones.reverse()
+
+        actor_sets = []
+        actor_dicts_list = []
+        for index,zone in enumerate(sorted_zones):
+            actor_count = self.zone_actor_counter(zone)
+
+            actor_sets.append(set(list(zip(*actor_count))[0]))
+            actor_dicts_list.append(dict(zip(list(zip(*actor_count))[0],list(zip(*actor_count))[1])))
+
+        common_actors_coeff = 0
+        count = 0
+        for index in range(len(actor_sets)):
+            for jndex in range(index,len(actor_sets)):
+                if(index == jndex):
+                    common_actors_term = 1
+                    common_actors_coeff += common_actors_term
+                    count += 1
+                else:
+                    common_actors_term = len(actor_sets[index].intersection(actor_sets[jndex])) / (len(actor_sets[index]) + len(actor_sets[jndex]) \
+                                                                                                - len(actor_sets[index].intersection(actor_sets[jndex])))
+
+                    common_actors_coeff += common_actors_term * 2
+                    count += 2
+
+        if(count == 0):
+            common_actors_coeff = 0
+        else:
+            common_actors_coeff = common_actors_coeff/count
+
+        return common_actors_coeff
+
+
+    def similarity_score(self):
+        """Calculates the similarity score. Here A and B are the
+        number of actors in zone 1 and zone 2 which are being compared.
+        Parameters
+        ----------
+        time : int
+        dx : int
+        gridix : int
+        conflict_type : str
+        type_of_algo : str
+
+        Returns
+        -------
+        float
+        """
+
+        zones = self.generator()
+
+        sorted_zones = sorted(zones , key=len)
+        sorted_zones.reverse()
+
+        actor_sets = []
+        actor_dicts_list = []
+        for index,zone in enumerate(sorted_zones):
+            actor_count = self.zone_actor_counter(zone)
+
+            actor_sets.append(set(list(zip(*actor_count))[0]))
+            actor_dicts_list.append(dict(zip(list(zip(*actor_count))[0],list(zip(*actor_count))[1])))
+
+        common_actors_coeff = 0
+        count = 0
+        for index in range(len(actor_sets)):
+            for jndex in range(index,len(actor_sets)):
+                if(index == jndex):
+                    common_actors_term = 1
+                    common_actors_coeff += common_actors_term
+                    count += 1
+                else:
+                    intersection_actors = actor_sets[index].intersection(actor_sets[jndex])
+                    intersection_events_index = sum([actor_dicts_list[index].get(key) for key in intersection_actors])
+                    intersection_events_jndex = sum([actor_dicts_list[jndex].get(key) for key in intersection_actors])
+
+                    total_events_index = sum(actor_dicts_list[index].values())
+                    total_events_jndex = sum(actor_dicts_list[jndex].values())
+
+                    common_actors_term = (intersection_events_index*intersection_events_jndex) / (total_events_index*total_events_jndex)
+
+                    common_actors_coeff += common_actors_term * 2
+                    count += 2
+
+        if(count == 0):
+            common_actors_coeff = 0
+        else:
+            common_actors_coeff = common_actors_coeff/count
+
+        return common_actors_coeff
+
+
 
 
     def generator(self):
@@ -207,6 +350,9 @@ class ConflictZones():
         actor1_arr = (acled_data_actors["ACTOR1"]).to_numpy()
         actor2_arr = (acled_data_actors["ACTOR2"]).to_numpy()
 
+        actor1_arr = actor1_arr[~pd.isnull(actor1_arr)]
+        actor2_arr = actor2_arr[~pd.isnull(actor2_arr)]
+
         actors_arr = np.concatenate((actor1_arr,actor2_arr))
         actors_arr = np.unique(actors_arr)
 
@@ -278,6 +424,8 @@ class ConflictZones():
 
         actors_event = acled_data_actors.loc[event_nums].to_numpy()
         actors_event = actors_event.reshape(actors_event.shape[0]*actors_event.shape[1])
+
+        actors_event = actors_event[~pd.isnull(actors_event)]
 
         actor_count = []
         for actor_group in numpy_indexed.group_by(actors_event).split_array_as_list(actors_event):

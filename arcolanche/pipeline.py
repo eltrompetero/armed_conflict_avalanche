@@ -333,7 +333,7 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     rel_err_bars = np.vstack(rel_err_bars).T
 
     save_pickle(['F','R','N','L','T','errs','pl_params','exp_relations','rel_err_bars','dyn_params'],
-                'cache/scaling_relations.p', True)
+                f'cache/scaling_relations_{dtdx[0]}_{dtdx[1]}_{gridix}.p', True)
 
 def similarity_score(conflict_type='battles'):
     """Averaged similarity matrix M across conflict zones. Saved to

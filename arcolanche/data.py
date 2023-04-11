@@ -51,7 +51,7 @@ class ACLED2020():
         return df.loc[df['EVENT_TYPE']=='Battles']
 
     @classmethod
-    def vac_df(cls, pre_covid=True):
+    def vac_df(cls, pre_covid=True, to_lower=False):
         """
         Parameters
         ----------
@@ -69,10 +69,13 @@ class ACLED2020():
         else:
             df = cls.df
 
-        return df.loc[df.EVENT_TYPE=='Violence against civilians']
+        if to_lower:
+            df.columns = [i.lower() for i in df.columns]
+            return df.loc[df['event_type']=='Violence against civilians']
+        return df.loc[df['EVENT_TYPE']=='Violence against civilians']
 
     @classmethod
-    def riots_and_protests_df(cls, pre_covid=True):
+    def riots_and_protests_df(cls, pre_covid=True, to_lower=False):
         """
         Parameters
         ----------
@@ -90,6 +93,9 @@ class ACLED2020():
         else:
             df = cls.df
 
-        ix = (df.EVENT_TYPE=='Riots') | (df.EVENT_TYPE=='Protests')
+        if to_lower:
+            df.columns = [i.lower() for i in df.columns]
+            return df.loc[(df['event_type']=='Riots') | (df['event_type']=='Protests')]
+        ix = (df['EVENT_TYPE']=='Riots') | (df['EVENT_TYPE']=='Protests')
         return df.loc[ix]
 #end ACLED2020
