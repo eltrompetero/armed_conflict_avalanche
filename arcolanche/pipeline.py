@@ -6,6 +6,8 @@ from .utils import *
 from .construct import Avalanche
 from .data import ACLED2020
 from workspace.utils import save_pickle
+from itertools import product
+from .analysis import ConflictZones
 
 
 
@@ -333,3 +335,34 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     save_pickle(['F','R','N','L','T','errs','pl_params','exp_relations','rel_err_bars','dyn_params'],
                 'cache/scaling_relations.p', True)
 
+def similarity_score(conflict_type='battles'):
+    """Averaged similarity matrix M across conflict zones. Saved to
+    './cache/similarity_score_{gridix}_{conflict_type}.'
+
+    Parameters
+    ----------
+    conflict_type : str, 'battles'
+        Choose amongst 'battles', 'VAC', and 'RP'.
+    """
+    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
+
+    dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
+    time_list = [1,2,4,8,16,32,64,128,256,512]
+    threshold = 1
+
+    for gridix in range(1, 21):
+        actors_ratio = np.zeros((len(dx_list), len(time_list)))
+         
+        dxdt = list(product(time_list, dx_list, [threshold], [gridix], conflict_type))
+
+        def actor_ratio_loop_wrapper(args):
+            return ConflictZones(*args).similarity_score()
+        
+        with threadpool_limits(limits=1, user_api='blas'):
+            with Pool() as pool:
+                output = list(pool.map(actor_ratio_loop_wrapper, dxdt))
+        
+        for i, (j,k) in zip(range(len(dxdt)), product(range(len(time_list)), range(len(dx_list)))):
+            actors_ratio[k][j] = output[i]
+            
+        save_pickle(['actors_ratio'], f'./cache/similarity_score_{gridix}_{conflict_type}.p', True)

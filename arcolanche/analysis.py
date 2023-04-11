@@ -6,10 +6,11 @@ from .utils import *
 from .data import ACLED2020
 import numpy_indexed
 
+
+
 class ConflictZones():
     def __init__(self, dt, dx, threshold,
                  gridix=0,
-                 type_of_algo = "te",
                  conflict_type='battles',
                  iprint=False,
                  ):
@@ -20,26 +21,22 @@ class ConflictZones():
             Time separation scale.
         dx : int
             Inverse distance separation scale.
-        type_of_algo : str
-            Specify the avalanche type (te/st/null/null_reassign)
         threshold : int
         gridix : int, 0
             Random Voronoi grid index.
         conflict_type : str, 'battles'
         iprint : bool, False
         """
-        
         #### Add checks for the values below later ####
         self.dt = dt    
         self.dx = dx
-        self.type_of_algo = type_of_algo
         self.threshold = threshold
         self.gridix = gridix
         self.conflict_type = conflict_type
         self.iprint = iprint
 
-        self.box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
-                            f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
+        self.box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/te/" +
+                         f"te_ava_{str(dt)}_{str(dx)}.p")
 
         with open(self.box_path,"rb") as f:
             ava = pickle.load(f)
@@ -47,8 +44,6 @@ class ConflictZones():
         self.ava_event = ava["ava_event"]
 
         self.acled_data = ACLED2020.battles_df()
-
-
 
     def common_actors_coeff_calculator(self, weighted=False):
         """Calculates the summation of ratio of common actors and sum of number of actors in
