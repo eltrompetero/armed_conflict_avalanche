@@ -681,6 +681,10 @@ def mesoscale_plot(conflict_type):
     
     Displays the mesoscale.
     """
+
+    dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
+    time_list = [1,2,4,8,16,32,64,128,256,512]
+
     fig, ax = plt.subplots(figsize=(10,10))
 
     initial_index = 0
@@ -691,13 +695,11 @@ def mesoscale_plot(conflict_type):
         load_pickle(f"mesoscale_data/similarity_matrix_{gridix}_{conflict_type}.p")
         load_pickle(f"mesoscale_data/data_used_{gridix}_{conflict_type}.p")
 
-        actor_similarity = -np.log10(actor_similarity)
-
-        actor_similarity_threshold = (max(actor_similarity.flatten())-min(actor_similarity.flatten())) / 2
+        actor_similarity_threshold = (max(-np.log10(actor_similarity.flatten()))-min(-np.log10(actor_similarity.flatten()))) / 2
         threshold_list.append(10**-actor_similarity_threshold)
 
         z_fine_data , t_range_fine , x_range_fine = z_fine_calulator(data_used,0.75)
-        z_fine_actor , t_range_fine , x_range_fine = z_fine_calulator(actor_similarity,actor_similarity_threshold)
+        z_fine_actor , t_range_fine , x_range_fine = z_fine_calulator(-np.log10(actor_similarity),actor_similarity_threshold)
 
         a = np.where(np.logical_and(z_fine_actor==1,z_fine_data==1))
 
@@ -711,12 +713,12 @@ def mesoscale_plot(conflict_type):
             weighted_contour = np.zeros(actor_similarity.shape)
 
             temp_matrix = np.zeros(actor_similarity.shape)
-            temp_matrix[(actor_similarity > actor_similarity_threshold) & (data_used > 0.75)] = 1
+            temp_matrix[(-np.log10(actor_similarity) > actor_similarity_threshold) & (data_used > 0.75)] = 1
 
             weighted_contour += temp_matrix
         else:
             temp_matrix = np.zeros(actor_similarity.shape)
-            temp_matrix[(actor_similarity > actor_similarity_threshold) & (data_used > 0.75)] = 1
+            temp_matrix[(-np.log10(actor_similarity) > actor_similarity_threshold) & (data_used > 0.75)] = 1
 
             weighted_contour += temp_matrix
 
@@ -729,7 +731,6 @@ def mesoscale_plot(conflict_type):
 
     plt.xlim([-0.5,len(time_list)-0.5])
     plt.ylim([-0.5,len(dx_list)-0.5])
-
 
     positionsy = [0,6,12]
     labelsy = [22,175,1450]
@@ -786,6 +787,17 @@ def mesoscale_plot(conflict_type):
     ax.clabel(contr, inline=True, fontsize=20)
 
 def set_ax(country):
+    """Sets the area boundary around a specific country while plotting African map.
+
+    Parameters
+    ----------
+    country : str
+
+    Returns
+    -------
+    np.array
+    """
+
     if(country == "Nigeria"):
         return np.array([0.5535987755982988+330/180*np.pi, 
                          0.895006094968746698+330/180*np.pi,
