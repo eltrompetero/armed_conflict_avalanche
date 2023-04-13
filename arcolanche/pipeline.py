@@ -17,7 +17,11 @@ import scipy
 import geopandas
 from voronoi_globe.interface import load_voronoi
 import random
-
+from matplotlib.lines import Line2D
+from collections import Counter
+from mycolorpy import colorlist as mcp
+import matplotlib
+import itertools
 
 
 def rate_dynamics(dxdt=((160,16), (160,32), (160,64), (160,128), (160,256))):
@@ -912,3 +916,736 @@ def conflict_zones_figure(time,dx,gridix,conflict_type="battles"):
 
     africa.plot(ax=ax , facecolor="none" , edgecolor="black" , linewidth=6)
     ax.set_extent(set_ax("Full"))
+
+def first_event_ava_country(ava_event , event_locations, country):
+    """Returns all the avalanches whose first event was in a given country.
+    
+    Parameters
+    ----------
+    ava_event : list of lists
+        list of avalanches in event form
+    event_locations : dataframe
+        location of each and every conflict event in the dataset
+    country : str
+    
+    Returns
+    -------
+    list of lists
+    """
+
+    african_countries = gpd.read_file(f"data/africa_countries/afr_g2014_2013_0.shp")
+    country_pol = african_countries[african_countries["ADM0_NAME"] == country]
+    
+    first_events = []
+    for ava in ava_event:
+        first_events.append(ava[0])
+        
+    first_events_locations = event_locations.loc[first_events]
+    
+    country_ava_index = []
+    for i in range(len(first_events_locations)):
+        in_or_not = country_pol["geometry"].iloc[0].contains(first_events_locations["geometry"].iloc[i])
+        if(in_or_not == True):
+             country_ava_index.append(i)
+                
+    country_first_events = list(first_events_locations.iloc[country_ava_index].index)
+    
+    country_avas = []
+    for ava in ava_event:
+        if(ava[0] in country_first_events):
+            country_avas.append(ava)
+            
+    country_avas_sorted = sorted(country_avas , key=len)
+    
+    return country_avas_sorted
+
+def container_avalanche_finder(ava_event , fixed_events):
+    """Returns the avalanche which contains the given fixed events.
+    
+    Parameters
+    ----------
+    ava_event : list of list
+        list of avalanches in event form
+    fixed_events : list
+        list of fixed events that must be part of the avalanche we need
+        
+    Returns
+    -------
+    list
+        avalanche that contains all the fixed events
+    """
+    
+    fixed_events_set = set(fixed_events)
+    found = False
+    for ava in ava_event:
+        ava_set = set(ava)
+        
+        if(fixed_events_set.issubset(ava_set)):
+            return ava
+            found = True
+            break
+        else:
+            pass
+        
+    if(found):
+        pass
+    else:
+        raise Exception("Such container avalanche doesn't exist!")
+    
+def all_ava_country(ava_event , event_locations, country):
+    """Returns all avalanches which contains atleast one coflict event in a 
+    given country.
+    
+    Parameters
+    ----------
+    ava_event : list of lists
+        list of avalanches in event form
+    event_locations : dataframe
+        location of each and every conflict event in the dataset
+    country : str
+    
+    Returns
+    -------
+    list of lists
+    """
+    
+    country_ava_index = []
+    for index,ava in enumerate(ava_event):
+        for event in ava:
+            in_or_not = country_pol["geometry"].iloc[0].contains(event_locations["geometry"].iloc[event])
+            if(in_or_not == True):
+                country_ava_index.append(index)
+                break
+    
+    country_avas = np.array(ava_event , dtype=object)[country_ava_index].tolist()
+    country_avas_sorted = sorted(country_avas , key=len)
+    
+    return country_avas_sorted
+
+def conflict_clusters_figure():
+    """Plots the conflict clusters' figure from the paper.
+    """
+    
+    conflict_type = "battles"
+
+    fig , axs = plt.subplots(3, 3 , subplot_kw={'projection': ccrs.PlateCarree()})
+
+    fig.set_figheight(25)
+    fig.set_figwidth(25)
+
+    fig.tight_layout()
+
+
+    acled_data = ACLED2020.battles_df()
+
+    event_locations = acled_data[["LONGITUDE","LATITUDE"]]
+    event_locations = gpd.GeoDataFrame(event_locations,
+                                       geometry=gpd.points_from_xy(acled_data.LONGITUDE, acled_data.LATITUDE))
+    event_locations_unique = gpd.GeoDataFrame(event_locations["geometry"].unique() , geometry=0)
+
+
+    for i,j in product(range(3),range(3)):
+        axs[i,j].add_feature(cfeature.COASTLINE, linewidth=1.5, alpha=0.5)
+        axs[i,j].add_feature(cfeature.BORDERS, linewidth=1.5, alpha=0.5)
+        #ax.add_feature(cfeature.LAND)
+        axs[i,j].add_feature(cfeature.OCEAN,alpha=0.8)
+        axs[i,j].add_feature(cfeature.RIVERS)
+        event_locations_unique.plot(ax=axs[i,j], facecolor='lightgray', edgecolor='lightgray' , marker="." , linewidth=0.2 ,
+                                    alpha=1)
+
+
+    fontsize = 35
+    font = {'size': fontsize}
+    fig.text(0.29,0.69,"(a)",fontdict=font)
+    fig.text(0.62,0.69,"(b)",fontdict=font)
+    fig.text(0.95,0.69,"(c)",fontdict=font)
+    fig.text(0.29,0.39,"(d)",fontdict=font)
+    fig.text(0.62,0.39,"(e)",fontdict=font)
+    fig.text(0.95,0.39,"(f)",fontdict=font)
+    fig.text(0.29,0.11,"(g)",fontdict=font)
+    fig.text(0.62,0.11,"(h)",fontdict=font)
+    fig.text(0.95,0.11,"(i)",fontdict=font)
+
+
+
+    axs[0,2].arrow(17,6, -2.1,1.7, width=1 , head_length=2 , head_width=2 , facecolor="black" , edgecolor="black",
+                  zorder=100)
+    axs[1,2].arrow(44.5,9.5, 2,0.4, width=1 , head_length=1.8 , head_width=2 , facecolor="black" , edgecolor="black",
+                  zorder=101)
+    axs[1,2].arrow(36,-1, 2,0.2, width=1 , head_length=2 , head_width=2 , facecolor="black" , edgecolor="black",
+                  zorder=102)
+    axs[2,2].arrow(-6.8,10.6, -1.6,-1.6, width=0.75 , head_length=1.1 , head_width=1.6 , facecolor="black" , edgecolor="black",
+                  zorder=103)
+
+
+    fontsize = 52
+    pad = 25
+    font_label = {'size': fontsize}
+    axs[0,0].set_title("heuristic clusters" , fontdict=font_label , pad=pad)
+    axs[0,1].set_title("interaction zones" , fontdict=font_label , pad=pad)
+    axs[0,2].set_title("conflict avalanches" , fontdict=font_label , pad=pad)
+
+    axs[0,0].text(-0.05, 0.55, 'Nigeria', va='bottom', ha='center',
+            rotation='vertical', rotation_mode='anchor', fontsize=fontsize,
+            transform=axs[0,0].transAxes)
+    axs[1,0].text(-0.05, 0.55, 'Somalia', va='bottom', ha='center',
+            rotation='vertical', rotation_mode='anchor', fontsize=fontsize,
+            transform=axs[1,0].transAxes)
+    axs[2,0].text(-0.05, 0.55, 'Sierra Leone', va='bottom', ha='center',
+            rotation='vertical', rotation_mode='anchor', fontsize=fontsize,
+            transform=axs[2,0].transAxes)
+
+
+
+
+
+
+    ####### Nigeria #######
+    time = dt = 64
+    dx = 320
+    gridix = 3
+    type_of_algo = "te"
+
+    country = "Nigeria"
+
+    polygons = load_voronoi(dx,gridix)
+
+    axs[0,0].set_extent(set_ax(country))
+    axs[0,1].set_extent(set_ax(country))
+    axs[0,2].set_extent(set_ax(country))
+
+    #### Using our method ####
+
+
+    box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
+                        f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
+    with open(box_path,"rb") as f:
+        ava = pickle.load(f)
+    ava_box = ava["ava_box"]
+    ava_event = ava["ava_event"]
+
+    country_avas_sorted = first_event_ava_country(ava_event , event_locations , country)
+
+
+    color_list = ["red" , "orange" , "purple" , "blue" , "brown"]
+    marker_list = ["." , "X" , "v" , "^"]
+    linewidth_list = [0.3,0.2,0.05,0.05]
+
+
+    for i in [1,2,3]:
+        event_locations.loc[country_avas_sorted[-i]].plot(ax=axs[0,2], facecolor=color_list[i-1],
+                                                           edgecolor=color_list[i-1] , marker=".",
+                                                           alpha=1 , linewidth=0.8)
+
+    separatist_events = [27000,26981]
+    ava_to_plot = container_avalanche_finder(ava_event , separatist_events)
+    event_locations.loc[ava_to_plot].plot(ax=axs[0,2], facecolor="forestgreen",
+                                                       edgecolor="forestgreen" , marker=".",
+                                                       alpha=1 , linewidth=0.8)
+
+
+    ##### Using Actor names ####
+
+    if(country == "Nigeria"):
+        actor_name_list = ["Boko Haram" , "Fulani", "PDP" , "Ambazonian Separatists"]
+
+    include_notes = False
+
+
+    actor1_list = acled_data["ACTOR1"].to_list()
+    actor2_list = acled_data["ACTOR2"].to_list()
+    notes = acled_data["NOTES"].to_list()
+
+    actor_clusters = []
+    for actor_name in actor_name_list:
+        actor1_indexes = [index for actor,index in zip(actor1_list,acled_data.index)if actor_name in actor]
+        actor2_indexes = [index for actor,index in zip(actor2_list,acled_data.index)if actor_name in actor]
+        actor_index_from_notes = [index for note,index in zip(notes,acled_data.index)if actor_name in str(note)]
+
+        if(include_notes):
+            event_cluster = sorted(list(set(actor1_indexes + actor2_indexes + actor_index_from_notes)))
+        else:
+            event_cluster = sorted(list(set(actor1_indexes + actor2_indexes)))
+
+        actor_clusters.append(event_cluster)
+
+
+
+    color_list = ["red" , "green" , "orange" , "blue"]
+
+    for index,actor_cluster in enumerate(actor_clusters):
+        event_locations.loc[actor_cluster].plot(ax=axs[0,0], 
+                                                 facecolor=color_list[index],
+                                                 edgecolor=color_list[index],
+                                                 marker=".", 
+                                                 linewidth=0.8)
+
+
+
+    if(country == "Nigeria"):
+        actor_name_list = ["BH" , "Fulani" , "PDP" , "AS"]
+
+    legend_elements = []
+    for i in range(len(actor_name_list)):
+        legend_elements.append(Line2D([0],[0],marker='o',color="white",label=actor_name_list[i],
+                                      markerfacecolor=color_list[i],
+                                      markersize=15))
+
+
+
+    axs[0,0].legend(handles=legend_elements , framealpha=1 , fontsize=30 ,
+               borderpad=0.5,
+               labelspacing=0.4,
+              borderaxespad=0.1,
+              columnspacing=0.2,
+              frameon=False,
+              shadow=False,
+              handlelength=0)
+
+    #### Probability thing ####
+
+    boko_haram_events = [134916,134972,134975,134976]
+    separatist_events = [27000,26981]
+    zamfara_events = [145797]
+
+    if(country == "Nigeria"):
+        fixed_events = boko_haram_events
+
+    ava_to_plot_list = []
+    for gridix in range(1,21):
+        box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
+                            f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
+        with open(box_path,"rb") as f:
+            ava = pickle.load(f)
+        ava_box = ava["ava_box"]
+        ava_event = ava["ava_event"]
+
+        ava_to_plot = container_avalanche_finder(ava_event , fixed_events)
+        ava_to_plot_list.append(ava_to_plot)
+
+    events_combined = list(itertools.chain.from_iterable(ava_to_plot_list))
+    event_certainty_dict = dict(Counter(events_combined))
+
+    event_certainty_dict = {k: round(v / len(ava_to_plot_list),1) for k, v in event_certainty_dict.items()}
+
+    colormap = "autumn_r"
+    color1= np.array(mcp.gen_color(cmap=colormap,n=24))
+    color1 = color1[4:24:2]
+
+
+    for i in range(1,11):
+        current_events = [key for key,value in event_certainty_dict.items() if value == i/10]
+
+        event_locations.loc[current_events]. \
+                plot(ax=axs[0,1], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
+
+
+    cmapnew = matplotlib.colors.ListedColormap(color1)
+    img = plt.imshow(np.array([[1,2,3,4,5,6,7,8,9]])/9, cmap=cmapnew)
+    img.set_visible(False)
+
+
+    legend_elements = []
+    for i in [2,9]:
+        current_events = [key for key,value in event_certainty_dict.items() if value >= i/10]
+        a = gpd.GeoDataFrame({"date":[""] , "geometry":[event_locations.loc[current_events].unary_union.convex_hull]} , geometry="geometry")
+        b = gpd.GeoDataFrame(pd.concat([event_locations.loc[current_events] , a], ignore_index=True))
+
+        b.iloc[-1:].plot(ax=axs[0,1] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
+
+        legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
+
+
+    axs[0,1].legend(handles=legend_elements , framealpha=1 , fontsize=30 ,
+               borderpad=0.5,
+               labelspacing=0.4,
+              borderaxespad=0.1,
+              columnspacing=0.2,
+              frameon=False,
+              shadow=False,
+              handlelength=2)
+
+
+
+    ##### Other sphere of influences ####
+
+    if(country == "Nigeria"):
+        fixed_events = separatist_events
+
+    colormap = "BuGn"
+    color1= np.array(mcp.gen_color(cmap=colormap,n=24))
+    color1 = color1[4:24:2]
+
+    ava_to_plot_list = []
+    for gridix in range(1,21):
+        box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
+                            f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
+        with open(box_path,"rb") as f:
+            ava = pickle.load(f)
+        ava_box = ava["ava_box"]
+        ava_event = ava["ava_event"]
+
+        ava_to_plot = container_avalanche_finder(ava_event , fixed_events)
+        ava_to_plot_list.append(ava_to_plot)
+
+    events_combined = list(itertools.chain.from_iterable(ava_to_plot_list))
+    event_certainty_dict = dict(Counter(events_combined))
+
+    event_certainty_dict = {k: round(v / len(ava_to_plot_list),1) for k, v in event_certainty_dict.items()}
+
+    for i in range(5,11):
+        current_events = [key for key,value in event_certainty_dict.items() if value == i/10]
+
+        event_locations.loc[current_events]. \
+                plot(ax=axs[0,1], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
+
+
+    for i in [5]:
+        current_events = [key for key,value in event_certainty_dict.items() if value >= i/10]
+        a = gpd.GeoDataFrame({"date":[""] , "geometry":[event_locations.loc[current_events].unary_union.convex_hull]} , geometry="geometry")
+        b = gpd.GeoDataFrame(pd.concat([event_locations.loc[current_events] , a], ignore_index=True))
+
+        b.iloc[-1:].plot(ax=axs[0,1] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
+
+        legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
+
+
+    if(country == "Nigeria"):
+        fixed_events = zamfara_events
+
+    colormap = "Purples"
+    color1= np.array(mcp.gen_color(cmap=colormap,n=24))
+    color1 = color1[4:24:2]
+
+    ava_to_plot_list = []
+    for gridix in range(1,21):
+        box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
+                            f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
+        with open(box_path,"rb") as f:
+            ava = pickle.load(f)
+        ava_box = ava["ava_box"]
+        ava_event = ava["ava_event"]
+
+        ava_to_plot = container_avalanche_finder(ava_event , fixed_events)
+        ava_to_plot_list.append(ava_to_plot)
+
+    events_combined = list(itertools.chain.from_iterable(ava_to_plot_list))
+    event_certainty_dict = dict(Counter(events_combined))
+
+    event_certainty_dict = {k: round(v / len(ava_to_plot_list),1) for k, v in event_certainty_dict.items()}
+
+    for i in range(5,11):
+        current_events = [key for key,value in event_certainty_dict.items() if value == i/10]
+
+        event_locations.loc[current_events]. \
+                plot(ax=axs[0,1], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
+
+
+    for i in [5]:
+        current_events = [key for key,value in event_certainty_dict.items() if value >= i/10]
+        a = gpd.GeoDataFrame({"date":[""] , "geometry":[event_locations.loc[current_events].unary_union.convex_hull]} , geometry="geometry")
+        b = gpd.GeoDataFrame(pd.concat([event_locations.loc[current_events] , a], ignore_index=True))
+
+        b.iloc[-1:].plot(ax=axs[0,1] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
+
+        legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
+
+
+
+    ####### Somalia ########  
+    time = dt = 64
+    dx = 320
+    gridix = 3
+    type_of_algo = "te"
+
+    country = "Somalia"
+
+    polygons = load_voronoi(dx,gridix)
+
+    axs[1,0].set_extent(set_ax(country))
+    axs[1,2].set_extent(set_ax(country))
+    axs[1,1].set_extent(set_ax(country))
+
+    #### Using our method ####
+
+
+    box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
+                        f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
+    with open(box_path,"rb") as f:
+        ava = pickle.load(f)
+    ava_box = ava["ava_box"]
+    ava_event = ava["ava_event"]
+
+    country_avas_sorted = first_event_ava_country(ava_event , event_locations , country)
+
+    color_list = ["red" , "blue" , "orange" , "forestgreen" , "brown"]
+    marker_list = ["." , "X" , "v" , "^"]
+    linewidth_list = [0.3,0.2,0.05,0.05]
+
+    for i in [1,2,3]:
+        event_locations.loc[country_avas_sorted[-i]].plot(ax=axs[1,2], facecolor=color_list[i-1],
+                                                           edgecolor=color_list[i-1] , marker=".",
+                                                           alpha=1 , linewidth=0.8)
+
+
+
+
+    ##### Using Actor names ####
+
+
+    if(country == "Somalia"):
+        actor_name_list = ["Al Shabaab" , "ASWJ" , "Islamic Courts Union"]
+
+    include_notes = False
+
+
+    actor1_list = acled_data["ACTOR1"].to_list()
+    actor2_list = acled_data["ACTOR2"].to_list()
+    notes = acled_data["NOTES"].to_list()
+
+    actor_clusters = []
+    for actor_name in actor_name_list:
+        actor1_indexes = [index for actor,index in zip(actor1_list,acled_data.index)if actor_name in actor]
+        actor2_indexes = [index for actor,index in zip(actor2_list,acled_data.index)if actor_name in actor]
+        actor_index_from_notes = [index for note,index in zip(notes,acled_data.index)if actor_name in str(note)]
+
+        if(include_notes):
+            event_cluster = sorted(list(set(actor1_indexes + actor2_indexes + actor_index_from_notes)))
+        else:
+            event_cluster = sorted(list(set(actor1_indexes + actor2_indexes)))
+
+        actor_clusters.append(event_cluster)
+
+
+    color_list = ["red" , "green" , "blue" , "orange"]
+
+    for index,actor_cluster in enumerate(actor_clusters):
+        event_locations.loc[actor_cluster].plot(ax=axs[1,0], 
+                                                 facecolor=color_list[index],
+                                                 edgecolor=color_list[index],
+                                                 marker=".", 
+                                                 linewidth=0.8)
+
+
+
+    if(country == "Somalia"):
+        actor_name_list = ["Al-Shabaab" , "ASWJ" , "ICU"]
+
+
+    legend_elements = []
+    for i in range(len(actor_name_list)):
+        legend_elements.append(Line2D([0],[0],marker='o',color=color_list[i],label=actor_name_list[i],
+                                      markerfacecolor=color_list[i],
+                                      markersize=15))
+
+
+    axs[1,0].legend(handles=legend_elements , framealpha=1 , fontsize=30 ,
+               borderpad=0.5,
+               labelspacing=0.4,
+              borderaxespad=0.1,
+              columnspacing=0.2,
+              frameon=False,
+              shadow=False,
+              handlelength=0)
+
+
+    #### Probability thing ####
+
+    somalia_events = [167530,167535,167557]
+
+    if(country == "Somalia"):
+        fixed_events = somalia_events
+
+
+    ava_to_plot_list = []
+    for gridix in range(1,21):
+        box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
+                            f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
+        with open(box_path,"rb") as f:
+            ava = pickle.load(f)
+        ava_box = ava["ava_box"]
+        ava_event = ava["ava_event"]
+
+        ava_to_plot = container_avalanche_finder(ava_event , fixed_events)
+        ava_to_plot_list.append(ava_to_plot)
+
+    events_combined = list(itertools.chain.from_iterable(ava_to_plot_list))
+    event_certainty_dict = dict(Counter(events_combined))
+
+    event_certainty_dict = {k: round(v / len(ava_to_plot_list),1) for k, v in event_certainty_dict.items()}
+
+    colormap = "autumn_r"
+    color1= np.array(mcp.gen_color(cmap=colormap,n=24))
+    color1 = color1[4:24:2]
+
+    for i in range(1,11):
+        current_events = [key for key,value in event_certainty_dict.items() if value == i/10]
+
+        event_locations.loc[current_events]. \
+                plot(ax=axs[1,1], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
+
+
+    cmapnew = matplotlib.colors.ListedColormap(color1)
+    img = plt.imshow(np.array([[1,2,3,4,5,6,7,8,9]])/9, cmap=cmapnew)
+    img.set_visible(False)
+
+    legend_elements = []
+    for i in [2,9]:
+        current_events = [key for key,value in event_certainty_dict.items() if value >= i/10]
+        a = gpd.GeoDataFrame({"date":[""] , "geometry":[event_locations.loc[current_events].unary_union.convex_hull]} , geometry="geometry")
+        b = gpd.GeoDataFrame(pd.concat([event_locations.loc[current_events] , a], ignore_index=True))
+
+        b.iloc[-1:].plot(ax=axs[1,1] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
+
+        legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
+
+
+
+    ######## Sierra Leone #######
+    time = dt = 64
+    dx = 453
+    gridix = 3
+    type_of_algo = "te"
+
+    country = "Sierra Leone"
+
+    axs[2,2].set_extent(set_ax(country))
+    axs[2,0].set_extent(set_ax(country))
+    axs[2,1].set_extent(set_ax(country))
+
+    polygons = load_voronoi(dx,gridix)
+
+    #### Using our method ####
+
+    box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
+                        f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
+    with open(box_path,"rb") as f:
+        ava = pickle.load(f)
+    ava_box = ava["ava_box"]
+    ava_event = ava["ava_event"]
+
+    country_avas_sorted = first_event_ava_country(ava_event , event_locations , country)
+
+
+    color_list = ["red" , "blue" , "orange" , "forestgreen" , "brown"]
+    marker_list = ["." , "X" , "v" , "^"]
+    linewidth_list = [0.3,0.2,0.05,0.05]
+
+
+    for i in [1,2,3,4]:
+        event_locations.loc[country_avas_sorted[-i]].plot(ax=axs[2,2], facecolor=color_list[i-1],
+                                                           edgecolor=color_list[i-1] , marker=".",
+                                                           alpha=1 , linewidth=0.8)
+
+
+
+    ##### Using Actor names ####
+
+
+    if(country == "Sierra Leone"):
+        actor_name_list = ["RUF" , "LURD"]
+
+
+    include_notes = False
+
+
+    actor1_list = acled_data["ACTOR1"].to_list()
+    actor2_list = acled_data["ACTOR2"].to_list()
+    notes = acled_data["NOTES"].to_list()
+
+    actor_clusters = []
+    for actor_name in actor_name_list:
+        actor1_indexes = [index for actor,index in zip(actor1_list,acled_data.index)if actor_name in actor]
+        actor2_indexes = [index for actor,index in zip(actor2_list,acled_data.index)if actor_name in actor]
+        actor_index_from_notes = [index for note,index in zip(notes,acled_data.index)if actor_name in str(note)]
+
+        if(include_notes):
+            event_cluster = sorted(list(set(actor1_indexes + actor2_indexes + actor_index_from_notes)))
+        else:
+            event_cluster = sorted(list(set(actor1_indexes + actor2_indexes)))
+
+        actor_clusters.append(event_cluster)
+
+
+
+
+    color_list = ["red" , "blue" , "forestgreen" , "orange"]
+
+    for index,actor_cluster in enumerate(actor_clusters):
+        event_locations.loc[actor_cluster].plot(ax=axs[2,0], 
+                                                 facecolor=color_list[index],
+                                                 edgecolor=color_list[index],
+                                                 marker=".", 
+                                                 linewidth=0.8)
+
+
+
+
+    if(country == "Sierra Leone"):
+        actor_name_list = ["RUF" , "LURD"]
+
+    legend_elements = []
+    for i in range(len(actor_name_list)):
+        legend_elements.append(Line2D([0],[0],marker='o',color=color_list[i],label=actor_name_list[i],
+                                      markerfacecolor=color_list[i],
+                                      markersize=15))
+
+
+    axs[2,0].legend(handles=legend_elements , framealpha=1 , fontsize=30 ,
+               borderpad=0.5,
+               labelspacing=0.4,
+              borderaxespad=0.5,
+              columnspacing=0.2,
+              frameon=False,
+              shadow=False,
+              handlelength=0)
+
+
+    #### Probability thing ####
+
+    sl_events = [161317]
+
+    if(country == "Sierra Leone"):
+        fixed_events = sl_events
+
+    ava_to_plot_list = []
+    for gridix in range(1,21):
+        box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
+                            f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
+        with open(box_path,"rb") as f:
+            ava = pickle.load(f)
+        ava_box = ava["ava_box"]
+        ava_event = ava["ava_event"]
+
+        ava_to_plot = container_avalanche_finder(ava_event , fixed_events)
+        ava_to_plot_list.append(ava_to_plot)
+
+    events_combined = list(itertools.chain.from_iterable(ava_to_plot_list))
+    event_certainty_dict = dict(Counter(events_combined))
+
+    event_certainty_dict = {k: round(v / len(ava_to_plot_list),1) for k, v in event_certainty_dict.items()}
+
+    colormap = "autumn_r"
+    color1= np.array(mcp.gen_color(cmap=colormap,n=24))
+    color1 = color1[4:24:2]
+
+    for i in range(1,11):
+        current_events = [key for key,value in event_certainty_dict.items() if value == i/10]
+
+        event_locations.loc[current_events]. \
+                plot(ax=axs[2,1], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
+
+
+    cmapnew = matplotlib.colors.ListedColormap(color1)
+    img = plt.imshow(np.array([[1,2,3,4,5,6,7,8,9]])/9, cmap=cmapnew)
+    img.set_visible(False)
+
+    legend_elements = []
+    for i in [2,9]:
+        current_events = [key for key,value in event_certainty_dict.items() if value >= i/10]
+        a = gpd.GeoDataFrame({"date":[""] , "geometry":[event_locations.loc[current_events].unary_union.convex_hull]} , geometry="geometry")
+        b = gpd.GeoDataFrame(pd.concat([event_locations.loc[current_events] , a], ignore_index=True))
+
+        b.iloc[-1:].plot(ax=axs[2,1] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
+
+        legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
