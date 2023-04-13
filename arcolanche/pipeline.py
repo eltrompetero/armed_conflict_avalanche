@@ -1,6 +1,7 @@
 # ====================================================================================== #
 # Module for pipelining revised analysis.
 # Author: Eddie Lee, edlee@santafe.edu
+#         Niraj Kushwaha, nirajkkushwaha1@gmail.com
 # ====================================================================================== #
 from .utils import *
 from .construct import Avalanche
