@@ -381,7 +381,6 @@ def similarity_score(conflict_type='battles'):
             
         save_pickle(['actors_ratio'], f'./cache/similarity_score_{gridix}_{conflict_type}.p', True)
 
-<<<<<<< HEAD
 def generate_avalanches(conflict_type="battles"):
     """Generates causal conflict avalanches for a given conflict type.
     
@@ -934,36 +933,3 @@ def conflict_zones_figure(time,dx,gridix,conflict_type="battles"):
 
     africa.plot(ax=ax , facecolor="none" , edgecolor="black" , linewidth=6)
     ax.set_extent(set_ax("Full"))
-=======
-def similarity_score(conflict_type='battles'):
-    """Averaged similarity matrix M across conflict zones. Saved to
-    './cache/similarity_score_{gridix}_{conflict_type}.'
-
-    Parameters
-    ----------
-    conflict_type : str, 'battles'
-        Choose amongst 'battles', 'VAC', and 'RP'.
-    """
-    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
-
-    dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    time_list = [1,2,4,8,16,32,64,128,256,512]
-    threshold = 1
-
-    for gridix in range(1, 21):
-        actors_ratio = np.zeros((len(dx_list), len(time_list)))
-         
-        dxdt = list(product(time_list, dx_list, [threshold], [gridix], conflict_type))
-
-        def actor_ratio_loop_wrapper(args):
-            return ConflictZones(*args).similarity_score()
-        
-        with threadpool_limits(limits=1, user_api='blas'):
-            with Pool() as pool:
-                output = list(pool.map(actor_ratio_loop_wrapper, dxdt))
-        
-        for i, (j,k) in zip(range(len(dxdt)), product(range(len(time_list)), range(len(dx_list)))):
-            actors_ratio[k][j] = output[i]
-            
-        save_pickle(['actors_ratio'], f'./cache/similarity_score_{gridix}_{conflict_type}.p', True)
->>>>>>> 009e92ec2d088ecee9afdb170836fe4292b94d47
