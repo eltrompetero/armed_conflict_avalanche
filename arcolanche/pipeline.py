@@ -350,43 +350,13 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     save_pickle(['F','R','N','L','T','errs','pl_params','exp_relations','rel_err_bars','dyn_params'],
                 f'cache/scaling_relations_{dtdx[0]}_{dtdx[1]}_{gridix}.p', True)
 
-def similarity_score(conflict_type='battles'):
-    """Averaged similarity matrix M across conflict zones. Saved to
-    './cache/similarity_score_{gridix}_{conflict_type}.'
-    Parameters
-    ----------
-    conflict_type : str, 'battles'
-        Choose amongst 'battles', 'VAC', and 'RP'.
-    """
-    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
-
-    dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    time_list = [1,2,4,8,16,32,64,128,256,512]
-    threshold = 1
-
-    for gridix in range(1, 21):
-        actors_ratio = np.zeros((len(dx_list), len(time_list)))
-         
-        dxdt = list(product(time_list, dx_list, [threshold], [gridix], conflict_type))
-
-        def actor_ratio_loop_wrapper(args):
-            return ConflictZones(*args).similarity_score()
-        
-        with threadpool_limits(limits=1, user_api='blas'):
-            with Pool() as pool:
-                output = list(pool.map(actor_ratio_loop_wrapper, dxdt))
-        
-        for i, (j,k) in zip(range(len(dxdt)), product(range(len(time_list)), range(len(dx_list)))):
-            actors_ratio[k][j] = output[i]
-            
-        save_pickle(['actors_ratio'], f'./cache/similarity_score_{gridix}_{conflict_type}.p', True)
-
 def generate_avalanches(conflict_type="battles"):
     """Generates causal conflict avalanches for a given conflict type.
     
     Parameter
     ---------
     conflict_type : str, "battles"
+        Choose amongst 'battles', 'VAC', and 'RP'.
     
     Returns
     -------
@@ -394,6 +364,8 @@ def generate_avalanches(conflict_type="battles"):
     
     Saves pickles of avalanches in both box and event form. 
     """
+
+    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
@@ -431,6 +403,7 @@ def actor_similarity_generator(conflict_type):
     Parameter
     ---------
     conflict_type : str, "battles"
+        Choose amongst 'battles', 'VAC', and 'RP'.
     
     Returns
     -------
@@ -439,19 +412,16 @@ def actor_similarity_generator(conflict_type):
     Saves pickles of actor similarity matrix.
     """
 
+    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
+
+    dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
+    time_list = [1,2,4,8,16,32,64,128,256,512]
+    threshold = [1]
+
     def actor_ratio_loop_wrapper(args):
-        time,dx,threshold,gridix,conflict_type = args
-
-        cz = ConflictZones(time,dx,threshold=threshold,gridix=gridix,conflict_type=conflict_type)
-
-        return cz.similarity_score()
-
+        return ConflictZones(*args).similarity_score()
+        
     for gridix in range(1,21):
-        dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-        time_list = [1,2,4,8,16,32,64,128,256,512]
- 
-        threshold = [1]
-
         actor_similarity = np.zeros((len(dx_list),len(time_list)))
 
         dxdt = list(product(time_list,dx_list,threshold,[gridix],[conflict_type]))
@@ -477,6 +447,7 @@ def data_used_generator(conflict_type):
     Parameter
     ---------
     conflict_type : str, "battles"
+        Choose amongst 'battles', 'VAC', and 'RP'.
     
     Returns
     -------
@@ -484,6 +455,8 @@ def data_used_generator(conflict_type):
     
     Saves pickles of data used matrix.
     """
+
+    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
 
     def data_used_wrapper(args):
         time,dx,gridix,conflict_type = args
@@ -573,6 +546,7 @@ def data_used_plot(conflict_type):
     Parameter
     ---------
     conflict_type : str, "battles"
+        Choose amongst 'battles', 'VAC', and 'RP'.
     
     Returns
     -------
@@ -580,6 +554,8 @@ def data_used_plot(conflict_type):
     
     Displays the contour plot of percentage of data used.
     """
+
+    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
 
     fig, ax = plt.subplots(figsize=(10,10))
     cb_ax = fig.add_axes([.12, -0.005, .785, .05])
@@ -640,6 +616,7 @@ def actor_similarity_plot(conflict_type):
     Parameter
     ---------
     conflict_type : str, "battles"
+        Choose amongst 'battles', 'VAC', and 'RP'.
     
     Returns
     -------
@@ -647,7 +624,9 @@ def actor_similarity_plot(conflict_type):
     
     Displays the contour plot of actor similarity matrix contour.
     """
-        
+
+    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
+       
     fig, ax = plt.subplots(figsize=(10,10))
     cb_ax = fig.add_axes([.12, -0.005, .785, .05])
     yaxis_label = r"length scale $b$ (km)"
@@ -711,6 +690,7 @@ def mesoscale_plot(conflict_type):
     Parameter
     ---------
     conflict_type : str, "battles"
+        Choose amongst 'battles', 'VAC', and 'RP'.
     
     Returns
     -------
@@ -718,6 +698,8 @@ def mesoscale_plot(conflict_type):
     
     Displays the mesoscale.
     """
+
+    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
 
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
     time_list = [1,2,4,8,16,32,64,128,256,512]
@@ -891,6 +873,7 @@ def conflict_zones_figure(time,dx,gridix,conflict_type="battles"):
     dx : int
     gridix : int
     conflict_type : str, "battles"
+        Choose amongst 'battles', 'VAC', and 'RP'.
     
     Returns
     -------
@@ -898,6 +881,8 @@ def conflict_zones_figure(time,dx,gridix,conflict_type="battles"):
     
     Displays conflict zones.
     """
+
+    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
 
     polygons = load_voronoi(dx,gridix)
 
