@@ -5,7 +5,6 @@
 from .utils import *
 from .construct import Avalanche
 from .data import ACLED2020
-<<<<<<< HEAD
 from workspace.utils import save_pickle, load_pickle
 from multiprocess import Pool
 from .construct import discretize_conflict_events
@@ -18,11 +17,6 @@ import scipy
 import geopandas
 from voronoi_globe.interface import load_voronoi
 import random
-=======
-from workspace.utils import save_pickle
-from itertools import product
-from .analysis import ConflictZones
->>>>>>> 009e92ec2d088ecee9afdb170836fe4292b94d47
 
 
 
@@ -457,6 +451,9 @@ def data_used_generator(conflict_type):
     """
 
     assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
+    
+    dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
+    time_list = [1,2,4,8,16,32,64,128,256,512]
 
     def data_used_wrapper(args):
         time,dx,gridix,conflict_type = args
@@ -482,9 +479,6 @@ def data_used_generator(conflict_type):
         return events_used / len(ACLED_data)
 
     for gridix in range(1,21):
-        dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-        time_list = [1,2,4,8,16,32,64,128,256,512]
-        
         dxdt = list(product(time_list,dx_list,[gridix],[conflict_type]))
         
         data_used = np.zeros((len(dx_list),len(time_list)))
