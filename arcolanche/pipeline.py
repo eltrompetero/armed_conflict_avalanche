@@ -795,7 +795,7 @@ def set_ax(country):
 
     Returns
     -------
-    np.array
+    ndarray
     """
 
     if(country == "Nigeria"):
