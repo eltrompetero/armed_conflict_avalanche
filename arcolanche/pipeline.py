@@ -16,7 +16,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 import scipy
 import geopandas
-from voronoi_globe.interface import load_voronoi
+from voronoi_globe.interface import load_voronoi, load_centers
+from vincenty import vincenty
 import random
 from matplotlib.lines import Line2D
 from collections import Counter
@@ -1650,3 +1651,127 @@ def conflict_clusters_figure():
         b.iloc[-1:].plot(ax=axs[2,1] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
 
         legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
+
+def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_range=False):
+    """Merged GeoDataFrame for conflict events of a certain type into the Voronoi
+    cells. Time discretized.
+
+    Parameters
+    ----------
+    dt : int
+    dx : int
+    gridix : int, 0
+    conflict_type : str, 'battles'
+    year_range : tuple, False
+
+    Returns
+    -------
+    GeoDataFrame
+        New columns 't' and 'x' indicate time and Voronoi bin indices.
+    """
+    
+    def inverse_transform(coordinates):
+        """From lon, lat to angles coordinates accounting for the longitudinal shift necessary
+        to get to Africa.
+
+        Parameters
+        ----------
+        event_coordinates : ndarray
+
+        Returns
+        -------
+        ndarray
+            angles.
+        """
+
+        coordinates[:,0] -= 330
+        coordinates_angles = (coordinates/180) * np.pi
+
+        return coordinates_angles
+    
+
+    load_pickle(f"voronoi_grids/{dx}/0{gridix}.p")
+    global centers
+    centers = load_centers(dx,gridix)
+    
+
+    def potential_polygons_extractor(event_index):
+        return poissd.neighbors(event_coordinates_angles[event_index])   
+    
+    def enclosing_polygon_number(args):
+        (event_location,neighbor_indexes) = args
+
+        neighbor_distances = []
+        for neighbor_index in neighbor_indexes:
+            potential_nearest_center = (centers[neighbor_index].x , centers[neighbor_index].y)
+
+            neighbor_distances.append(vincenty(potential_nearest_center,event_location))
+
+        return neighbor_indexes[neighbor_distances.index(min(neighbor_distances))]
+
+
+    if(conflict_type == "battles"):
+        df = ACLED2020.battles_df(to_lower=True,year_range=year_range)
+    elif(conflict_type == "RP"):
+        df = ACLED2020.riots_and_protests_df(to_lower=True,year_range=year_range)
+    elif(conflict_type == "VAC"):
+        df = ACLED2020.vac_df(to_lower=True,year_range=year_range)
+
+    conflict_ev = gpd.GeoDataFrame(df[['event_date','longitude','latitude']],
+                                   geometry=gpd.points_from_xy(df.longitude, df.latitude),
+                                   crs="EPSG:4326")
+    conflict_ev['t'] = (conflict_ev['event_date']-conflict_ev['event_date'].min()) // np.timedelta64(dt,'D')
+
+
+    event_coordinates = np.column_stack((conflict_ev.geometry.apply(lambda x:x.x).to_list(),conflict_ev.geometry.apply(lambda x:x.y).to_list()))
+    event_coordinates_angles = inverse_transform(event_coordinates.copy())
+
+    with Pool() as pool:
+        neighbors_list = pool.map(potential_polygons_extractor , range(len(conflict_ev)))
+        output = pool.map(enclosing_polygon_number , zip(event_coordinates,neighbors_list))
+
+    conflict_ev["x"] = output
+    
+    return conflict_ev
+
+def conflict_dataframe_generator(conflict_type="battles"):
+    """Generated GeodataFrames of conflict for all combinations of dx,dt and gridix
+    for a given conflict type.
+    
+    Parameter
+    ---------
+    conflict_type : str, "battles"
+        Choose amongst 'battles', 'VAC', and 'RP'.
+    
+    Returns
+    -------
+    None
+    
+    Saves pickles of conflict dataframes.
+    """
+    
+    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
+
+    time_list = [1,2,4,8,16,32,64,128,256,512]
+    dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
+    gridix_list = range(1,21)
+
+    dx_time_gridix = list(product(dx_list,time_list,gridix_list))
+
+    def looper(args):
+        dx,time,gridix = args
+
+        conflict_ev = discretize_conflict_events(time,dx,gridix,conflict_type=conflict_type)
+
+        path = f"avalanches/{conflict_type}/gridix_{gridix}/te"
+        isExist = os.path.exists(path)
+        if not isExist:
+            os.makedirs(path)
+
+        save_pickle(["conflict_ev"] ,\
+                    f"avalanches/{conflict_type}/gridix_{gridix}/te/conflict_ev_{str(time)}_{str(dx)}.p" ,\
+                    True)
+
+
+    with Pool() as pool:
+        pool.map(looper , dx_time_gridix)
