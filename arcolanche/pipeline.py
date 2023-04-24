@@ -8,7 +8,6 @@ from .construct import Avalanche
 from .data import ACLED2020
 from workspace.utils import save_pickle, load_pickle
 from multiprocess import Pool
-from .construct import discretize_conflict_events
 from itertools import product
 from .analysis import ConflictZones
 import os
@@ -381,8 +380,6 @@ def generate_avalanches(conflict_type="battles"):
         ava_box = [[tuple(i) for i in ava.time_series.loc[a].drop_duplicates()\
                     .values[:,::-1]] for a in ava.avalanches]
         ava_event = ava.avalanches
-
-        discretize_conflict_events.cache_clear()
 
         path = f"avalanches/{conflict_type}/gridix_{gridix}/te"
         isExist = os.path.exists(path)
