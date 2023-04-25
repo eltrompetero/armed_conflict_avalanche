@@ -1107,8 +1107,6 @@ def conflict_clusters_figure():
 
     country = "Nigeria"
 
-    polygons = load_voronoi(dx,gridix)
-
     axs[0,0].set_extent(set_ax(country))
     axs[0,1].set_extent(set_ax(country))
     axs[0,2].set_extent(set_ax(country))
@@ -1359,8 +1357,6 @@ def conflict_clusters_figure():
 
     country = "Somalia"
 
-    polygons = load_voronoi(dx,gridix)
-
     axs[1,0].set_extent(set_ax(country))
     axs[1,2].set_extent(set_ax(country))
     axs[1,1].set_extent(set_ax(country))
@@ -1511,8 +1507,6 @@ def conflict_clusters_figure():
     axs[2,2].set_extent(set_ax(country))
     axs[2,0].set_extent(set_ax(country))
     axs[2,1].set_extent(set_ax(country))
-
-    polygons = load_voronoi(dx,gridix)
 
     #### Using our method ####
 
@@ -1687,7 +1681,7 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_r
         return coordinates_angles
     
 
-    load_pickle(f"voronoi_grids/{dx}/0{gridix}.p")
+    load_pickle(f"voronoi_grids/{dx}/{str(gridix).zfill(2)}.p")
     global centers
     centers = load_centers(dx,gridix)
     
@@ -1751,11 +1745,11 @@ def conflict_dataframe_generator(conflict_type="battles"):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    gridix_list = range(1,21)
+    gridix_list = range(21,99)
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
 
-    def looper(args):
+    for args in dx_time_gridix:
         dx,time,gridix = args
 
         conflict_ev = discretize_conflict_events(time,dx,gridix,conflict_type=conflict_type)
@@ -1768,7 +1762,3 @@ def conflict_dataframe_generator(conflict_type="battles"):
         save_pickle(["conflict_ev"] ,\
                     f"avalanches/{conflict_type}/gridix_{gridix}/te/conflict_ev_{str(time)}_{str(dx)}.p" ,\
                     True)
-
-
-    with Pool() as pool:
-        pool.map(looper , dx_time_gridix)
