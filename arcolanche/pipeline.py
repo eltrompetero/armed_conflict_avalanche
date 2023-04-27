@@ -23,6 +23,7 @@ from collections import Counter
 from mycolorpy import colorlist as mcp
 import matplotlib
 import itertools
+import tqdm
 
 
 def rate_dynamics(dxdt=((160,16), (160,32), (160,64), (160,128), (160,256))):
@@ -368,7 +369,8 @@ def generate_avalanches(conflict_type="battles"):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    gridix_list = range(1,21)
+    #gridix_list = range(1,21)
+    gridix_list = [99]
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
 
@@ -390,9 +392,16 @@ def generate_avalanches(conflict_type="battles"):
                     f"avalanches/{conflict_type}/gridix_{gridix}/te/te_ava_{str(time)}_{str(dx)}.p" ,\
                     True)
 
+        return None
 
-    with Pool() as pool:
-        pool.map(looper , dx_time_gridix)
+    # with Pool() as pool:
+    #     pool.map(looper , dx_time_gridix)
+
+    output = []
+    pool = Pool()
+    print("Generating conflict avalanches:")
+    for result in tqdm.tqdm(pool.imap(looper,dx_time_gridix) , total=len(dx_time_gridix)):
+        output.append(result)
 
 def actor_similarity_generator(conflict_type):
     """Calculates actor similarity matrix for a given conflict type.
@@ -1751,6 +1760,7 @@ def conflict_dataframe_generator(conflict_type="battles"):
 
     for args in dx_time_gridix:
         dx,time,gridix = args
+        print(dx,time,gridix)
 
         conflict_ev = discretize_conflict_events(time,dx,gridix,conflict_type=conflict_type)
 
