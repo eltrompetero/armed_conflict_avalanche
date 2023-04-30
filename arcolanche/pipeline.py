@@ -1696,7 +1696,7 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_r
     
 
     def potential_polygons_extractor(event_index):
-        return poissd.neighbors(event_coordinates_angles[event_index])   
+        return poissd.neighbors(event_coordinates_angles[event_index] , apply_dist_threshold=True)   
     
     def enclosing_polygon_number(args):
         (event_location,neighbor_indexes) = args
