@@ -369,8 +369,7 @@ def generate_avalanches(conflict_type="battles"):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    #gridix_list = range(1,21)
-    gridix_list = [99]
+    gridix_list = range(21,99)
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
 
@@ -1839,7 +1838,7 @@ def center_neighbors_generator(conflict_type="battles"):
 
 
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    gridix_list = range(1,21)
+    gridix_list = range(21,100)
 
     dx_gridix = list(product(dx_list,gridix_list))
 
