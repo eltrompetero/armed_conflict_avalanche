@@ -64,7 +64,9 @@ class Avalanche():
         self.iprint = iprint
         self.year_range = year_range
         
-        self.polygons = load_voronoi(dx, gridix)
+        load_pickle(f"avalanches/{conflict_type}/gridix_{gridix}/polygons_{str(dx)}.p")
+        self.polygons = polygons
+        #self.polygons = load_voronoi(dx, gridix)
         load_pickle(f"avalanches/{conflict_type}/gridix_{gridix}/te/conflict_ev_{str(dt)}_{str(dx)}.p")
         self.time_series = conflict_ev[["t","x"]]
         self.time_series_CG_generator()

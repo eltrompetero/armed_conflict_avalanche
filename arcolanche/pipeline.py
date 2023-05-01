@@ -1673,6 +1673,7 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_r
     def inverse_transform(coordinates):
         """From lon, lat to angles coordinates accounting for the longitudinal shift necessary
         to get to Africa.
+        This is an inverse to transform function in voronoi_globe.utils.transform().
 
         Parameters
         ----------
@@ -1735,7 +1736,7 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_r
     return conflict_ev
 
 def conflict_dataframe_generator(conflict_type="battles"):
-    """Generated GeodataFrames of conflict for all combinations of dx,dt and gridix
+    """Generates GeodataFrames of conflict for all combinations of dx,dt and gridix
     for a given conflict type.
     
     Parameter
@@ -1772,3 +1773,78 @@ def conflict_dataframe_generator(conflict_type="battles"):
         save_pickle(["conflict_ev"] ,\
                     f"avalanches/{conflict_type}/gridix_{gridix}/te/conflict_ev_{str(time)}_{str(dx)}.p" ,\
                     True)
+
+def center_neighbors_generator(conflict_type="battles"):
+    """Generates Geodatafram of centers and their immediate neighbors for a given
+    dx and gridix.
+    
+    Parameters
+    ----------
+    conflict_type : str , "battles"
+    
+    Returns
+    -------
+    None
+    
+    Saves pickles of polygon/center neighbors.
+    """
+    
+    def inverse_transform(coordinates):
+        """From lon, lat to angles coordinates accounting for the longitudinal shift necessary
+        to get to Africa.
+        This is an inverse to transform function in voronoi_globe.utils.transform().
+
+        Parameters
+        ----------
+        event_coordinates : ndarray
+
+        Returns
+        -------
+        ndarray
+            angles.
+        """
+
+        coordinates[:,0] -= 330
+        coordinates_angles = (coordinates/180) * np.pi
+
+        return coordinates_angles
+
+    def looper(args):
+        dx , gridix = args
+
+        load_pickle(f"voronoi_grids/{dx}/{str(gridix).zfill(2)}.p")
+        centers = load_centers(dx,gridix)
+
+        centers_arr = np.array([[point.x,point.y] for point in centers])
+        centers_arr_transformed = inverse_transform(centers_arr)
+
+        neighbors = []
+        for index,center_transformed in enumerate(centers_arr_transformed):
+            neighbors.append(sorted(poissd.neighbors(center_transformed , apply_dist_threshold=True)))
+            neighbors[index].remove(index)
+
+        polygons = gpd.GeoDataFrame(centers,geometry=0).rename_geometry("geometry")
+        polygons["neighbors"] = neighbors
+
+        path = f"avalanches/{conflict_type}/gridix_{gridix}"
+        isExist = os.path.exists(path)
+        if not isExist:
+            os.makedirs(path)
+
+        save_pickle(["polygons"] ,\
+                    f"avalanches/{conflict_type}/gridix_{gridix}/polygons_{str(dx)}.p" ,\
+                    True)
+
+        return None
+
+
+    dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
+    gridix_list = range(1,21)
+
+    dx_gridix = list(product(dx_list,gridix_list))
+
+    output = []
+    pool = Pool()
+    print("Generating polygon/center neighbors:")
+    for result in tqdm.tqdm(pool.imap(looper,dx_gridix) , total=len(dx_gridix)):
+        output.append(result)
