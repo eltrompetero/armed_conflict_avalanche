@@ -369,7 +369,7 @@ def generate_avalanches(conflict_type="battles"):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    gridix_list = range(21,99)
+    gridix_list = range(21,100)
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
 
@@ -1075,13 +1075,13 @@ def conflict_clusters_figure():
 
 
 
-    axs[0,2].arrow(17,6, -2.1,1.7, width=1 , head_length=2 , head_width=2 , facecolor="black" , edgecolor="black",
+    axs[0,1].arrow(17,6, -2.1,1.7, width=1 , head_length=2 , head_width=2 , facecolor="black" , edgecolor="black",
                   zorder=100)
-    axs[1,2].arrow(44.5,9.5, 2,0.4, width=1 , head_length=1.8 , head_width=2 , facecolor="black" , edgecolor="black",
+    axs[1,1].arrow(44.5,9.5, 2,0.4, width=1 , head_length=1.8 , head_width=2 , facecolor="black" , edgecolor="black",
                   zorder=101)
-    axs[1,2].arrow(36,-1, 2,0.2, width=1 , head_length=2 , head_width=2 , facecolor="black" , edgecolor="black",
+    axs[1,1].arrow(36,-1, 2,0.2, width=1 , head_length=2 , head_width=2 , facecolor="black" , edgecolor="black",
                   zorder=102)
-    axs[2,2].arrow(-6.8,10.6, -1.6,-1.6, width=0.75 , head_length=1.1 , head_width=1.6 , facecolor="black" , edgecolor="black",
+    axs[2,1].arrow(-6.8,10.6, -1.6,-1.6, width=0.75 , head_length=1.1 , head_width=1.6 , facecolor="black" , edgecolor="black",
                   zorder=103)
 
 
@@ -1089,8 +1089,8 @@ def conflict_clusters_figure():
     pad = 25
     font_label = {'size': fontsize}
     axs[0,0].set_title("heuristic clusters" , fontdict=font_label , pad=pad)
-    axs[0,1].set_title("interaction zones" , fontdict=font_label , pad=pad)
-    axs[0,2].set_title("conflict avalanches" , fontdict=font_label , pad=pad)
+    axs[0,1].set_title("conflict avalanches" , fontdict=font_label , pad=pad)
+    axs[0,2].set_title("interaction zones" , fontdict=font_label , pad=pad)
 
     axs[0,0].text(-0.05, 0.55, 'Nigeria', va='bottom', ha='center',
             rotation='vertical', rotation_mode='anchor', fontsize=fontsize,
@@ -1138,13 +1138,13 @@ def conflict_clusters_figure():
 
 
     for i in [1,2,3]:
-        event_locations.loc[country_avas_sorted[-i]].plot(ax=axs[0,2], facecolor=color_list[i-1],
+        event_locations.loc[country_avas_sorted[-i]].plot(ax=axs[0,1], facecolor=color_list[i-1],
                                                            edgecolor=color_list[i-1] , marker=".",
                                                            alpha=1 , linewidth=0.8)
 
     separatist_events = [27000,26981]
     ava_to_plot = container_avalanche_finder(ava_event , separatist_events)
-    event_locations.loc[ava_to_plot].plot(ax=axs[0,2], facecolor="forestgreen",
+    event_locations.loc[ava_to_plot].plot(ax=axs[0,1], facecolor="forestgreen",
                                                        edgecolor="forestgreen" , marker=".",
                                                        alpha=1 , linewidth=0.8)
 
@@ -1242,7 +1242,7 @@ def conflict_clusters_figure():
         current_events = [key for key,value in event_certainty_dict.items() if value == i/10]
 
         event_locations.loc[current_events]. \
-                plot(ax=axs[0,1], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
+                plot(ax=axs[0,2], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
 
 
     cmapnew = matplotlib.colors.ListedColormap(color1)
@@ -1256,12 +1256,12 @@ def conflict_clusters_figure():
         a = gpd.GeoDataFrame({"date":[""] , "geometry":[event_locations.loc[current_events].unary_union.convex_hull]} , geometry="geometry")
         b = gpd.GeoDataFrame(pd.concat([event_locations.loc[current_events] , a], ignore_index=True))
 
-        b.iloc[-1:].plot(ax=axs[0,1] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
+        b.iloc[-1:].plot(ax=axs[0,2] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
 
         legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
 
 
-    axs[0,1].legend(handles=legend_elements , framealpha=1 , fontsize=30 ,
+    axs[0,2].legend(handles=legend_elements , framealpha=1 , fontsize=30 ,
                borderpad=0.5,
                labelspacing=0.4,
               borderaxespad=0.1,
@@ -1302,7 +1302,7 @@ def conflict_clusters_figure():
         current_events = [key for key,value in event_certainty_dict.items() if value == i/10]
 
         event_locations.loc[current_events]. \
-                plot(ax=axs[0,1], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
+                plot(ax=axs[0,2], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
 
 
     for i in [5]:
@@ -1343,7 +1343,7 @@ def conflict_clusters_figure():
         current_events = [key for key,value in event_certainty_dict.items() if value == i/10]
 
         event_locations.loc[current_events]. \
-                plot(ax=axs[0,1], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
+                plot(ax=axs[0,2], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
 
 
     for i in [5]:
@@ -1351,7 +1351,7 @@ def conflict_clusters_figure():
         a = gpd.GeoDataFrame({"date":[""] , "geometry":[event_locations.loc[current_events].unary_union.convex_hull]} , geometry="geometry")
         b = gpd.GeoDataFrame(pd.concat([event_locations.loc[current_events] , a], ignore_index=True))
 
-        b.iloc[-1:].plot(ax=axs[0,1] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
+        b.iloc[-1:].plot(ax=axs[0,2] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
 
         legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
 
@@ -1386,7 +1386,7 @@ def conflict_clusters_figure():
     linewidth_list = [0.3,0.2,0.05,0.05]
 
     for i in [1,2,3]:
-        event_locations.loc[country_avas_sorted[-i]].plot(ax=axs[1,2], facecolor=color_list[i-1],
+        event_locations.loc[country_avas_sorted[-i]].plot(ax=axs[1,1], facecolor=color_list[i-1],
                                                            edgecolor=color_list[i-1] , marker=".",
                                                            alpha=1 , linewidth=0.8)
 
@@ -1485,7 +1485,7 @@ def conflict_clusters_figure():
         current_events = [key for key,value in event_certainty_dict.items() if value == i/10]
 
         event_locations.loc[current_events]. \
-                plot(ax=axs[1,1], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
+                plot(ax=axs[1,2], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
 
 
     cmapnew = matplotlib.colors.ListedColormap(color1)
@@ -1498,7 +1498,7 @@ def conflict_clusters_figure():
         a = gpd.GeoDataFrame({"date":[""] , "geometry":[event_locations.loc[current_events].unary_union.convex_hull]} , geometry="geometry")
         b = gpd.GeoDataFrame(pd.concat([event_locations.loc[current_events] , a], ignore_index=True))
 
-        b.iloc[-1:].plot(ax=axs[1,1] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
+        b.iloc[-1:].plot(ax=axs[1,2] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
 
         legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
 
@@ -1534,7 +1534,7 @@ def conflict_clusters_figure():
 
 
     for i in [1,2,3,4]:
-        event_locations.loc[country_avas_sorted[-i]].plot(ax=axs[2,2], facecolor=color_list[i-1],
+        event_locations.loc[country_avas_sorted[-i]].plot(ax=axs[2,1], facecolor=color_list[i-1],
                                                            edgecolor=color_list[i-1] , marker=".",
                                                            alpha=1 , linewidth=0.8)
 
@@ -1634,7 +1634,7 @@ def conflict_clusters_figure():
         current_events = [key for key,value in event_certainty_dict.items() if value == i/10]
 
         event_locations.loc[current_events]. \
-                plot(ax=axs[2,1], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
+                plot(ax=axs[2,2], facecolor=color1[i-1], edgecolor=color1[i-1] , marker="." , alpha=1 , linewidth=0.8)
 
 
     cmapnew = matplotlib.colors.ListedColormap(color1)
@@ -1647,7 +1647,7 @@ def conflict_clusters_figure():
         a = gpd.GeoDataFrame({"date":[""] , "geometry":[event_locations.loc[current_events].unary_union.convex_hull]} , geometry="geometry")
         b = gpd.GeoDataFrame(pd.concat([event_locations.loc[current_events] , a], ignore_index=True))
 
-        b.iloc[-1:].plot(ax=axs[2,1] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
+        b.iloc[-1:].plot(ax=axs[2,2] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
 
         legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
 
