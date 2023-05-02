@@ -426,7 +426,7 @@ def actor_similarity_generator(conflict_type):
     def actor_ratio_loop_wrapper(args):
         return ConflictZones(*args).similarity_score()
         
-    for gridix in range(1,21):
+    for gridix in range(21,100):
         actor_similarity = np.zeros((len(dx_list),len(time_list)))
 
         dxdt = list(product(time_list,dx_list,threshold,[gridix],[conflict_type]))
@@ -489,7 +489,7 @@ def data_used_generator(conflict_type):
         
         return events_used / len(ACLED_data)
 
-    for gridix in range(1,21):
+    for gridix in range(21,100):
         dxdt = list(product(time_list,dx_list,[gridix],[conflict_type]))
         
         data_used = np.zeros((len(dx_list),len(time_list)))
@@ -713,7 +713,7 @@ def mesoscale_plot(conflict_type):
 
     initial_index = 0
     threshold_list = []
-    for gridix in range(1,21):
+    for gridix in range(1,100):
         initial_index += 1
 
         load_pickle(f"mesoscale_data/similarity_matrix_{gridix}_{conflict_type}.p")
@@ -800,10 +800,10 @@ def mesoscale_plot(conflict_type):
     ax.spines['left'].set_visible(False)
 
 
-    t_range = np.arange((weighted_contour/20).shape[1])
-    x_range = np.arange((weighted_contour/20).shape[0])
+    t_range = np.arange((weighted_contour/initial_index).shape[1])
+    x_range = np.arange((weighted_contour/initial_index).shape[0])
 
-    a,b,c = z_fine_calulator_2((weighted_contour/20))
+    a,b,c = z_fine_calulator_2((weighted_contour/initial_index))
     contr = ax.contour(b,c,np.flip(a,axis=0) ,
                        linewidths=1 ,
                        levels=[0.5,0.9] ,
@@ -1310,7 +1310,7 @@ def conflict_clusters_figure():
         a = gpd.GeoDataFrame({"date":[""] , "geometry":[event_locations.loc[current_events].unary_union.convex_hull]} , geometry="geometry")
         b = gpd.GeoDataFrame(pd.concat([event_locations.loc[current_events] , a], ignore_index=True))
 
-        b.iloc[-1:].plot(ax=axs[0,1] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
+        b.iloc[-1:].plot(ax=axs[0,2] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
 
         legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
 
