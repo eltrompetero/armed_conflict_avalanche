@@ -24,6 +24,7 @@ from mycolorpy import colorlist as mcp
 import matplotlib
 import itertools
 import tqdm
+from arcolanche.construct import discretize_conflict_events
 
 
 def rate_dynamics(dxdt=((160,16), (160,32), (160,64), (160,128), (160,256))):
@@ -369,7 +370,8 @@ def generate_avalanches(conflict_type="battles"):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    gridix_list = range(21,100)
+    #gridix_list = range(21,100)
+    gridix_list = [98]
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
 
@@ -381,6 +383,8 @@ def generate_avalanches(conflict_type="battles"):
         ava_box = [[tuple(i) for i in ava.time_series.loc[a].drop_duplicates()\
                     .values[:,::-1]] for a in ava.avalanches]
         ava_event = ava.avalanches
+
+        discretize_conflict_events.cache_clear()
 
         path = f"avalanches/{conflict_type}/gridix_{gridix}/te"
         isExist = os.path.exists(path)
@@ -1217,7 +1221,7 @@ def conflict_clusters_figure():
         fixed_events = boko_haram_events
 
     ava_to_plot_list = []
-    for gridix in range(1,21):
+    for gridix in range(1,100):
         box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
                             f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
         with open(box_path,"rb") as f:
@@ -1282,7 +1286,7 @@ def conflict_clusters_figure():
     color1 = color1[4:24:2]
 
     ava_to_plot_list = []
-    for gridix in range(1,21):
+    for gridix in range(1,100):
         box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
                             f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
         with open(box_path,"rb") as f:
@@ -1323,7 +1327,7 @@ def conflict_clusters_figure():
     color1 = color1[4:24:2]
 
     ava_to_plot_list = []
-    for gridix in range(1,21):
+    for gridix in range(1,100):
         box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
                             f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
         with open(box_path,"rb") as f:
@@ -1461,7 +1465,7 @@ def conflict_clusters_figure():
 
 
     ava_to_plot_list = []
-    for gridix in range(1,21):
+    for gridix in range(1,100):
         box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
                             f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
         with open(box_path,"rb") as f:
@@ -1610,7 +1614,7 @@ def conflict_clusters_figure():
         fixed_events = sl_events
 
     ava_to_plot_list = []
-    for gridix in range(1,21):
+    for gridix in range(1,100):
         box_path = (f"avalanches/{conflict_type}/gridix_{gridix}/{type_of_algo}/" +
                             f"{type_of_algo}_ava_{str(dt)}_{str(dx)}.p")
         with open(box_path,"rb") as f:
@@ -1651,7 +1655,7 @@ def conflict_clusters_figure():
 
         legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
 
-def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_range=False):
+def discretize_conflict_events_using_centers(dt, dx, gridix=0, conflict_type='battles', year_range=False):
     """Merged GeoDataFrame for conflict events of a certain type into the Voronoi
     cells. Time discretized.
 
@@ -1762,7 +1766,7 @@ def conflict_dataframe_generator(conflict_type="battles"):
         dx,time,gridix = args
         print(dx,time,gridix)
 
-        conflict_ev = discretize_conflict_events(time,dx,gridix,conflict_type=conflict_type)
+        conflict_ev = discretize_conflict_events_using_centers(time,dx,gridix,conflict_type=conflict_type)
 
         path = f"avalanches/{conflict_type}/gridix_{gridix}/te"
         isExist = os.path.exists(path)

@@ -64,11 +64,16 @@ class Avalanche():
         self.iprint = iprint
         self.year_range = year_range
         
-        load_pickle(f"avalanches/{conflict_type}/gridix_{gridix}/polygons_{str(dx)}.p")
-        self.polygons = polygons
-        #self.polygons = load_voronoi(dx, gridix)
-        load_pickle(f"avalanches/{conflict_type}/gridix_{gridix}/te/conflict_ev_{str(dt)}_{str(dx)}.p")
-        self.time_series = conflict_ev[["t","x"]]
+        # load_pickle(f"avalanches/{conflict_type}/gridix_{gridix}/polygons_{str(dx)}.p")
+        # self.polygons = polygons
+
+        self.polygons = load_voronoi(dx, gridix)
+
+        # load_pickle(f"avalanches/{conflict_type}/gridix_{gridix}/te/conflict_ev_{str(dt)}_{str(dx)}.p")
+        # self.time_series = conflict_ev[["t","x"]]
+
+        self.time_series = discretize_conflict_events(dt, dx, gridix, conflict_type)[['t','x']]
+
         self.time_series_CG_generator()
         if shuffle_null:
             if iprint: print("Starting shuffling...")
@@ -331,11 +336,8 @@ def _self_probabilities(t, tmx):
     return (p11, p01, p10, p00), (p1_past, p1_fut)
 
 @cache
-def discretize_conflict_events_old(dt, dx, gridix=0, conflict_type='battles', year_range=False):
+def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_range=False):
     """
-    Deprecated. Use discretize_conflict_events() in pipeline.py instead.
-
-
     Merged GeoDataFrame for conflict events of a certain type into the Voronoi
     cells. Time discretized.
 

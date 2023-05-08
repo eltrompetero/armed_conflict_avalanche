@@ -208,7 +208,7 @@ class ConflictZones():
 
 
     def similarity_score(self):
-        """Calculates the similarity score. Here A and B are the
+        """Calculates the similarity score (actor overlap score). Here A and B are the
         number of actors in zone 1 and zone 2 which are being compared.
         Parameters
         ----------
