@@ -370,8 +370,7 @@ def generate_avalanches(conflict_type="battles"):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    #gridix_list = range(21,100)
-    gridix_list = [98]
+    gridix_list = range(21,100)
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
 
@@ -429,8 +428,9 @@ def actor_similarity_generator(conflict_type):
 
     def actor_ratio_loop_wrapper(args):
         return ConflictZones(*args).similarity_score()
-        
-    for gridix in range(21,100):
+    
+    print("Calculating actor overlap scores:")
+    for gridix in tqdm.tqdm(range(21,100)):
         actor_similarity = np.zeros((len(dx_list),len(time_list)))
 
         dxdt = list(product(time_list,dx_list,threshold,[gridix],[conflict_type]))
@@ -493,7 +493,8 @@ def data_used_generator(conflict_type):
         
         return events_used / len(ACLED_data)
 
-    for gridix in range(21,100):
+    print("Calculating data used percentages:")
+    for gridix in tqdm.tqdm(range(21,100)):
         dxdt = list(product(time_list,dx_list,[gridix],[conflict_type]))
         
         data_used = np.zeros((len(dx_list),len(time_list)))
