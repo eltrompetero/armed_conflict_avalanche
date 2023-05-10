@@ -24,7 +24,7 @@ from mycolorpy import colorlist as mcp
 import matplotlib
 import itertools
 import tqdm
-from arcolanche.construct import discretize_conflict_events
+from .construct import discretize_conflict_events
 
 
 def rate_dynamics(dxdt=((160,16), (160,32), (160,64), (160,128), (160,256))):
@@ -383,7 +383,7 @@ def generate_avalanches(conflict_type="battles"):
                     .values[:,::-1]] for a in ava.avalanches]
         ava_event = ava.avalanches
 
-        discretize_conflict_events.cache_clear()
+        #discretize_conflict_events.cache_clear()
 
         path = f"avalanches/{conflict_type}/gridix_{gridix}/te"
         isExist = os.path.exists(path)
@@ -400,7 +400,7 @@ def generate_avalanches(conflict_type="battles"):
     #     pool.map(looper , dx_time_gridix)
 
     output = []
-    pool = Pool()
+    pool = Pool(processes=16)
     print("Generating conflict avalanches:")
     for result in tqdm.tqdm(pool.imap(looper,dx_time_gridix) , total=len(dx_time_gridix)):
         output.append(result)
@@ -1852,3 +1852,54 @@ def center_neighbors_generator(conflict_type="battles"):
     print("Generating polygon/center neighbors:")
     for result in tqdm.tqdm(pool.imap(looper,dx_gridix) , total=len(dx_gridix)):
         output.append(result)
+
+def conflict_ev_generator(conflict_type="battles"):
+    """Generates conflict_ev dataframes for all combinations of dx,dt and gridix
+    for a given conflict type.
+    
+    Parameter
+    ---------
+    conflict_type : str, "battles"
+        Choose amongst 'battles', 'VAC', and 'RP'.
+    
+    Returns
+    -------
+    None
+    
+    Saves pickles of conflict dataframes.
+    """
+    
+    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
+
+    time_list = [1,2,4,8,16,32,64,128,256,512]
+    dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
+    gridix_list = range(21,99)
+
+    dx_time_gridix = list(product(dx_list,time_list,gridix_list))
+
+    def looper(args):
+        dx,time,gridix = args
+
+        conflict_ev = discretize_conflict_events(time, dx, gridix, conflict_type, year_range=False)
+
+        path = f"avalanches/{conflict_type}/gridix_{gridix}/te"
+        isExist = os.path.exists(path)
+        if not isExist:
+            os.makedirs(path)
+
+        save_pickle(["conflict_ev"] ,\
+                    f"avalanches/{conflict_type}/gridix_{gridix}/te/conflict_ev_{str(time)}_{str(dx)}.p" ,\
+                    True)
+
+        return None
+
+    # with Pool() as pool:
+    #     pool.map(looper , dx_time_gridix)
+
+    output = []
+    pool = Pool()
+    print("Generating conflict_ev files:")
+    for result in tqdm.tqdm(pool.imap(looper,dx_time_gridix) , total=len(dx_time_gridix)):
+        output.append(result)
+
+    pool.close()

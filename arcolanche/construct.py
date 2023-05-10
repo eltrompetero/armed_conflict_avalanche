@@ -335,7 +335,6 @@ def _self_probabilities(t, tmx):
 
     return (p11, p01, p10, p00), (p1_past, p1_fut)
 
-@cache
 def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_range=False):
     """
     Merged GeoDataFrame for conflict events of a certain type into the Voronoi
