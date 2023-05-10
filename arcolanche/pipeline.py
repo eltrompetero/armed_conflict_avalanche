@@ -370,6 +370,7 @@ def generate_avalanches(conflict_type="battles"):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
+    dx_list = [1280]
     gridix_list = range(21,100)
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
@@ -400,7 +401,7 @@ def generate_avalanches(conflict_type="battles"):
     #     pool.map(looper , dx_time_gridix)
 
     output = []
-    pool = Pool(processes=16)
+    pool = Pool(maxtasksperchild=1)
     print("Generating conflict avalanches:")
     for result in tqdm.tqdm(pool.imap(looper,dx_time_gridix) , total=len(dx_time_gridix)):
         output.append(result)
