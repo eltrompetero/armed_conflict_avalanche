@@ -7,7 +7,7 @@ from .utils import *
 from .construct import Avalanche
 from .data import ACLED2020
 from workspace.utils import save_pickle, load_pickle
-from multiprocess import Pool
+from multiprocess import Pool,cpu_count
 from itertools import product
 from .analysis import ConflictZones
 import os
@@ -351,13 +351,16 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     save_pickle(['F','R','N','L','T','errs','pl_params','exp_relations','rel_err_bars','dyn_params'],
                 f'cache/scaling_relations_{dtdx[0]}_{dtdx[1]}_{gridix}.p', True)
 
-def generate_avalanches(conflict_type="battles"):
+def generate_avalanches(conflict_type="battles" , num_threads=cpu_count()):
     """Generates causal conflict avalanches for a given conflict type.
     
     Parameter
     ---------
     conflict_type : str, "battles"
         Choose amongst 'battles', 'VAC', and 'RP'.
+    num_threads : int , multiprocess.cpu_count()
+        Number of threads used to generate avalanches.
+        Reduce the number of threads to reduce the RAM usage by the function.
     
     Returns
     -------
@@ -401,7 +404,7 @@ def generate_avalanches(conflict_type="battles"):
     #     pool.map(looper , dx_time_gridix)
 
     output = []
-    pool = Pool(maxtasksperchild=1)
+    pool = Pool(processes=num_threads, maxtasksperchild=1)
     print("Generating conflict avalanches:")
     for result in tqdm.tqdm(pool.imap(looper,dx_time_gridix) , total=len(dx_time_gridix)):
         output.append(result)
