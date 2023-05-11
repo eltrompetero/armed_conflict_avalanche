@@ -1218,7 +1218,7 @@ def conflict_clusters_figure():
     #### Probability thing ####
 
     boko_haram_events = [134916,134972,134975,134976]
-    separatist_events = [27000]
+    separatist_events = [27000]  # Earlier event 26981 was also in this list
     zamfara_events = [145797]
 
     if(country == "Nigeria"):
