@@ -360,7 +360,7 @@ def generate_avalanches(conflict_type="battles" , num_threads=cpu_count()):
         Choose amongst 'battles', 'VAC', and 'RP'.
     num_threads : int , multiprocess.cpu_count()
         Number of threads used to generate avalanches.
-        Reduce the number of threads to reduce the RAM usage by the function.
+        Reduce the number of threads to reduce the RAM usage.
     
     Returns
     -------
@@ -373,7 +373,6 @@ def generate_avalanches(conflict_type="battles" , num_threads=cpu_count()):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    dx_list = [1280]
     gridix_list = range(21,100)
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
@@ -434,7 +433,7 @@ def actor_similarity_generator(conflict_type):
         return ConflictZones(*args).similarity_score()
     
     print("Calculating actor overlap scores:")
-    for gridix in tqdm.tqdm(range(21,100)):
+    for gridix in tqdm.tqdm(range(1,100)):
         actor_similarity = np.zeros((len(dx_list),len(time_list)))
 
         dxdt = list(product(time_list,dx_list,threshold,[gridix],[conflict_type]))
@@ -498,7 +497,7 @@ def data_used_generator(conflict_type):
         return events_used / len(ACLED_data)
 
     print("Calculating data used percentages:")
-    for gridix in tqdm.tqdm(range(21,100)):
+    for gridix in tqdm.tqdm(range(1,100)):
         dxdt = list(product(time_list,dx_list,[gridix],[conflict_type]))
         
         data_used = np.zeros((len(dx_list),len(time_list)))
@@ -1219,7 +1218,7 @@ def conflict_clusters_figure():
     #### Probability thing ####
 
     boko_haram_events = [134916,134972,134975,134976]
-    separatist_events = [27000,26981]
+    separatist_events = [27000]
     zamfara_events = [145797]
 
     if(country == "Nigeria"):
