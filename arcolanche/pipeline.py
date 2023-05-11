@@ -1024,10 +1024,13 @@ def all_ava_country(ava_event , event_locations, country):
     list of lists
     """
     
+    african_countries = gpd.read_file(f"data/africa_countries/afr_g2014_2013_0.shp")
+    country_pol = african_countries[african_countries["ADM0_NAME"] == country]
+
     country_ava_index = []
     for index,ava in enumerate(ava_event):
         for event in ava:
-            in_or_not = country_pol["geometry"].iloc[0].contains(event_locations["geometry"].iloc[event])
+            in_or_not = country_pol["geometry"].iloc[0].contains(event_locations["geometry"].loc[event])
             if(in_or_not == True):
                 country_ava_index.append(index)
                 break
