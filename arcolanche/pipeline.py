@@ -1369,7 +1369,7 @@ def conflict_clusters_figure():
 
 
     ####### Somalia ########  
-    time = dt = 64
+    time = dt = 32
     dx = 320
     gridix = 3
     type_of_algo = "te"
@@ -1392,11 +1392,11 @@ def conflict_clusters_figure():
 
     country_avas_sorted = first_event_ava_country(ava_event , event_locations , country)
 
-    color_list = ["red" , "blue" , "orange" , "forestgreen" , "brown"]
+    color_list = ["red" , "blue" , "forestgreen" , "orange" , "brown" , "black","orange"]
     marker_list = ["." , "X" , "v" , "^"]
     linewidth_list = [0.3,0.2,0.05,0.05]
 
-    for i in [1,2,3]:
+    for i in [1,2,3,7]:
         event_locations.loc[country_avas_sorted[-i]].plot(ax=axs[1,1], facecolor=color_list[i-1],
                                                            edgecolor=color_list[i-1] , marker=".",
                                                            alpha=1 , linewidth=0.8)
@@ -1465,7 +1465,7 @@ def conflict_clusters_figure():
 
     #### Probability thing ####
 
-    somalia_events = [167530,167535,167557]
+    somalia_events = [169883] # 167530,167535,167557
 
     if(country == "Somalia"):
         fixed_events = somalia_events
