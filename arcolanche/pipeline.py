@@ -623,6 +623,8 @@ def data_used_plot(conflict_type):
 
     ax.tick_params(width=3,length=5)
 
+    return fig
+
 def actor_similarity_plot(conflict_type):
     """Plot contour plot of actor similarity matrix contour.
     
@@ -664,7 +666,7 @@ def actor_similarity_plot(conflict_type):
         cbar = fig.colorbar(cax, cax=cb_ax, orientation='horizontal', fraction=.2)
         cbar.set_ticks([0, -1, -2])
         cbar.ax.set_xticklabels([r'$10^0$',r'$10^{-1}$',r'$10^{-2}$'] , fontsize=60)
-        cbar.ax.set_title(r"actor similarity $S$", pad=35 ,  fontsize=60 , y=-5)
+        cbar.ax.set_title(r"actor similarity $\Omega$", pad=35 ,  fontsize=60 , y=-5)
         cbar.ax.tick_params(pad=15)
 
 
@@ -696,6 +698,8 @@ def actor_similarity_plot(conflict_type):
     ax.yaxis.set_label_position('right')
 
     ax.tick_params(width=3,length=5)
+
+    return fig
 
 def mesoscale_plot(conflict_type):
     """Plot mesoscale.
@@ -818,6 +822,8 @@ def mesoscale_plot(conflict_type):
                        colors=["indigo","white"])
     ax.clabel(contr, inline=True, fontsize=20)
 
+    return fig
+
 def set_ax(country):
     """Sets the area boundary around a specific country while plotting African map.
 
@@ -931,6 +937,8 @@ def conflict_zones_figure(time,dx,gridix,conflict_type="battles"):
 
     africa.plot(ax=ax , facecolor="none" , edgecolor="black" , linewidth=6)
     ax.set_extent(set_ax("Full"))
+
+    return fig
 
 def first_event_ava_country(ava_event , event_locations, country):
     """Returns all the avalanches whose first event was in a given country.
@@ -1661,6 +1669,8 @@ def conflict_clusters_figure():
         b.iloc[-1:].plot(ax=axs[2,2] , alpha=1 , facecolor="none" , edgecolor=color1[i-1] , linewidth=2)
 
         legend_elements.append(Line2D([0], [0], color=color1[i-1], lw=4, label=f"$p={i/10}$"))
+
+    return fig
 
 def discretize_conflict_events_using_centers(dt, dx, gridix=0, conflict_type='battles', year_range=False):
     """Merged GeoDataFrame for conflict events of a certain type into the Voronoi
