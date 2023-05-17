@@ -666,7 +666,7 @@ def actor_similarity_plot(conflict_type):
         cbar = fig.colorbar(cax, cax=cb_ax, orientation='horizontal', fraction=.2)
         cbar.set_ticks([0, -1, -2])
         cbar.ax.set_xticklabels([r'$10^0$',r'$10^{-1}$',r'$10^{-2}$'] , fontsize=60)
-        cbar.ax.set_title(r"actor similarity $\Omega$", pad=35 ,  fontsize=60 , y=-5)
+        cbar.ax.set_title(r"actor overlap $\Omega$", pad=35 ,  fontsize=60 , y=-5)
         cbar.ax.tick_params(pad=15)
 
 
@@ -820,7 +820,7 @@ def mesoscale_plot(conflict_type):
                        linewidths=1 ,
                        levels=[0.5,0.9] ,
                        colors=["indigo","white"])
-    ax.clabel(contr, inline=True, fontsize=20)
+    ax.clabel(contr, inline=True, fontsize=24.5)
 
     return fig
 
