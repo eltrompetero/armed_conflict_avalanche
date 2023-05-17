@@ -385,6 +385,8 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_r
 
     conflict_ev.rename(columns={'index_right':'x'}, inplace=True)
 
+    conflict_ev["fatalities"] = df["fatalities"]
+
     # no need for polygon neighbors column or raw index
     return conflict_ev.drop(['neighbors','index'], axis=1)
 

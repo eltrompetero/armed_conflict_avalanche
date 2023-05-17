@@ -1850,7 +1850,7 @@ def conflict_ev_generator(conflict_type="battles" , num_threads=cpu_count()):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    gridix_list = range(21,99)
+    gridix_list = range(1,99)
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
 
