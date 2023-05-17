@@ -1755,45 +1755,6 @@ def discretize_conflict_events_using_centers(dt, dx, gridix=0, conflict_type='ba
     
     return conflict_ev
 
-def conflict_dataframe_generator(conflict_type="battles"):
-    """Generates GeodataFrames of conflict for all combinations of dx,dt and gridix
-    for a given conflict type.
-    
-    Parameter
-    ---------
-    conflict_type : str, "battles"
-        Choose amongst 'battles', 'VAC', and 'RP'.
-    
-    Returns
-    -------
-    None
-    
-    Saves pickles of conflict dataframes.
-    """
-    
-    assert conflict_type in ['battles', 'VAC', 'RP'], "Non-existent conflict type."
-
-    time_list = [1,2,4,8,16,32,64,128,256,512]
-    dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    gridix_list = range(21,99)
-
-    dx_time_gridix = list(product(dx_list,time_list,gridix_list))
-
-    for args in dx_time_gridix:
-        dx,time,gridix = args
-        print(dx,time,gridix)
-
-        conflict_ev = discretize_conflict_events_using_centers(time,dx,gridix,conflict_type=conflict_type)
-
-        path = f"avalanches/{conflict_type}/gridix_{gridix}/te"
-        isExist = os.path.exists(path)
-        if not isExist:
-            os.makedirs(path)
-
-        save_pickle(["conflict_ev"] ,\
-                    f"avalanches/{conflict_type}/gridix_{gridix}/te/conflict_ev_{str(time)}_{str(dx)}.p" ,\
-                    True)
-
 def center_neighbors_generator(conflict_type="battles"):
     """Generates Geodatafram of centers and their immediate neighbors for a given
     dx and gridix.
@@ -1869,7 +1830,7 @@ def center_neighbors_generator(conflict_type="battles"):
     for result in tqdm.tqdm(pool.imap(looper,dx_gridix) , total=len(dx_gridix)):
         output.append(result)
 
-def conflict_ev_generator(conflict_type="battles"):
+def conflict_ev_generator(conflict_type="battles" , num_threads=cpu_count()):
     """Generates conflict_ev dataframes for all combinations of dx,dt and gridix
     for a given conflict type.
     
@@ -1913,7 +1874,7 @@ def conflict_ev_generator(conflict_type="battles"):
     #     pool.map(looper , dx_time_gridix)
 
     output = []
-    pool = Pool()
+    pool = Pool(processes=num_threads, maxtasksperchild=1)
     print("Generating conflict_ev files:")
     for result in tqdm.tqdm(pool.imap(looper,dx_time_gridix) , total=len(dx_time_gridix)):
         output.append(result)

@@ -69,10 +69,10 @@ class Avalanche():
 
         self.polygons = load_voronoi(dx, gridix)
 
-        # load_pickle(f"avalanches/{conflict_type}/gridix_{gridix}/te/conflict_ev_{str(dt)}_{str(dx)}.p")
-        # self.time_series = conflict_ev[["t","x"]]
+        load_pickle(f"avalanches/{conflict_type}/gridix_{gridix}/te/conflict_ev_{str(dt)}_{str(dx)}.p")
+        self.time_series = conflict_ev[["t","x"]]
 
-        self.time_series = discretize_conflict_events(dt, dx, gridix, conflict_type)[['t','x']]
+        # self.time_series = discretize_conflict_events(dt, dx, gridix, conflict_type)[['t','x']]
 
         self.time_series_CG_generator()
         if shuffle_null:
