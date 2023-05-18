@@ -12,8 +12,8 @@ def reports(avalanche_data):
     return dt
 
 def duration(avalanche_data):
-    duration = avalanche_data.groupby("avalanche_number").agg({"days" : ["min" , "max"]})
-    duration["duration"] = duration["days"]["max"] - duration["days"]["min"]
+    duration = avalanche_data.groupby("avalanche_number").agg({"day" : ["min" , "max"]})
+    duration["duration"] = duration["day"]["max"] - duration["day"]["min"]
     dt = duration["duration"]
 
     return dt

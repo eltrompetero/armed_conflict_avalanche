@@ -368,7 +368,9 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_r
     conflict_ev = gpd.GeoDataFrame(df[['event_date','longitude','latitude']],
                                    geometry=gpd.points_from_xy(df.longitude, df.latitude),
                                    crs=polygons.crs)
-    conflict_ev['t'] = (conflict_ev['event_date']-conflict_ev['event_date'].min()) // np.timedelta64(dt,'D')
+    conflict_ev['t'] = (conflict_ev['event_date']-conflict_ev['event_date'].min()) // np.timedelta64(dt,'D')  # Time bin
+    conflict_ev["day"] = (conflict_ev["event_date"]-conflict_ev["event_date"].min()).apply(lambda x : x.days)   # nth day
+                                                                                                                # Will be needed later to calculate avalanche duration
     
     # in rare cases a conflict event may exactly fall on polygon's line and therefore it is not "within" any polygon
     nan_finder = gpd.sjoin(conflict_ev, polygons, how='left', op='within')   ## If a conflict event is exactly on top of a polygon line, it gets a nan value
@@ -385,7 +387,7 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_r
 
     conflict_ev.rename(columns={'index_right':'x'}, inplace=True)
 
-    conflict_ev["fatalities"] = df["fatalities"]
+    conflict_ev["fatalities"] = df["fatalities"] # Will be needed later to calculate avalanche fatalities
 
     # no need for polygon neighbors column or raw index
     return conflict_ev.drop(['neighbors','index'], axis=1)

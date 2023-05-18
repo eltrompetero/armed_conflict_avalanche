@@ -373,7 +373,7 @@ def generate_avalanches(conflict_type="battles" , num_threads=cpu_count()):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    gridix_list = range(21,100)
+    gridix_list = range(1,21)
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
 
@@ -576,7 +576,7 @@ def data_used_plot(conflict_type):
     yaxis_label = r"length scale $b$ (km)"
     xaxis_label = r"time scale $a$ (days)"
 
-    for gridix in [5]:
+    for gridix in [3]:
         load_pickle(f"mesoscale_data/data_used_{gridix}_{conflict_type}.p")
 
         z_fine_data , t_range_fine , x_range_fine = z_fine_calulator(data_used,0.75)
@@ -935,7 +935,7 @@ def conflict_zones_figure(time,dx,gridix,conflict_type="battles"):
                 .plot(ax=ax , facecolor=color_tuple)
 
 
-    africa.plot(ax=ax , facecolor="none" , edgecolor="black" , linewidth=6)
+    africa.plot(ax=ax , facecolor="none" , edgecolor="black" , linewidth=3)  # linewidth=6 in paper
     ax.set_extent(set_ax("Full"))
 
     return fig
@@ -1838,6 +1838,9 @@ def conflict_ev_generator(conflict_type="battles" , num_threads=cpu_count()):
     ---------
     conflict_type : str, "battles"
         Choose amongst 'battles', 'VAC', and 'RP'.
+    num_threads : int , multiprocess.cpu_count()
+        Number of threads to use..
+        Reduce the number of threads to reduce the RAM usage.
     
     Returns
     -------
@@ -1850,7 +1853,7 @@ def conflict_ev_generator(conflict_type="battles" , num_threads=cpu_count()):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    gridix_list = range(1,99)
+    gridix_list = range(1,100)
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
 
