@@ -340,8 +340,6 @@ def discretize_conflict_events(dt, dx, gridix=0, conflict_type='battles', year_r
     Merged GeoDataFrame for conflict events of a certain type into the Voronoi
     cells. Time discretized.
 
-    Cached in order to save time for fine grid cells.
-
     Parameters
     ----------
     dt : int
