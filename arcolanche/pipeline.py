@@ -175,7 +175,7 @@ def loglog_fit_err_bars(x, y, fit_params, show_plot=False):
         return (np.np.percentile(r,2.5), np.np.percentile(r,97.5)), (fig,ax)
     return np.np.percentile(r,2.5), np.np.percentile(r,97.5)
 
-def scaling_relations(dtdx=(64,320), gridix=3, n_cpu=None):
+def scaling_relations(dtdx, gridix, conf_df, n_cpu=None):
     """Prepare cache files for power law scaling, dynamical scaling, and exponent
     relations check.
     """
@@ -185,7 +185,7 @@ def scaling_relations(dtdx=(64,320), gridix=3, n_cpu=None):
     from warnings import catch_warnings, simplefilter
     
     # load data
-    conf_df = ACLED2020.battles_df(to_lower=True)
+    # conf_df = ACLED2020.battles_df(to_lower=True)
 
     conflict_type = "battles"
 
