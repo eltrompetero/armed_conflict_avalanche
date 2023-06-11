@@ -187,17 +187,27 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     # load data
     conf_df = ACLED2020.battles_df(to_lower=True)
 
-    ava = Avalanche(*dtdx, gridix=gridix)
+    conflict_type = "battles"
+
+    # ava = Avalanche(*dtdx, gridix=gridix)
+    box_path = f"avalanches/{conflict_type}/gridix_{gridix}/te/te_ava_{str(dtdx[0])}_{str(dtdx[1])}.p"
+    with open(box_path,"rb") as f:
+        ava = pickle.load(f)
+    ava_box = ava["ava_box"]
+    ava_event = ava["ava_event"]
+
+    load_pickle(f"avalanches/{conflict_type}/gridix_{gridix}/te/conflict_ev_{str(dtdx[0])}_{str(dtdx[1])}.p")
+    time_series = conflict_ev[["t","x"]]
 
     # extract scaling variables
-    R = np.array([len(i) for i in ava.avalanches])
-    F = np.array([sum([conf_df['fatalities'].loc[i] for i in a]) for a in ava.avalanches])
-    N = np.array([np.unique(ava.time_series['x'].loc[a]).size for a in ava.avalanches])
+    R = np.array([len(i) for i in ava_event])
+    F = np.array([sum([conf_df['fatalities'].loc[i] for i in a]) for a in ava_event])
+    N = np.array([np.unique(time_series['x'].loc[a]).size for a in ava_event])
     T = np.array([(conf_df['event_date'].loc[a].max()-conf_df['event_date'].loc[a].min()).days
-                   for a in ava.avalanches])
+                   for a in ava_event])
 
     L = []
-    for a in ava.avalanches:
+    for a in ava_event:
         latlon = np.unique(conf_df[['latitude','longitude']].loc[a].values, axis=0)
         if len(latlon)>1:
             L.append(max_geodist_pair(latlon2angle(latlon),
@@ -373,7 +383,7 @@ def generate_avalanches(conflict_type="battles" , num_threads=cpu_count()):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    gridix_list = range(0,100)
+    gridix_list = range(0,1)
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
 
@@ -433,7 +443,7 @@ def actor_similarity_generator(conflict_type):
         return ConflictZones(*args).similarity_score()
     
     print("Calculating actor overlap scores:")
-    for gridix in tqdm.tqdm(range(0,100)):
+    for gridix in tqdm.tqdm(range(0,1)):
         actor_similarity = np.zeros((len(dx_list),len(time_list)))
 
         dxdt = list(product(time_list,dx_list,threshold,[gridix],[conflict_type]))
@@ -497,7 +507,7 @@ def data_used_generator(conflict_type):
         return events_used / len(ACLED_data)
 
     print("Calculating data used percentages:")
-    for gridix in tqdm.tqdm(range(0,100)):
+    for gridix in tqdm.tqdm(range(0,1)):
         dxdt = list(product(time_list,dx_list,[gridix],[conflict_type]))
         
         data_used = np.zeros((len(dx_list),len(time_list)))
@@ -1853,7 +1863,7 @@ def conflict_ev_generator(conflict_type="battles" , num_threads=cpu_count()):
 
     time_list = [1,2,4,8,16,32,64,128,256,512]
     dx_list = [20,28,40,57,80,113,160,226,320,453,640,905,1280]
-    gridix_list = range(0,100)
+    gridix_list = range(0,1)
 
     dx_time_gridix = list(product(dx_list,time_list,gridix_list))
 
