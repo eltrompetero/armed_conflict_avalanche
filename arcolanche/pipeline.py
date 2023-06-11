@@ -175,7 +175,7 @@ def loglog_fit_err_bars(x, y, fit_params, show_plot=False):
         return (np.np.percentile(r,2.5), np.np.percentile(r,97.5)), (fig,ax)
     return np.np.percentile(r,2.5), np.np.percentile(r,97.5)
 
-def scaling_relations(dtdx=(64,320), gridix=3):
+def scaling_relations(dtdx=(64,320), gridix=3, n_cpu=None):
     """Prepare cache files for power law scaling, dynamical scaling, and exponent
     relations check.
     """
@@ -218,11 +218,11 @@ def scaling_relations(dtdx=(64,320), gridix=3):
 
     # fit power laws
     pl_params = {}
-    pl_params['F'] = DiscretePowerLaw.max_likelihood(F[F>1], lower_bound_range=(2, 100))
-    pl_params['R'] = DiscretePowerLaw.max_likelihood(R[R>1], lower_bound_range=(2, 100))
-    pl_params['N'] = DiscretePowerLaw.max_likelihood(N[N>1], lower_bound_range=(2, 100))
-    pl_params['T'] = DiscretePowerLaw.max_likelihood(T[T>1], lower_bound_range=(2, 100))
-    pl_params['L'] = PowerLaw.max_likelihood(L[L>0], lower_bound_range=(1e2, 1e3))
+    pl_params['F'] = DiscretePowerLaw.max_likelihood(F[F>1], lower_bound_range=(2, 100), n_cpus=n_cpu)
+    pl_params['R'] = DiscretePowerLaw.max_likelihood(R[R>1], lower_bound_range=(2, 100), n_cpus=n_cpu)
+    pl_params['N'] = DiscretePowerLaw.max_likelihood(N[N>1], lower_bound_range=(2, 100), n_cpus=n_cpu)
+    pl_params['T'] = DiscretePowerLaw.max_likelihood(T[T>1], lower_bound_range=(2, 100), n_cpus=n_cpu)
+    pl_params['L'] = PowerLaw.max_likelihood(L[L>0], lower_bound_range=(1e2, 1e3), n_cpus=n_cpu)
     
     # fit dynamical scaling exponents
     dyn_params = {}
@@ -252,7 +252,8 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     pval, ks_sample, (alpha, lb) = dpl.clauset_test(F_above, ks,
                                                     lower_bound_range=(2,100), 
                                                     samples_below_cutoff=F_below,
-                                                    return_all=True)
+                                                    return_all=True,
+                                                    n_cpus=n_cpu)
 
     errs['F'] = pval, alpha.std(), (np.percentile(alpha, 5), np.percentile(alpha, 95))
 
@@ -264,7 +265,8 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     pval, ks_sample, (alpha, lb) = dpl.clauset_test(R_above, ks,
                                                     lower_bound_range=(2,100), 
                                                     samples_below_cutoff=R_below,
-                                                    return_all=True)
+                                                    return_all=True,
+                                                    n_cpus=n_cpu)
 
     errs['R'] = pval, alpha.std(), (np.percentile(alpha, 5), np.percentile(alpha, 95))
 
@@ -276,7 +278,8 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     pval, ks_sample, (alpha, lb) = dpl.clauset_test(N_above, ks,
                                                     lower_bound_range=(2,100), 
                                                     samples_below_cutoff=N_below,
-                                                    return_all=True)
+                                                    return_all=True,
+                                                    n_cpus=n_cpu)
 
     errs['N'] = pval, alpha.std(), (np.percentile(alpha, 5), np.percentile(alpha, 95))
 
@@ -288,7 +291,8 @@ def scaling_relations(dtdx=(64,320), gridix=3):
     pval, ks_sample, (alpha, lb) = dpl.clauset_test(T_above, ks,
                                                     lower_bound_range=(2,200), 
                                                     samples_below_cutoff=T_below,
-                                                    return_all=True)
+                                                    return_all=True,
+                                                    n_cpus=n_cpu)
 
     errs['T'] = pval, alpha.std(), (np.percentile(alpha, 5), np.percentile(alpha, 95))
 
@@ -302,7 +306,8 @@ def scaling_relations(dtdx=(64,320), gridix=3):
         pval, ks_sample, (alpha, lb) = dpl.clauset_test(L_above, ks,
                                                         lower_bound_range=(1e2,1e3), 
                                                         samples_below_cutoff=L_below,
-                                                        return_all=True)
+                                                        return_all=True,
+                                                        n_cpus=n_cpu)
 
     errs['L'] = pval, alpha.std(), (np.percentile(alpha, 5), np.percentile(alpha, 95))
     
