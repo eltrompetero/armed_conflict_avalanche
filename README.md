@@ -38,9 +38,10 @@ To run the notebook, please follow these steps:
     ```
     $ conda create --name <ENVIRONMENT NAME> --file specfile_armed_conflict.txt
     ```
-6. Install 'vincenty' using pip in the conda environment since it's unavailable in conda-forge.
+6. Install 'vincenty' and 'mycolorpy' using pip in the conda environment since they are unavailable in conda-forge.
    ```
     $ python3 -m pip install vincenty
+    $ python3 -m pip install mycolorpy
    ```
    
 8. If some packages are missing, it is easiest to install them from the conda-forge channel. For example, if `geopandas` is missing, run the following command:
