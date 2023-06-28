@@ -1,4 +1,4 @@
-# Construction and Analysis of Conflict Avalanches
+# ARmed COnflict avaLANCHEs (arcolanche)
 
 This repository contains code for the construction and analysis of conflict avalanches, including simulation of the model and incorporation of social data.
 
