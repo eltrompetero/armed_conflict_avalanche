@@ -1,53 +1,55 @@
 # ARmed COnflict avaLANCHEs (arcolanche)
 
-Code for construction and analysis of conflict avalanches including simulation of model
-and incorporation of social data.
+This repository contains code for the construction and analysis of conflict avalanches, including simulation of the model and incorporation of social data.
 
-- Cluster module contains routines for generating Voronoi cells and clustering conflict
-events with them.
-- Avalanches module is for simulation of fractal conflict model.
-- pipeline.py contains routines for final analysis.
+## Modules
 
+- **Cluster:** This module contains routines for generating Voronoi cells and clustering conflict events with them.
+- **Avalanches:** The `Avalanches` module is used for the simulation of the fractal conflict model.
+- **pipeline.py:** This file contains routines for the final analysis.
 
-# Installation
-In order to run the notebook, you will need to take several steps.
-1. Install the private repo.
-    ```bash
+## Installation
+
+To run the notebook, please follow these steps:
+
+1. Clone the private repository:
+
+    ```
     $ git clone git@github.com:eltrompetero/armed_conflict_avalanche.git
     ```
-2. Move the current working directory inside the repo.
-    ```bash
+
+2. Move the current working directory inside the repository:
+
+    ```
     $ cd armed_conflict_avalanche
     ```
-3. Install custom repositories into your current working directory.
-    ```bash
+
+3. Install custom repositories into your current working directory:
+
+    ```
     $ git clone https://github.com/eltrompetero/misc.git
     $ git clone https://github.com/eltrompetero/workspace.git
     ```
-2. Install an appropriate Python environment. Best course of action is to create a virtual environment in order to separate this environment from others and to preserve it. I prefer to do this with Anaconda. As a shortcut, a YML file is available in the GitHub repo.
-    ```bash
-    $ conda env create -f arcolanche/arco.yml
-    $ conda activate arco
+
+4. Install the custom repository "Voronoi_globe" as per the instructions given at [https://github.com/eltrompetero/voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
+
+5. Install a custom Anaconda virtual environment using the spec file provided in the repository. To do that, inside the working directory (which contains the spec file), run the following command:
+
     ```
-    If some packages are missing, it is easiest to install them from them the conda-forge channel. For example, if geopandas is missing, one would write
-    ```bash
+    $ conda create --name <ENVIRONMENT NAME> --file specfile_armed_conflict.txt
+    ```
+6. Install 'vincenty' and 'mycolorpy' using pip in the conda environment since they are unavailable in conda-forge.
+   ```
+    $ python3 -m pip install vincenty
+    $ python3 -m pip install mycolorpy
+   ```
+   
+8. If some packages are missing, it is easiest to install them from the conda-forge channel. For example, if `geopandas` is missing, run the following command:
+
+    ```
     $ conda install -n arco -c conda-forge geopandas
     ```
-3. Symlink the necessary data files into the current working directory.
-    ```bash
-    $ ln -s /fastcache/armed_conflict/voronoi_grids voronoi_grids
-    $ ln -s /fastcache/armed_conflict/africa_roads africa_roads
-    $ ln -s /fastcache/armed_conflict/population_af population_af
-    ```
-4. In some code, you must specify the current working directory in the variable `wd` or its analog.
 
+9. Copy the `voronoi_grids` and `data` folders to the working directory. You can download these folders from the Dropbox link.
 
-# Scripts
-- For creating a nested sequence of Voronoi cells with script. Last integer argument is the Voronoi cell index. Existing files are overwritten.
-    ```bash
-    cp scripts/create_poissd.py ./ && python create_poissd.py 0
-    ```
-- For create boundaries around Voronoi cells (after running Poisson disc sampling algorithm)
-    ```bash
-    cp scripts/polygonize_poissd.py ./ && python polygonize_poissd.py
-    ```
+10. In some code, you must specify the current working directory in the variable `wd` or its analog.
