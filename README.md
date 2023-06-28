@@ -38,13 +38,17 @@ To run the notebook, please follow these steps:
     ```
     $ conda create --name <ENVIRONMENT NAME> --file specfile_armed_conflict.txt
     ```
-
-6. If some packages are missing, it is easiest to install them from the conda-forge channel. For example, if `geopandas` is missing, run the following command:
+6. Install 'vincenty' using pip since it's unavailable in conda.
+   ```
+    $ pip install vincenty
+   ```
+   
+8. If some packages are missing, it is easiest to install them from the conda-forge channel. For example, if `geopandas` is missing, run the following command:
 
     ```
     $ conda install -n arco -c conda-forge geopandas
     ```
 
-7. Copy the `voronoi_grids` and `data` folders to the working directory. You can download these folders from the Dropbox link.
+9. Copy the `voronoi_grids` and `data` folders to the working directory. You can download these folders from the Dropbox link.
 
-8. In some code, you must specify the current working directory in the variable `wd` or its analog.
+10. In some code, you must specify the current working directory in the variable `wd` or its analog.
