@@ -22,6 +22,6 @@ import collections
 import itertools
 
 import numpy_indexed
-from pandarallel import pandarallel
+#from pandarallel import pandarallel
 from numba import jit,njit
 
