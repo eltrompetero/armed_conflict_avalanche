@@ -50,7 +50,7 @@ To run the notebook, please follow these steps:
     $ conda install -n <ENVIRONMENT NAME> -c conda-forge geopandas
     ```
 
-9. Copy the `voronoi_grids` and `data` folders to the working directory. You can download these folders from the Dropbox link.
+9. Copy the `voronoi_grids` and `data` folders to the working directory. You can download these folders from the Zenodo link. If you wish to generate new voronoi grids, follow the instructions at [voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
 
 ## Testing the installation
 
