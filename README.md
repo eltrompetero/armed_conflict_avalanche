@@ -58,4 +58,10 @@ To run the notebook, please follow these steps:
     ```
     $ conda activate <ENVIRONMENT NAME>
     ```
-2. Run the `installation_test.ipynb`
+2. Run `installation_test.ipynb` and go through the instructions.
+
+## Reproducing figures used in the paper
+
+1. Inside the working directory, activate the custom conda environment.
+2. Run `paper_pipeline.ipynb` and go through the instructions.
+
