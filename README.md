@@ -52,4 +52,10 @@ To run the notebook, please follow these steps:
 
 9. Copy the `voronoi_grids` and `data` folders to the working directory. You can download these folders from the Dropbox link.
 
-10. In some code, you must specify the current working directory in the variable `wd` or its analog.
+## Testing the installation
+
+1. Inside the working directory, activate the custom conda environment:
+    ```
+    $ conda activate <ENVIRONMENT NAME>
+    ```
+2. Run the `installation_test.ipynb`
