@@ -12,7 +12,7 @@ This repository contains code for the construction and analysis of conflict aval
 
 To run the notebook, please follow these steps:
 
-1. Clone the private repository:
+1. Clone this specific branch of the repository:
 
     ```
     $ git clone --branch PNAS_Nexus_2023 https://github.com/eltrompetero/armed_conflict_avalanche.git
