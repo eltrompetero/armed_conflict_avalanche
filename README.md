@@ -47,7 +47,7 @@ To run the notebook, please follow these steps:
 8. If some packages are missing, it is easiest to install them from the conda-forge channel. For example, if `geopandas` is missing, run the following command:
 
     ```
-    $ conda install -n arco -c conda-forge geopandas
+    $ conda install -n <ENVIRONMENT NAME> -c conda-forge geopandas
     ```
 
 9. Copy the `voronoi_grids` and `data` folders to the working directory. You can download these folders from the Dropbox link.
