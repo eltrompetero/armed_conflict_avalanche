@@ -31,14 +31,14 @@ To run the notebook, please follow these steps:
     $ git clone https://github.com/eltrompetero/workspace.git
     ```
 
-4. Install the custom repository "Voronoi_globe" as per the instructions given at [https://github.com/eltrompetero/voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
+4. Install the custom repository `Voronoi_globe` as per the instructions given at [https://github.com/eltrompetero/voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
 
 5. Install a custom Anaconda virtual environment using the spec file provided in the repository. To do that, inside the working directory (which contains the spec file), run the following command:
 
     ```
     $ conda create --name <ENVIRONMENT NAME> --file specfile_armed_conflict.txt
     ```
-6. Install 'vincenty' and 'mycolorpy' using pip in the conda environment since they are unavailable in conda-forge.
+6. Install `vincenty` and `mycolorpy` using pip in the conda environment since they are unavailable in conda-forge.
    ```
     $ python3 -m pip install vincenty
     $ python3 -m pip install mycolorpy
