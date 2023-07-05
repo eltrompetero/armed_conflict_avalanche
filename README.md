@@ -1,5 +1,7 @@
 # ARmed COnflict avaLANCHEs (arcolanche)
 
+![]([https://github.com/Your_Repository_Name/Your_GIF_Name.gif](https://github.com/eltrompetero/armed_conflict_avalanche/blob/PNAS_Nexus_2023/avalanches_dt32_dx320_gridix3.gif))
+
 This repository contains code for the construction and analysis of conflict avalanches, including simulation of the model and incorporation of social data.
 
 ## Modules
