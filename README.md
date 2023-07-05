@@ -15,7 +15,7 @@ To run the notebook, please follow these steps:
 1. Clone the private repository:
 
     ```
-    $ git clone git@github.com:eltrompetero/armed_conflict_avalanche.git
+    $ git clone --branch PNAS_Nexus_2023 https://github.com/eltrompetero/armed_conflict_avalanche.git
     ```
 
 2. Move the current working directory inside the repository:
