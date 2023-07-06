@@ -8,8 +8,8 @@ This repository contains code for the construction and analysis of conflict aval
 
 ## Modules
 
-- **Cluster:** This module contains routines for generating Voronoi cells and clustering conflict events with them.
-- **Avalanches:** The `Avalanches` module is used for the simulation of the fractal conflict model.
+- **construct.py:** This module is used to construct conflict avalanches.
+- **network.py:** This module is used to construct causal network using transfer entropy.
 - **pipeline.py:** This file contains routines for the final analysis.
 
 ## Installation
