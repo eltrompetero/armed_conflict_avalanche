@@ -18,7 +18,7 @@ assert os.path.isdir(DATADR), DATADR
 # Useful quick data access functions. #
 # =================================== #
 class ACLED2020():
-    fname = (f'{DATADR}/Africa_1997-2022_Sep30.csv')
+    fname = (f'{DATADR}/ACLED_data.csv')
     if os.path.isfile(fname):
         df = pd.read_csv(fname)
         df['EVENT_DATE'] = pd.to_datetime(df['EVENT_DATE'])
