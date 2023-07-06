@@ -54,7 +54,23 @@ To run the notebook, please follow these steps:
     $ conda install -n <ENVIRONMENT NAME> -c conda-forge geopandas
     ```
 
-9. Copy the `voronoi_grids` and `data` folders to the working directory. You can download these folders from [Zenodo](https://doi.org/10.5281/zenodo.8117567). If you wish to generate new voronoi grids, follow the instructions at [voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
+9. Copy the `voronoi_grids` folder to the working directory. You can download this folder from [Zenodo](https://doi.org/10.5281/zenodo.8117567). If you wish to generate new voronoi grids, follow the instructions at [Voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
+
+10. Create a new folder called `data` and add your ACLED dataset to this folder. You can download the ACLED dataset from [here](https://acleddata.com/data-export-tool/). Rename the datafile to `ACLED_data.csv`. We used the following parameters to download the dataset from ACLED (we downloaded the dataset on 30th September 2022): 
+    ```
+    From : 01/01/1997
+    To : 31/12/2019
+    Event Type : All
+    Sub Event : All
+    Actor Type : All
+    Actor : All
+    Region : Eastern Africa, Middle Africa, Northern Africa, Southern Africa, Western Africa
+    Country : All
+    Location : All
+    ```
+You can use these filters to get the same dataset as us or other filters to perform your own analysis.
+
+Note: If you want to use this code to analyse regions other than Africa, you need to first generate voronoi grids for that region (Use [Voronoi_globe](https://github.com/eltrompetero/voronoi_globe)).
 
 ## Testing the installation
 
