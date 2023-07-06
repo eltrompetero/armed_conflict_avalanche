@@ -95,7 +95,7 @@ Note: If you want to use this code to analyse regions other than Africa, you nee
 
 If you have any questions about how to utilize specific features of our Python package or if you would like to suggest improvements to the code, we encourage you to reach out. We value your feedback and are committed to enhancing your experience with our package.
 
-Please feel free to use the discussions section of github for any inquiries or suggestions you may have. We appreciate your contribution to making our package even better.
+Please feel free to use the discussions and issues section of github for any inquiries or suggestions you may have. We appreciate your contribution to making our package even better.
 
 Thank you for using our Python package!
 
