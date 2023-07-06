@@ -68,7 +68,7 @@ To run the notebook, please follow these steps:
     Country : All
     Location : All
     ```
-You can use these filters to get the same dataset as us or other filters to perform your own analysis.
+You can use these filters to get the same dataset as us.
 
 Note: If you want to use this code to analyse regions other than Africa, you need to first generate voronoi grids for that region (Use [Voronoi_globe](https://github.com/eltrompetero/voronoi_globe)).
 
