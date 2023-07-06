@@ -72,6 +72,7 @@ You can use these filters to get the same dataset as us.
 
 Note: If you want to use this code to analyse regions other than Africa, you need to first generate voronoi grids for that region (Use [Voronoi_globe](https://github.com/eltrompetero/voronoi_globe)).
 
+<!--
 ## Testing the installation
 
 1. Inside the working directory, activate the custom conda environment:
@@ -79,9 +80,13 @@ Note: If you want to use this code to analyse regions other than Africa, you nee
     $ conda activate <ENVIRONMENT NAME>
     ```
 2. Run `installation_test.ipynb` and go through the instructions.
+-->
 
 ## Reproducing figures used in the paper
 
 1. Inside the working directory, activate the custom conda environment.
+    ```
+    $ conda activate <ENVIRONMENT NAME>
+    ```
 2. Run `paper_pipeline.ipynb` and go through the instructions.
 
