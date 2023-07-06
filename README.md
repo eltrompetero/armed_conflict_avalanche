@@ -6,7 +6,7 @@
 
 This repository contains code for the construction and analysis of conflict avalanches, including simulation of the model and incorporation of social data.
 
-## Modules
+## Important modules
 
 - **construct.py:** This module is used to construct conflict avalanches.
 - **network.py:** This module is used to construct causal network using transfer entropy.
