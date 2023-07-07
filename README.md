@@ -99,3 +99,10 @@ Please feel free to use the discussions and issues section of github for any inq
 
 Thank you for using our Python package!
 
+## Citation
+
+If you use this Python package for your research, please consider citing the following paper:
+
+```
+Kushwaha, Niraj, and Edward D. Lee. "Discovering the mesoscale for chains of conflict." arXiv preprint arXiv:2212.02652 (2022).
+```
