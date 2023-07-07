@@ -44,6 +44,7 @@ To run the notebook, please follow these steps:
     ```
 6. Install `vincenty` and `mycolorpy` using pip in the conda environment since they are unavailable in conda-forge.
    ```
+    $ conda activate <ENVIRONMENT NAME>
     $ python3 -m pip install vincenty
     $ python3 -m pip install mycolorpy
    ```
