@@ -6,6 +6,13 @@
 
 This repository contains code for the construction and analysis of conflict avalanches, including simulation of the model and incorporation of social data.
 
+If you use this Python package for your research, please consider citing the following paper:
+
+```
+Kushwaha, Niraj, and Edward D. Lee. "Discovering the mesoscale for chains of conflict." arXiv preprint arXiv:2212.02652 (2022).
+```
+
+
 ## Important modules
 
 - **construct.py:** This module is used to construct conflict avalanches.
@@ -99,11 +106,3 @@ If you have any questions about how to utilize specific features of our Python p
 Please feel free to use the discussions and issues section of github for any inquiries or suggestions you may have. We appreciate your contribution to making our package even better.
 
 Thank you for using our Python package!
-
-## Citation
-
-If you use this Python package for your research, please consider citing the following paper:
-
-```
-Kushwaha, Niraj, and Edward D. Lee. "Discovering the mesoscale for chains of conflict." arXiv preprint arXiv:2212.02652 (2022).
-```
