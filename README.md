@@ -64,7 +64,7 @@ To run the notebook, please follow these steps:
 
 9. Copy the `voronoi_grids` folder to the working directory. You can download this folder from [Zenodo](https://doi.org/10.5281/zenodo.8117567). If you wish to generate new voronoi grids, follow the instructions at [Voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
 
-10. Create a new folder called `data` and add your ACLED dataset to this folder. You can download a filtered version of the ACLED dataset that we used in our analysis from [here](https://doi.org/10.5281/zenodo.8117567). If you wish to download the full version please download it from [ACLED](https://acleddata.com/data-export-tool/). Make sure that the datafile is named as `ACLED_data.csv`. We used the following parameters to download the dataset from ACLED (we downloaded the dataset on 30th September 2022): 
+10. Create a new folder called `data` and add your ACLED dataset to this folder. You can download a filtered version (only necessary information corresponding to each conflict event is kept) of the ACLED dataset that we used in our analysis from [here](https://doi.org/10.5281/zenodo.8117567). If you wish to download the full version please download it from [ACLED](https://acleddata.com/data-export-tool/). Make sure that the datafile is named as `ACLED_data.csv`. We used the following parameters to download the dataset from ACLED (we downloaded the dataset on 30th September 2022): 
     ```
     From : 01/01/1997
     To : 31/12/2019
