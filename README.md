@@ -6,7 +6,7 @@
 
 This repository contains code for the construction and analysis of conflict avalanches, including simulation of the model and incorporation of social data.
 
-If you use this Python package for your research, please consider citing the following paper:
+If you use this Python package for your research, please cite the following paper:
 
 ```
 Kushwaha, Niraj, and Edward D. Lee. "Discovering the mesoscale for chains of conflict." arXiv preprint arXiv:2212.02652 (2022).
