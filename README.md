@@ -23,15 +23,10 @@ Kushwaha, Niraj, and Edward D. Lee. "Discovering the mesoscale for chains of con
 
 To run the notebook, please follow these steps:
 
-1. Clone this specific branch of the repository:
+1. Clone this specific branch of the repository and move inside the repository which will be our working directory:
 
     ```
     $ git clone --branch PNAS_Nexus_2023 https://github.com/eltrompetero/armed_conflict_avalanche.git
-    ```
-
-2. Move inside the repository which will be our working directory:
-
-    ```
     $ cd armed_conflict_avalanche
     ```
 
@@ -42,13 +37,14 @@ To run the notebook, please follow these steps:
     $ git clone https://github.com/eltrompetero/workspace.git
     ```
 
-4. Install the custom repository `Voronoi_globe` as per the instructions given at [https://github.com/eltrompetero/voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
+4. Install the custom repository `Voronoi_globe` as per the instructions given [here](https://github.com/eltrompetero/voronoi_globe).
 
 5. Install a custom Anaconda virtual environment using the spec file provided in the repository. To do that, inside the working directory (which contains the spec file), run the following command:
 
     ```
     $ conda create --name <ENVIRONMENT NAME> --file specfile_armed_conflict.txt
     ```
+    
 6. Install `vincenty` and `mycolorpy` using pip in the conda environment since they are unavailable in conda-forge.
    ```
     $ conda activate <ENVIRONMENT NAME>
@@ -56,13 +52,13 @@ To run the notebook, please follow these steps:
     $ python3 -m pip install mycolorpy
    ```
    
-7. If some packages are missing, it is easiest to install them from the conda-forge channel. For example, if `geopandas` is missing, run the following command:
+If some packages are missing, it is easiest to install them from the conda-forge channel. For example, if `geopandas` is missing, run the following command:
 
-    ```
+  ```
     $ conda install -n <ENVIRONMENT NAME> -c conda-forge geopandas
-    ```
+  ```
 
-8. Copy the `voronoi_grids` folder to the working directory. You can download this folder from [Zenodo](https://doi.org/10.5281/zenodo.8117567). If you wish to generate new voronoi grids, follow the instructions at [Voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
+8. Copy the `voronoi_grids` and `avalanches` folder to the working directory. You can download these folder from [Zenodo](https://doi.org/10.5281/zenodo.8117567). If you wish to generate new voronoi grids, follow the instructions at [Voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
 
 9. Create a new folder called `data` and add your ACLED dataset to this folder. You can download a filtered version (only necessary information corresponding to each conflict event is kept) of the ACLED dataset that we used in our analysis from [here](https://doi.org/10.5281/zenodo.8117567). If you wish to download the full version please download it from [ACLED](https://acleddata.com/data-export-tool/). Make sure that the datafile is renamed as `ACLED_data.csv`. We used the following parameters to download the dataset from ACLED (we downloaded the dataset on 30th September 2022): 
     ```
