@@ -30,37 +30,35 @@ To run the notebook, please follow these steps:
     $ cd armed_conflict_avalanche
     ```
 
-3. Install custom repositories into your current working directory:
+2. Install custom repositories into your current working directory:
 
     ```
     $ git clone https://github.com/eltrompetero/misc.git
     $ git clone https://github.com/eltrompetero/workspace.git
     ```
 
-4. Install the custom repository `Voronoi_globe` as per the instructions given [here](https://github.com/eltrompetero/voronoi_globe).
+3. Install the custom repository `Voronoi_globe` as per the instructions given [here](https://github.com/eltrompetero/voronoi_globe).
 
-5. Install a custom Anaconda virtual environment using the spec file provided in the repository. To do that, inside the working directory (which contains the spec file), run the following command:
+4. Install a custom Anaconda virtual environment using the spec file provided in the repository. To do that, inside the working directory (which contains the spec file), run the following command:
 
     ```
     $ conda create --name <ENVIRONMENT NAME> --file specfile_armed_conflict.txt
     ```
     
-6. Install `vincenty` and `mycolorpy` using pip in the conda environment since they are unavailable in conda-forge.
+5. Install `vincenty` and `mycolorpy` using pip in the conda environment since they are unavailable in conda-forge.
    ```
     $ conda activate <ENVIRONMENT NAME>
     $ python3 -m pip install vincenty
     $ python3 -m pip install mycolorpy
    ```
-   
-If some packages are missing, it is easiest to install them from the conda-forge channel. For example, if `geopandas` is missing, run the following command:
-
-  ```
+   If some packages are missing, it is easiest to install them from the conda-forge channel. For example, if `geopandas` is missing, run the       following command:
+     ```
     $ conda install -n <ENVIRONMENT NAME> -c conda-forge geopandas
-  ```
+      ```
+  
+7. Copy the `voronoi_grids` and `avalanches` folder to the working directory. You can download these folder from [Zenodo](https://doi.org/10.5281/zenodo.8117567). If you wish to generate new voronoi grids, follow the instructions at [Voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
 
-8. Copy the `voronoi_grids` and `avalanches` folder to the working directory. You can download these folder from [Zenodo](https://doi.org/10.5281/zenodo.8117567). If you wish to generate new voronoi grids, follow the instructions at [Voronoi_globe](https://github.com/eltrompetero/voronoi_globe).
-
-9. Create a new folder called `data` and add your ACLED dataset to this folder. You can download a filtered version (only necessary information corresponding to each conflict event is kept) of the ACLED dataset that we used in our analysis from [here](https://doi.org/10.5281/zenodo.8117567). If you wish to download the full version please download it from [ACLED](https://acleddata.com/data-export-tool/). Make sure that the datafile is renamed as `ACLED_data.csv`. We used the following parameters to download the dataset from ACLED (we downloaded the dataset on 30th September 2022): 
+8. Create a new folder called `data` and add your ACLED dataset to this folder. You can download a filtered version (only necessary information corresponding to each conflict event is kept) of the ACLED dataset that we used in our analysis from [here](https://doi.org/10.5281/zenodo.8117567). If you wish to download the full version please download it from [ACLED](https://acleddata.com/data-export-tool/). Make sure that the datafile is renamed as `ACLED_data.csv`. We used the following parameters to download the dataset from ACLED (we downloaded the dataset on 30th September 2022): 
     ```
     From : 01/01/1997
     To : 31/12/2019
