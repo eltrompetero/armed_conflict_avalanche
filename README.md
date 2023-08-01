@@ -9,7 +9,7 @@ This repository contains code for the construction and analysis of conflict aval
 If you use this Python package for your research, please cite the following paper:
 
 ```
-Kushwaha, Niraj, and Edward D. Lee. "Discovering the mesoscale for chains of conflict." arXiv preprint arXiv:2212.02652 (2022).
+Kushwaha, N., & Lee, E. D. (2023). Discovering the mesoscale for chains of conflict. PNAS Nexus, 2(7). https://doi.org/10.1093/pnasnexus/pgad228
 ```
 
 
